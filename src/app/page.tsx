@@ -160,6 +160,9 @@ function PumpCard({
    MAIN PAGE COMPONENT
    ═══════════════════════════════════════════════════════════════ */
 export default function DashboardPage() {
+  /* ── client-side gate (prevents hydration mismatch / white screen) ── */
+  const [isClient, setIsClient] = useState(false);
+
   /* ── state ── */
   const [data, setData] = useState<DataPoint[]>(() => generateInitialData());
   const [pump1, setPump1] = useState<PumpState>({ on: false, mode: "auto" });
@@ -168,6 +171,11 @@ export default function DashboardPage() {
   const [toggles, setToggles] = useState<boolean[]>([false, false, false]);
   const [clock, setClock] = useState<string>("");
   const dataRef = useRef<DataPoint[]>([]);
+
+  /* ── mark client-side ── */
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   /* ── initialise ── */
   useEffect(() => {
@@ -256,24 +264,28 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, []);
 
-  
-/* ── tooltip formatter ── */
-// วางไว้ตรงนี้ (ประมาณบรรทัด 260)
-const formatTooltip = (value: any): [string, string] => {
-  const num = typeof value === "number" ? value : Number(value);
-  return [`${num.toFixed(2)} m`, "Water Level"];
-};
+  /* ── tooltip formatter ── */
+  const formatTooltip = (
+    value: string | number | (string | number)[]
+  ): [string, string] => {
+    if (value == null) return ["N/A", "Water Level"];
+    const num = typeof value === "number" ? value : Number(value);
+    return [`${num.toFixed(2)} m`, "Water Level"] as [string, string];
+  };
 
-return (
-  <>
-    <Tooltip formatter={formatTooltip} />
-    {/* วาง ReferenceLine ของนายต่อลงมาได้เลยในนี้ */}
-    <ReferenceLine y={1} stroke="#22c55e" strokeDasharray="6 3" />
-    <ReferenceLine y={3} stroke="#eab308" strokeDasharray="6 3" />
-    <ReferenceLine y={5} stroke="#f97316" strokeDasharray="6 3" />
-    <ReferenceLine y={7} stroke="#ef4444" strokeDasharray="6 3" />
-  </>
-);
+  /* ═══════════════ LOADING STATE ═══════════════ */
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-gray-500 font-medium">
+            Loading Dashboard…
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   /* ═══════════════ RENDER ═══════════════ */
   return (
@@ -476,7 +488,7 @@ return (
                     axisLine={{ stroke: "#d1d5db" }}
                     unit="m"
                   />
-                 <Tooltip formatter={formatTooltip} />
+                  <Tooltip formatter={formatTooltip} />
                   <ReferenceLine
                     y={1}
                     stroke="#22c55e"
