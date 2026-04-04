@@ -265,13 +265,10 @@ export default function DashboardPage() {
   }, []);
 
   /* ── tooltip formatter ── */
-  const formatTooltip = (
-    value: string | number | (string | number)[]
-  ): [string, string] => {
-    if (value == null) return ["N/A", "Water Level"];
-    const num = typeof value === "number" ? value : Number(value);
-    return [`${num.toFixed(2)} m`, "Water Level"] as [string, string];
-  };
+   const formatTooltip = (value: any, name: any): any => {
+  const num = typeof value === "number" ? value : Number(value);
+  return [`${num.toFixed(2)} m`, "Water Level"];
+};
 
   /* ═══════════════ LOADING STATE ═══════════════ */
   if (!isClient) {
@@ -488,7 +485,9 @@ export default function DashboardPage() {
                     axisLine={{ stroke: "#d1d5db" }}
                     unit="m"
                   />
+
                   <Tooltip formatter={formatTooltip} />
+                  
                   <ReferenceLine
                     y={1}
                     stroke="#22c55e"
