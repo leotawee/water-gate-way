@@ -1,5 +1,6 @@
 "use client";
 
+import Go2RTCPlayer from "@/components/Go2RTCPlayer";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   LineChart,
@@ -10,6 +11,7 @@ import {
   Tooltip,
   ReferenceLine,
   ResponsiveContainer,
+  type TooltipValueType,
 } from "recharts";
 import {
   Fan,
@@ -265,10 +267,14 @@ export default function DashboardPage() {
   }, []);
 
   /* ── tooltip formatter ── */
-   const formatTooltip = (value: any, name: any): any => {
-  const num = typeof value === "number" ? value : Number(value);
-  return [`${num.toFixed(2)} m`, "Water Level"];
-};
+  const formatTooltip = (
+    value: TooltipValueType | undefined,
+    _name: number | string | undefined
+  ): [string, string] => {
+    const raw = Array.isArray(value) ? value[0] : value;
+    const num = typeof raw === "number" ? raw : Number(raw ?? 0);
+    return [`${num.toFixed(2)} m`, "Water Level"];
+  };
 
   /* ═══════════════ LOADING STATE ═══════════════ */
   if (!isClient) {
@@ -286,6 +292,7 @@ export default function DashboardPage() {
 
   /* ═══════════════ RENDER ═══════════════ */
   return (
+    
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* ─────────── HEADER ─────────── */}
       <header className="bg-yellow-400 shadow-md">
@@ -314,40 +321,26 @@ export default function DashboardPage() {
           </div>
         </div>
       </header>
-
+    {/* ── SECTION: Camera Monitors (go2rtc WebRTC P2P) ── */}
+    <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {[
+        { src: "office1", label: "Office-1" },
+        { src: "office2", label: "Office-2" },
+        { src: "office3", label: "Office-3" },
+      ].map(({ src, label }) => (
+        <div
+          key={src}
+          id={`camera-stream-${src}`}
+          className="aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-800 bg-black"
+        >
+          <Go2RTCPlayer streamName={src} label={label} />
+        </div>
+      ))}
+    </section>
       {/* ─────────── MAIN CONTENT ─────────── */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* ── SECTION: Video Monitors ── */}
-        <section id="video-monitors">
-          <div className="flex items-center gap-2 mb-3">
-            <Monitor className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg font-bold text-gray-800">Video Monitors</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[1, 2, 3].map((cam) => (
-              <div
-                key={cam}
-                id={`video-cam-${cam}`}
-                className="relative aspect-video bg-blue-400 rounded-2xl overflow-hidden shadow-lg group cursor-pointer"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-blue-800/40" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-                  <Monitor className="w-10 h-10 mb-2 opacity-70 group-hover:opacity-100 transition-opacity" />
-                  <span className="text-sm font-bold tracking-wide opacity-80">
-                    CAM {cam}
-                  </span>
-                  <span className="text-xs opacity-60 mt-1">Live Feed</span>
-                </div>
-                <div className="absolute top-3 right-3">
-                  <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        
 
         {/* ── SECTION: Selectors & 3-Phase Electric ── */}
         <section
