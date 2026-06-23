@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STM32 Water Control Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      padding: 20px;
+    }
+    h1 { text-align: center; color: #00d4aa; margin-bottom: 10px; }
+    .status {
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+    .status.connected { background: #0f3460; color: #00d4aa; }
+    .status.disconnected { background: #533483; color: #ff6b6b; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 15px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #0f3460;
+    }
+    .card h2 {
+      color: #00d4aa;
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #fff;
+    }
+    .unit { font-size: 0.9rem; color: #888; }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    button {
+      flex: 1;
+      min-width: 80px;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-on {
+      background: #00d4aa;
+      color: #1a1a2e;
+    }
+    .btn-on:hover { background: #00ffaa; }
+    .btn-off {
+      background: #e94560;
+      color: #fff;
+    }
+    .btn-off:hover { background: #ff6b6b; }
+    .log {
+      background: #0f3460;
+      border-radius: 8px;
+      padding: 10px;
+      height: 150px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.85rem;
+      margin-top: 10px;
+    }
+    .log-entry { margin: 2px 0; }
+    .log-entry.tx { color: #00d4aa; }
+    .log-entry.rx { color: #ffd700; }
+  </style>
+</head>
+<body>
+
+  <h1>💧 STM32 Water Control</h1>
+  <div id="connStatus" class="status disconnected">🔌 กำลังเชื่อมต่อ MQTT...</div>
+
+  <div class="grid">
+    <!-- เซ็นเซอร์ PZEM -->
+    <div class="card">
+      <h2>⚡ ไฟฟ้า (PZEM)</h2>
+      <div class="value"><span id="v">--</span> <span class="unit">V</span></div>
+      <div class="value"><span id="i">--</span> <span class="unit">A</span></div>
+      <div class="value"><span id="freq">--</span> <span class="unit">Hz</span></div>
+    </div>
+
+    <!-- เซ็นเซอร์ Radar -->
+    <div class="card">
+      <h2>📡 ระดับน้ำ (Radar)</h2>
+      <div class="value"><span id="liquid">--</span> <span class="unit">m</span></div>
+      <div class="value"><span id="air">--</span> <span class="unit">m</span></div>
+    </div>
+
+    <!-- สถานะ Float -->
+    <div class="card">
+      <h2>🌊 Float Switch</h2>
+      <div class="value" id="float">--</div>
+    </div>
+
+    <!-- สถานะ WireBreak -->
+    <div class="card">
+      <h2>🔌 Wire Break</h2>
+      <div class="value" id="wirebreak">--</div>
+    </div>
+
+    <!-- ควบคุมปั๊ม -->
+    <div class="card">
+      <h2>🔧 ควบคุมปั๊ม</h2>
+      <div class="btn-group">
+        <button class="btn-on" onclick="sendCmd('P1')">P1 ON</button>
+        <button class="btn-off" onclick="sendCmd('P0')">P0 OFF</button>
+      </div>
+      <div style="margin-top:10px; font-size:0.9rem; color:#888;">
+        สถานะปั๊ม: <span id="pump">--</span>
+      </div>
+    </div>
+
+    <!-- ควบคุม Alarm -->
+    <div class="card">
+      <h2>🚨 Alarm & AI</h2>
+      <div class="btn-group">
+        <button class="btn-on" onclick="sendCmd('A1')">A1 ON</button>
+        <button class="btn-off" onclick="sendCmd('A0')">A0 OFF</button>
+      </div>
+      <div style="margin-top:10px; font-size:0.9rem;">
+        Alarm: <span id="alarm">--</span> | AI Detect: <span id="ai">--</span>
+      </div>
+    </div>
+
+    <!-- ควบคุมอื่นๆ -->
+    <div class="card">
+      <h2>🎮 คำสั่งอื่นๆ</h2>
+      <div class="btn-group">
+        <button class="btn-on" onclick="sendCmd('L1')">L1 ON</button>
+        <button class="btn-off" onclick="sendCmd('L0')">L0 OFF</button>
+        <button class="btn-on" onclick="sendCmd('R1')">R1 ON</button>
+        <button class="btn-off" onclick="sendCmd('R0')">R0 OFF</button>
+        <button class="btn-on" onclick="sendCmd('Q1')">Q1 ON</button>
+        <button class="btn-off" onclick="sendCmd('Q0')">Q0 OFF</button>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>📋 Log</h2>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <!-- MQTT.js CDN -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script>
+    // ==================== CONFIG ====================
+    const BROKER = "ws://178.128.49.254:9001";
+    const TOPIC_CMD    = "stm32/cmd";
+    const TOPIC_STATUS = "stm32/status/all";
+
+    // ==================== CONNECT ====================
+    const client = mqtt.connect(BROKER, {
+      reconnectPeriod: 5000,
+      connectTimeout: 30 * 1000,
+    });
+
+    client.on('connect', function () {
+      updateStatus(true, "✅ เชื่อมต่อ MQTT สำเร็จ");
+      client.subscribe(TOPIC_STATUS);
+      log("📡 Subscribed to " + TOPIC_STATUS, "rx");
+    });
+
+    client.on('disconnect', function () {
+      updateStatus(false, "🔌 ขาดการเชื่อมต่อ");
+    });
+
+    client.on('error', function (err) {
+      updateStatus(false, "❌ Error: " + err.message);
+    });
+
+    // ==================== RECEIVE ====================
+    client.on('message', function (topic, message) {
+      try {
+        const data = JSON.parse(message.toString());
+        updateDashboard(data);
+        log("📥 " + topic + ": " + message.toString().substring(0, 80) + "...", "rx");
+      } catch (e) {
+        log("⚠️ Parse error: " + message, "rx");
+      }
+    });
+
+    // ==================== SEND COMMAND ====================
+    function sendCmd(cmd) {
+      client.publish(TOPIC_CMD, cmd, { qos: 1 });
+      log("📤 Sent: " + cmd, "tx");
+    }
+
+    // ==================== UPDATE UI ====================
+    function updateDashboard(data) {
+      if (data.pzem) {
+        document.getElementById('v').textContent = data.pzem.v?.toFixed(1) ?? '--';
+        document.getElementById('i').textContent = data.pzem.i?.toFixed(2) ?? '--';
+        document.getElementById('freq').textContent = data.pzem.freq?.toFixed(2) ?? '--';
+      }
+      if (data.radar) {
+        document.getElementById('liquid').textContent = data.radar.liquid?.toFixed(3) ?? '--';
+        document.getElementById('air').textContent = data.radar.air?.toFixed(3) ?? '--';
+      }
+      if (data.float) {
+        const f = data.float;
+        document.getElementById('float').textContent = `F1:${f.f1} F2:${f.f2} F3:${f.f3}`;
+      }
+      if (data.wirebreak) {
+        const w = data.wirebreak;
+        document.getElementById('wirebreak').textContent = `WB1:${w.wb1} WB2:${w.wb2}`;
+      }
+      if (data.pump) {
+        const p = data.pump;
+        document.getElementById('pump').textContent = `PC0:${p.pc0} PC1:${p.pc1} PC2:${p.pc2} PC3:${p.pc3}`;
+      }
+      if (data.alarm) {
+        document.getElementById('alarm').textContent = data.alarm.alarm ? "ON 🚨" : "OFF";
+        document.getElementById('ai').textContent = data.alarm.ai ? "DETECTED 👤" : "CLEAR";
+      }
+    }
+
+    function updateStatus(connected, text) {
+      const el = document.getElementById('connStatus');
+      el.textContent = text;
+      el.className = 'status ' + (connected ? 'connected' : 'disconnected');
+    }
+
+    function log(text, type) {
+      const el = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+      entry.textContent = new Date().toLocaleTimeString() + " " + text;
+      el.appendChild(entry);
+      el.scrollTop = el.scrollHeight;
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Firmware UI Preview — ESP32-S3 HMI Water Gate</title>
+    <style>
+        /* ═══════════════════════════════════════════
+           COLOR PALETTE — from hw_config.h / ui_app.h
+           Exact match with LVGL firmware constants
+           ═══════════════════════════════════════════ */
+        :root {
+            --bg-screen:   #0F0F23;   /* CLR_BG_SCREEN    */
+            --bg-panel:    #1A1A2E;   /* CLR_BG_PANEL     */
+            --bg-inner:    #1A1A3E;   /* CLR_BG_INNER     */
+            --bg-bar:      #0A0A1A;   /* CLR_BG_BAR_TRACK */
+            --border:      #2A2A4A;   /* CLR_BORDER       */
+            --accent:      #00BCD4;   /* CLR_ACCENT       */
+            --orange:      #FF9800;   /* CLR_ORANGE       */
+            --green:       #4CAF50;   /* CLR_GREEN        */
+            --green-bg:    #1B5E20;   /* CLR_GREEN_BG     */
+            --red:         #F44336;   /* CLR_RED          */
+            --gray:        #9E9E9E;   /* CLR_GRAY         */
+            --gray-bg:     #424242;   /* CLR_GRAY_BG      */
+            --bar-start:   #0066CC;   /* CLR_BAR_START    */
+            --text-dim:    #666666;   /* CLR_TEXT_DIM      */
+            --text-label:  #888888;   /* CLR_TEXT_LABEL   */
+            --text-white:  #FFFFFF;
+            --menu-grad:   #252550;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            background: #0a0a15;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ── Info Banner ── */
+        .info-banner {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,188,212,0.1);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 6px 16px;
+            color: var(--accent);
+            font-size: 11px;
+            font-family: monospace;
+            z-index: 100;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        /* ═══════════════════════════════════════════
+           DEVICE FRAME — 480×320 Landscape (exact)
+           ═══════════════════════════════════════════ */
+        .device-frame {
+            width: 480px;
+            height: 320px;
+            background: var(--bg-screen);
+            border-radius: 12px;
+            border: 4px solid var(--border);
+            box-shadow:
+                0 0 40px rgba(0, 188, 212, 0.15),
+                inset 0 0 20px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ═══════════════════════════════════════════
+           SCREEN BASE
+           ═══════════════════════════════════════════ */
+        .screen {
+            position: absolute;
+            inset: 0;
+            padding: 10px 14px;
+            display: none;
+            flex-direction: column;
+            transition: opacity 0.3s ease;
+        }
+        .screen.active {
+            display: flex;
+        }
+
+        /* ═══════════════════════════════════════════
+           SHARED COMPONENTS
+           ═══════════════════════════════════════════ */
+
+        /* ── Header ── */
+        .header {
+            display: flex;
+            align-items: center;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 8px;
+            gap: 6px;
+        }
+        .header h1 {
+            font-size: 14px;
+            color: var(--accent);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .header .spacer { flex: 1; }
+        .header .icon-btn {
+            width: 28px;
+            height: 28px;
+            background: var(--border);
+            border: none;
+            border-radius: 6px;
+            color: var(--accent);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .header .icon-btn:active { background: var(--accent); color: var(--bg-screen); }
+
+        /* ── Mode Badge ── */
+        .mode-badge {
+            background: var(--orange);
+            color: var(--bg-screen);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 10px;
+            letter-spacing: 1px;
+        }
+
+        /* ── Panel ── */
+        .panel {
+            background: var(--bg-inner);
+            border-radius: 10px;
+            padding: 8px;
+        }
+
+        /* ═══════════════════════════════════════════
+           MAIN SCREEN — 3 Columns
+           ═══════════════════════════════════════════ */
+        .main-content {
+            flex: 1;
+            display: flex;
+            gap: 10px;
+            min-height: 0;
+        }
+
+        /* ── Column 1: Water Level Bar ── */
+        .col-bar {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .bar-wrapper {
+            width: 124px;      /* 54px bar + 70px for labels */
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+        }
+        .bar-track {
+            width: 54px;
+            height: 100%;
+            background: var(--bg-bar);
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .bar-fill {
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%;
+            height: 62%;
+            background: linear-gradient(to top, var(--bar-start), var(--accent));
+            border-radius: 0 0 6px 6px;
+            transition: height 0.6s ease;
+        }
+        .bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 14px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.25), transparent);
+        }
+
+        /* Threshold markers */
+        .thr-mark {
+            position: absolute;
+            left: 0; right: 0;
+            height: 1px;
+            display: flex;
+            align-items: center;
+            pointer-events: none;
+        }
+        .thr-mark::before {
+            content: '';
+            flex-shrink: 0;
+            width: 54px;
+            height: 1px;
+            background: var(--orange);
+        }
+        .thr-mark span {
+            font-size: 9px;
+            color: var(--orange);
+            font-weight: 500;
+            margin-left: 4px;
+            white-space: nowrap;
+        }
+        .thr-lv3 { bottom: 72%; }
+        .thr-lv2 { bottom: 50%; }
+        .thr-lv1 { bottom: 28%; }
+
+        /* ── Column 2: Pump Status ── */
+        .col-pump {
+            width: 90px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .pump-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .pump-box .label {
+            font-size: 10px;
+            color: var(--text-label);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .pump-box .status {
+            font-size: 13px;
+            font-weight: bold;
+            padding: 3px 12px;
+            border-radius: 4px;
+        }
+        .status-run  { background: var(--green-bg); color: var(--green); }
+        .status-stop { background: var(--gray-bg);  color: var(--gray); }
+
+        /* ── Column 3: Info Panel ── */
+        .col-info {
+            width: 130px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .info-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 2px;
+        }
+        .info-label {
+            font-size: 9px;
+            color: var(--text-label);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .info-value {
+            font-size: 22px;
+            color: var(--accent);
+            font-weight: bold;
+            line-height: 1.1;
+        }
+        .info-value.small { font-size: 18px; }
+        .info-unit {
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+
+        /* ═══════════════════════════════════════════
+           BOTTOM NAVIGATION
+           ═══════════════════════════════════════════ */
+        .bottom-nav {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .nav-btn {
+            flex: 1;
+            height: 36px;
+            background: var(--border);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            color: var(--accent);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .nav-btn.active {
+            background: var(--accent);
+            color: var(--bg-screen);
+        }
+        .nav-btn:active { opacity: 0.8; }
+
+        /* ═══════════════════════════════════════════
+           SETTINGS SCREEN — Menu + Sub-pages
+           ═══════════════════════════════════════════ */
+
+        /* Settings Menu */
+        .settings-menu-grid {
+            flex: 1;
+            display: flex;
+            gap: 12px;
+            padding: 4px 0;
+        }
+        .menu-card {
+            flex: 1;
+            background: linear-gradient(135deg, var(--bg-inner) 0%, var(--menu-grad) 100%);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 16px 12px;
+            color: var(--text-white);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .menu-card:first-child::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--accent);
+            border-radius: 14px 14px 0 0;
+        }
+        .menu-card:last-child::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--orange);
+            border-radius: 14px 14px 0 0;
+        }
+        .menu-card:active { border-color: var(--accent); transform: scale(0.98); }
+        .menu-card .menu-icon { font-size: 28px; }
+        .menu-card .menu-title {
+            font-weight: 700;
+            font-size: 13px;
+        }
+        .menu-card .menu-desc {
+            font-size: 10px;
+            color: var(--text-label);
+            margin-top: 2px;
+        }
+
+        /* ── Sub-pages ── */
+        .sub-page {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+        .sub-page.active {
+            display: flex;
+        }
+
+        /* ── Stepper Row ── */
+        .setup-list {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+        }
+        .setup-row {
+            background: var(--bg-inner);
+            border-radius: 10px;
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .setup-row .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .setup-row .row-label {
+            font-size: 13px;
+            color: var(--text-label);
+            white-space: nowrap;
+            min-width: 90px;
+        }
+        .stepper {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+        }
+        .stepper-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: none;
+            background: var(--border);
+            color: var(--accent);
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+            flex-shrink: 0;
+        }
+        .stepper-btn:active { background: var(--accent); color: var(--bg-screen); }
+        .stepper-btn.hidden { visibility: hidden; }
+        .stepper-value {
+            width: 64px;
+            text-align: center;
+            background: var(--bg-bar);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 4px;
+            color: var(--accent);
+            font-size: 16px;
+            font-weight: 600;
+            font-family: 'Segoe UI', monospace;
+        }
+        .stepper-value.readonly { color: var(--text-dim); }
+        .stepper-unit {
+            font-size: 13px;
+            color: var(--text-dim);
+            width: 18px;
+        }
+        .dot-cyan   { background: var(--accent); }
+        .dot-green  { background: var(--green); }
+        .dot-orange { background: var(--orange); }
+        .dot-red    { background: var(--red); }
+
+        /* ── Threshold Layout ── */
+        .threshold-layout {
+            flex: 1;
+            display: flex;
+            gap: 12px;
+            min-height: 0;
+        }
+        .threshold-visual {
+            width: 70px;
+            background: var(--bg-inner);
+            border-radius: 10px;
+            padding: 8px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .mini-bar {
+            width: 40px;
+            height: 100%;
+            background: var(--bg-bar);
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+        .mini-fill {
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%;
+            height: 62%;
+            background: linear-gradient(to top, var(--bar-start), var(--accent));
+            border-radius: 0 0 6px 6px;
+        }
+        .mini-thr {
+            position: absolute;
+            left: 0; right: 0;
+            height: 2px;
+        }
+        .mini-lv1 { bottom: 40%; background: var(--green); }
+        .mini-lv2 { bottom: 60%; background: var(--orange); }
+        .mini-lv3 { bottom: 80%; background: var(--red); }
+
+        .threshold-form {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* ── Button Group ── */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 6px;
+        }
+        .btn {
+            flex: 1;
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .btn:active { opacity: 0.8; }
+        .btn-primary   { background: var(--accent); color: var(--bg-screen); }
+        .btn-secondary { background: var(--border); color: var(--gray); }
+
+        /* ═══════════════════════════════════════════
+           SIMULATION OVERLAY
+           ═══════════════════════════════════════════ */
+        .sim-controls {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+        }
+        .sim-btn {
+            background: rgba(0,188,212,0.15);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            color: var(--accent);
+            font-size: 11px;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        .sim-btn:hover { background: rgba(0,188,212,0.3); }
+        .sim-btn.active-sim { background: var(--accent); color: var(--bg-screen); }
+
+        /* UART Log */
+        .uart-log {
+            position: fixed;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15,15,35,0.95);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: var(--green);
+            font-family: monospace;
+            font-size: 11px;
+            max-width: 480px;
+            width: 100%;
+            max-height: 120px;
+            overflow-y: auto;
+            display: none;
+            z-index: 99;
+        }
+        .uart-log.visible { display: block; }
+        .uart-log .line { margin: 2px 0; }
+        .uart-log .line.tx { color: var(--orange); }
+        .uart-log .line.rx { color: var(--green); }
+    </style>
+</head>
+<body>
+
+<div class="info-banner">
+    Firmware UI Preview — ESP32-S3 HMI Water Gate Controller (C++ → HTML mirror)
+</div>
+
+<div class="device-frame">
+
+    <!-- ══════════════════════════════════════════════
+         SCREEN 1: MAIN DASHBOARD
+         ══════════════════════════════════════════════ -->
+    <div class="screen active" id="mainScreen">
+
+        <!-- Header -->
+        <div class="header">
+            <h1>⚡ WATER GATE 1</h1>
+            <div class="spacer"></div>
+            <span class="mode-badge" id="modeBadge">AUTO</span>
+            <button class="icon-btn" onclick="navSettings()">⚙</button>
+        </div>
+
+        <!-- 3-Column Content -->
+        <div class="main-content">
+
+            <!-- Col 1: Water Level Bar -->
+            <div class="col-bar panel">
+                <div class="bar-wrapper">
+                    <div class="bar-track">
+                        <div class="bar-fill" id="waterBar"></div>
+                        <!-- Thresholds (positioned over bar) -->
+                    </div>
+                    <div class="thr-mark thr-lv3"><span>Lv3 1.80m</span></div>
+                    <div class="thr-mark thr-lv2"><span>Lv2 1.50m</span></div>
+                    <div class="thr-mark thr-lv1"><span>Lv1 0.80m</span></div>
+                </div>
+            </div>
+
+            <!-- Col 2: Pump Status -->
+            <div class="col-pump">
+                <div class="pump-box panel">
+                    <div class="label">PUMP 1</div>
+                    <div class="status status-run" id="pump1Status">RUN</div>
+                </div>
+                <div class="pump-box panel">
+                    <div class="label">PUMP 2</div>
+                    <div class="status status-stop" id="pump2Status">STOP</div>
+                </div>
+            </div>
+
+            <!-- Col 3: Info Panel -->
+            <div class="col-info">
+                <div class="info-box panel">
+                    <div class="info-label">CURRENT</div>
+                    <div class="info-value" id="currentLevel">1.25</div>
+                    <div class="info-unit">meters</div>
+                </div>
+                <div class="info-box panel">
+                    <div class="info-label">SENSOR</div>
+                    <div class="info-value small" id="sensorHeight">2.50</div>
+                    <div class="info-unit">m height</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Nav -->
+        <div class="bottom-nav">
+            <button class="nav-btn active">📊 Main</button>
+            <button class="nav-btn" onclick="navSettings()">⚙ Settings</button>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         SCREEN 2: SETTINGS
+         ══════════════════════════════════════════════ -->
+    <div class="screen" id="settingsScreen">
+
+        <!-- ── Settings Menu ── -->
+        <div class="sub-page active" id="settingsMenu">
+            <div class="header">
+                <h1>⚙ SETTINGS</h1>
+                <div class="spacer"></div>
+                <button class="icon-btn" onclick="navMain()">✕</button>
+            </div>
+
+            <div class="settings-menu-grid">
+                <div class="menu-card" onclick="showSensorSetup()">
+                    <div class="menu-icon">📡</div>
+                    <div class="menu-title">Sensor Setup</div>
+                    <div class="menu-desc">ตั้งค่าระยะเซนเซอร์</div>
+                </div>
+                <div class="menu-card" onclick="showThresholdSetup()">
+                    <div class="menu-icon">📊</div>
+                    <div class="menu-title">Threshold Setup</div>
+                    <div class="menu-desc">ตั้งค่าระดับน้ำ 3 ระดับ</div>
+                </div>
+            </div>
+
+            <div class="bottom-nav">
+                <button class="nav-btn" onclick="navMain()">📊 Main</button>
+                <button class="nav-btn active">⚙ Settings</button>
+            </div>
+        </div>
+
+        <!-- ── Sensor Setup Sub-page ── -->
+        <div class="sub-page" id="sensorSetup">
+            <div class="header">
+                <h1>📡 SENSOR SETUP</h1>
+                <div class="spacer"></div>
+                <button class="icon-btn" onclick="showSettingsMenu()">←</button>
+            </div>
+
+            <div class="setup-list">
+                <div class="setup-row">
+                    <span class="dot dot-cyan"></span>
+                    <span class="row-label">Water Level</span>
+                    <div class="stepper">
+                        <button class="stepper-btn" onclick="step('sensorWater',-0.01)">−</button>
+                        <input class="stepper-value" type="number" value="1.25" step="0.01" id="sensorWater">
+                        <button class="stepper-btn" onclick="step('sensorWater',0.01)">+</button>
+                        <span class="stepper-unit">m</span>
+                    </div>
+                </div>
+                <div class="setup-row">
+                    <span class="dot dot-cyan"></span>
+                    <span class="row-label">Distance</span>
+                    <div class="stepper">
+                        <button class="stepper-btn" onclick="step('sensorDist',-0.01)">−</button>
+                        <input class="stepper-value" type="number" value="1.25" step="0.01" id="sensorDist">
+                        <button class="stepper-btn" onclick="step('sensorDist',0.01)">+</button>
+                        <span class="stepper-unit">m</span>
+                    </div>
+                </div>
+                <div class="setup-row">
+                    <span class="dot dot-cyan"></span>
+                    <span class="row-label">Sensor Height</span>
+                    <div class="stepper">
+                        <button class="stepper-btn hidden">−</button>
+                        <input class="stepper-value readonly" type="number" value="2.50" id="sensorHeightSetup" readonly>
+                        <button class="stepper-btn hidden">+</button>
+                        <span class="stepper-unit">m</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="showSettingsMenu()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveSensor()">💾 Save</button>
+            </div>
+        </div>
+
+        <!-- ── Threshold Setup Sub-page ── -->
+        <div class="sub-page" id="thresholdSetup">
+            <div class="header">
+                <h1>📊 THRESHOLD</h1>
+                <div class="spacer"></div>
+                <button class="icon-btn" onclick="showSettingsMenu()">←</button>
+            </div>
+
+            <div class="threshold-layout">
+                <!-- Mini visual bar -->
+                <div class="threshold-visual">
+                    <div class="mini-bar">
+                        <div class="mini-fill" id="miniFill"></div>
+                        <div class="mini-thr mini-lv1"></div>
+                        <div class="mini-thr mini-lv2"></div>
+                        <div class="mini-thr mini-lv3"></div>
+                    </div>
+                </div>
+
+                <!-- Form -->
+                <div class="threshold-form">
+                    <div class="setup-row">
+                        <span class="dot dot-green"></span>
+                        <span class="row-label">Lv1 Stop</span>
+                        <div class="stepper">
+                            <button class="stepper-btn" onclick="step('thrLv1',-0.01)">−</button>
+                            <input class="stepper-value" type="number" value="0.80" step="0.01" id="thrLv1">
+                            <button class="stepper-btn" onclick="step('thrLv1',0.01)">+</button>
+                            <span class="stepper-unit">m</span>
+                        </div>
+                    </div>
+                    <div class="setup-row">
+                        <span class="dot dot-orange"></span>
+                        <span class="row-label">Lv2 Pump1</span>
+                        <div class="stepper">
+                            <button class="stepper-btn" onclick="step('thrLv2',-0.01)">−</button>
+                            <input class="stepper-value" type="number" value="1.50" step="0.01" id="thrLv2">
+                            <button class="stepper-btn" onclick="step('thrLv2',0.01)">+</button>
+                            <span class="stepper-unit">m</span>
+                        </div>
+                    </div>
+                    <div class="setup-row">
+                        <span class="dot dot-red"></span>
+                        <span class="row-label">Lv3 Pump1+2</span>
+                        <div class="stepper">
+                            <button class="stepper-btn" onclick="step('thrLv3',-0.01)">−</button>
+                            <input class="stepper-value" type="number" value="1.80" step="0.01" id="thrLv3">
+                            <button class="stepper-btn" onclick="step('thrLv3',0.01)">+</button>
+                            <span class="stepper-unit">m</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="showSettingsMenu()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveThreshold()">💾 Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- UART Simulation Log -->
+<div class="uart-log" id="uartLog"></div>
+
+<!-- Simulation Controls -->
+<div class="sim-controls">
+    <button class="sim-btn active-sim" id="simToggle" onclick="toggleSim()">▶ SIM: ON</button>
+    <button class="sim-btn" onclick="toggleUartLog()">📡 UART Log</button>
+    <button class="sim-btn" onclick="togglePumps()">🔄 Toggle Pumps</button>
+</div>
+
+<script>
+    /* ═══════════════════════════════════════════════════════
+       APP STATE — mirrors app_state_t in ui_app.h
+       ═══════════════════════════════════════════════════════ */
+    const state = {
+        water_level:   1.25,
+        distance:      1.25,
+        sensor_height: 2.50,
+        pump1: 1,   /* 0=STOP, 1=RUN */
+        pump2: 0,
+        mode: 0,    /* 0=AUTO, 1=MANUAL */
+        threshold_lv1: 0.80,
+        threshold_lv2: 1.50,
+        threshold_lv3: 1.80,
+    };
+
+    let simRunning = true;
+    let uartLogVisible = false;
+
+    /* ═══════════════════════════════════════════════════════
+       NAVIGATION — mirrors lv_scr_load_anim() / show_page()
+       ═══════════════════════════════════════════════════════ */
+    function navMain() {
+        document.getElementById('mainScreen').classList.add('active');
+        document.getElementById('settingsScreen').classList.remove('active');
+        showSettingsMenu();
+    }
+
+    function navSettings() {
+        document.getElementById('mainScreen').classList.remove('active');
+        document.getElementById('settingsScreen').classList.add('active');
+        showSettingsMenu();
+    }
+
+    function showSettingsMenu() {
+        hideAll('settingsMenu');
+        document.getElementById('settingsMenu').classList.add('active');
+    }
+
+    function showSensorSetup() {
+        hideAll('sensorSetup');
+        document.getElementById('sensorSetup').classList.add('active');
+        /* Load current state values */
+        document.getElementById('sensorWater').value = state.water_level.toFixed(2);
+        document.getElementById('sensorDist').value = state.distance.toFixed(2);
+        document.getElementById('sensorHeightSetup').value = state.sensor_height.toFixed(2);
+    }
+
+    function showThresholdSetup() {
+        hideAll('thresholdSetup');
+        document.getElementById('thresholdSetup').classList.add('active');
+        document.getElementById('thrLv1').value = state.threshold_lv1.toFixed(2);
+        document.getElementById('thrLv2').value = state.threshold_lv2.toFixed(2);
+        document.getElementById('thrLv3').value = state.threshold_lv3.toFixed(2);
+    }
+
+    function hideAll(except) {
+        document.querySelectorAll('.sub-page').forEach(p => p.classList.remove('active'));
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       STEPPER — mirrors evt_step_minus / evt_step_plus
+       ═══════════════════════════════════════════════════════ */
+    function step(id, delta) {
+        const input = document.getElementById(id);
+        let val = parseFloat(input.value) || 0;
+        val = Math.round((val + delta) * 100) / 100;
+        val = Math.max(0, val);
+        input.value = val.toFixed(2);
+
+        /* Auto-calc sensor height */
+        if (id === 'sensorWater' || id === 'sensorDist') {
+            const w = parseFloat(document.getElementById('sensorWater').value) || 0;
+            const d = parseFloat(document.getElementById('sensorDist').value) || 0;
+            document.getElementById('sensorHeightSetup').value = (w + d).toFixed(2);
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       SAVE — mirrors uart_send_*_config()
+       ═══════════════════════════════════════════════════════ */
+    function saveSensor() {
+        state.water_level = parseFloat(document.getElementById('sensorWater').value) || 0;
+        state.distance = parseFloat(document.getElementById('sensorDist').value) || 0;
+        state.sensor_height = state.water_level + state.distance;
+        addUartLog('tx', `UART TX → STM32: CFG:W=${state.water_level.toFixed(2)},D=${state.distance.toFixed(2)},H=${state.sensor_height.toFixed(2)}`);
+        refreshMainScreen();
+        showSettingsMenu();
+    }
+
+    function saveThreshold() {
+        state.threshold_lv1 = parseFloat(document.getElementById('thrLv1').value) || 0;
+        state.threshold_lv2 = parseFloat(document.getElementById('thrLv2').value) || 0;
+        state.threshold_lv3 = parseFloat(document.getElementById('thrLv3').value) || 0;
+        addUartLog('tx', `UART TX → STM32: THR:Lv1=${state.threshold_lv1.toFixed(2)},Lv2=${state.threshold_lv2.toFixed(2)},Lv3=${state.threshold_lv3.toFixed(2)}`);
+        showSettingsMenu();
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       UI REFRESH — mirrors ui_main_screen_refresh()
+       ═══════════════════════════════════════════════════════ */
+    function refreshMainScreen() {
+        const pct = (state.water_level / 2.50) * 100;
+        document.getElementById('waterBar').style.height = pct + '%';
+        document.getElementById('miniFill').style.height = pct + '%';
+        document.getElementById('currentLevel').textContent = state.water_level.toFixed(2);
+        document.getElementById('sensorHeight').textContent = state.sensor_height.toFixed(2);
+
+        /* Pump 1 */
+        const p1 = document.getElementById('pump1Status');
+        p1.textContent = state.pump1 ? 'RUN' : 'STOP';
+        p1.className = 'status ' + (state.pump1 ? 'status-run' : 'status-stop');
+
+        /* Pump 2 */
+        const p2 = document.getElementById('pump2Status');
+        p2.textContent = state.pump2 ? 'RUN' : 'STOP';
+        p2.className = 'status ' + (state.pump2 ? 'status-run' : 'status-stop');
+
+        /* Mode */
+        const badge = document.getElementById('modeBadge');
+        badge.textContent = state.mode ? 'MANUAL' : 'AUTO';
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       SIMULATION — fake STM32 data via UART
+       ═══════════════════════════════════════════════════════ */
+    function toggleSim() {
+        simRunning = !simRunning;
+        const btn = document.getElementById('simToggle');
+        btn.textContent = simRunning ? '▶ SIM: ON' : '⏸ SIM: OFF';
+        btn.classList.toggle('active-sim', simRunning);
+    }
+
+    function toggleUartLog() {
+        uartLogVisible = !uartLogVisible;
+        document.getElementById('uartLog').classList.toggle('visible', uartLogVisible);
+    }
+
+    function togglePumps() {
+        state.pump1 = state.pump1 ? 0 : 1;
+        state.pump2 = state.pump2 ? 0 : 1;
+        refreshMainScreen();
+        addUartLog('rx', `UART RX ← STM32: PUMP1=${state.pump1?'RUN':'STOP'}, PUMP2=${state.pump2?'RUN':'STOP'}`);
+    }
+
+    function addUartLog(type, msg) {
+        if (!uartLogVisible) return;
+        const log = document.getElementById('uartLog');
+        const time = new Date().toLocaleTimeString('th-TH', {hour12:false});
+        log.innerHTML += `<div class="line ${type}">[${time}] ${msg}</div>`;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    /* Simulate water level fluctuation (like STM32 sending data) */
+    setInterval(() => {
+        if (!simRunning) return;
+        state.water_level += (Math.random() - 0.5) * 0.08;
+        state.water_level = Math.max(0.1, Math.min(2.3, state.water_level));
+        state.distance = state.sensor_height - state.water_level;
+        if (state.distance < 0) state.distance = 0;
+
+        refreshMainScreen();
+
+        addUartLog('rx', `UART RX ← STM32: 0xAA 0x55 | WL=${state.water_level.toFixed(2)}m | P1=${state.pump1?'RUN':'STOP'} P2=${state.pump2?'RUN':'STOP'}`);
+    }, 2000);
+
+    /* Initial render */
+    refreshMainScreen();
+</script>
+</body>
+</html>

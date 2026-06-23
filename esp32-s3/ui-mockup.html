@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>HMI Mockup - Water Gate 1</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Roboto', sans-serif;
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .device-frame {
+            width: 320px;
+            height: 480px;
+            background: #0f0f23;
+            border-radius: 20px;
+            border: 8px solid #2a2a4a;
+            box-shadow: 0 0 50px rgba(0, 188, 212, 0.3);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .screen {
+            width: 100%;
+            height: 100%;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #2a2a4a;
+        }
+        
+        .header h1 {
+            font-size: 16px;
+            color: #00bcd4;
+            font-weight: 600;
+        }
+        
+        .header .icon-btn {
+            width: 32px;
+            height: 32px;
+            background: #2a2a4a;
+            border: none;
+            border-radius: 8px;
+            color: #00bcd4;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Main Display - Bar Graph */
+        .main-display {
+            flex: 1;
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .bar-container {
+            flex: 1;
+            background: #1a1a3e;
+            border-radius: 12px;
+            padding: 10px;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        
+        .bar-wrapper {
+            width: 80px;
+            height: 100%;
+            background: #0a0a1a;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .bar-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 62%;
+            background: linear-gradient(to top, #0066cc, #00bcd4);
+            border-radius: 0 0 8px 8px;
+            transition: height 0.5s ease;
+        }
+        
+        .bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent);
+        }
+        
+        /* Threshold Lines */
+        .threshold {
+            position: absolute;
+            left: 5px;
+            right: 5px;
+            height: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #fff;
+        }
+        
+        .threshold::before {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #ff9800;
+            margin-right: 5px;
+        }
+        
+        .threshold-lv3 { bottom: 72%; }
+        .threshold-lv2 { bottom: 50%; }
+        .threshold-lv1 { bottom: 28%; }
+        
+        /* Info Panel */
+        .info-panel {
+            width: 120px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .info-box {
+            background: #1a1a3e;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .info-label {
+            font-size: 10px;
+            color: #888;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .info-value {
+            font-size: 24px;
+            color: #00bcd4;
+            font-weight: bold;
+        }
+        
+        .info-unit {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* Pump Status */
+        .pump-status {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .pump-box {
+            flex: 1;
+            background: #1a1a3e;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .pump-box .label {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        
+        .pump-box .status {
+            font-size: 14px;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .status-run {
+            background: #1b5e20;
+            color: #4caf50;
+        }
+        
+        .status-stop {
+            background: #424242;
+            color: #9e9e9e;
+        }
+        
+        /* Mode Indicator */
+        .mode-bar {
+            background: #1a1a3e;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .mode-label {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .mode-value {
+            font-size: 14px;
+            color: #ff9800;
+            font-weight: bold;
+        }
+        
+        /* Bottom Navigation */
+        .bottom-nav {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav-btn {
+            flex: 1;
+            background: #2a2a4a;
+            border: 1px solid #00bcd4;
+            border-radius: 10px;
+            padding: 12px;
+            color: #00bcd4;
+            font-size: 12px;
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        .nav-btn.active {
+            background: #00bcd4;
+            color: #0f0f23;
+        }
+        
+        /* Settings Screen */
+        .settings-screen {
+            display: none;
+        }
+        
+        .settings-screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .setting-item {
+            background: #1a1a3e;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .setting-label {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+        
+        .setting-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .setting-input input {
+            flex: 1;
+            background: #0a0a1a;
+            border: 1px solid #2a2a4a;
+            border-radius: 6px;
+            padding: 8px;
+            color: #00bcd4;
+            font-size: 16px;
+            text-align: center;
+        }
+        
+        .setting-input .unit {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: auto;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .btn-primary {
+            background: #00bcd4;
+            color: #0f0f23;
+        }
+        
+        .menu-btn {
+            flex: 1;
+            background: #1a1a3e;
+            border: 2px solid #2a2a4a;
+            border-radius: 12px;
+            padding: 20px;
+            color: #fff;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .menu-btn:hover {
+            border-color: #00bcd4;
+            background: #252550;
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <!-- Main Screen -->
+        <div class="screen main-screen" id="mainScreen">
+            <div class="header">
+                <h1>⚡ WATER GATE 1</h1>
+                <button class="icon-btn" onclick="showSettings()">⚙️</button>
+            </div>
+            
+            <div class="main-display">
+                <div class="bar-container">
+                    <div class="bar-wrapper">
+                        <div class="bar-fill" id="waterBar"></div>
+                        <div class="threshold threshold-lv3">
+                            <span>Lv3</span>
+                            <span>1.80m</span>
+                        </div>
+                        <div class="threshold threshold-lv2">
+                            <span>Lv2</span>
+                            <span>1.50m</span>
+                        </div>
+                        <div class="threshold threshold-lv1">
+                            <span>Lv1</span>
+                            <span>0.80m</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-panel">
+                    <div class="info-box">
+                        <div class="info-label">Current</div>
+                        <div class="info-value" id="currentLevel">1.25</div>
+                        <div class="info-unit">meters</div>
+                    </div>
+                    
+                    <div class="info-box">
+                        <div class="info-label">Sensor</div>
+                        <div class="info-value" style="font-size: 18px;">2.50</div>
+                        <div class="info-unit">m height</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pump-status">
+                <div class="pump-box">
+                    <div class="label">PUMP 1</div>
+                    <div class="status status-run">RUN</div>
+                </div>
+                <div class="pump-box">
+                    <div class="label">PUMP 2</div>
+                    <div class="status status-stop">STOP</div>
+                </div>
+            </div>
+            
+            <div class="mode-bar">
+                <span class="mode-label">Mode</span>
+                <span class="mode-value">AUTO</span>
+            </div>
+            
+            <div class="bottom-nav">
+                <button class="nav-btn active" onclick="showMain()">📊 Main</button>
+                <button class="nav-btn" onclick="showSettings()">⚙️ Settings</button>
+            </div>
+        </div>
+        
+        <!-- Settings Screen -->
+        <div class="screen settings-screen" id="settingsScreen">
+            <!-- Settings Menu -->
+            <div id="settingsMenu">
+                <div class="header">
+                    <h1>⚙️ SETTINGS</h1>
+                    <button class="icon-btn" onclick="showMain()">✕</button>
+                </div>
+                
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
+                    <button class="menu-btn" onclick="showSensorSetup()">
+                        <div style="font-size: 24px; margin-bottom: 5px;">📡</div>
+                        <div style="font-weight: 600;">Sensor Setup</div>
+                        <div style="font-size: 11px; color: #888; margin-top: 3px;">ตั้งค่าระยะเซนเซอร์</div>
+                    </button>
+                    
+                    <button class="menu-btn" onclick="showThresholdSetup()">
+                        <div style="font-size: 24px; margin-bottom: 5px;">📊</div>
+                        <div style="font-weight: 600;">Threshold Setup</div>
+                        <div style="font-size: 11px; color: #888; margin-top: 3px;">ตั้งค่าระดับน้ำ 3 ระดับ</div>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Sensor Setup Sub-page -->
+            <div id="sensorSetup" style="display: none; flex-direction: column; height: 100%;">
+                <div class="header">
+                    <h1>📡 SENSOR SETUP</h1>
+                    <button class="icon-btn" onclick="showSettingsMenu()">←</button>
+                </div>
+                
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
+                    <div class="setting-item">
+                        <div class="setting-label">Water Level (Current)</div>
+                        <div class="setting-input">
+                            <input type="number" value="1.25" step="0.01">
+                            <span class="unit">m</span>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-label">Distance to Sensor</div>
+                        <div class="setting-input">
+                            <input type="number" value="1.25" step="0.01">
+                            <span class="unit">m</span>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-label">Sensor Height (Calculated)</div>
+                        <div class="setting-input">
+                            <input type="number" value="2.50" step="0.01" readonly style="color: #888;">
+                            <span class="unit">m</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="showSettingsMenu()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveSensorSetup()">💾 Save</button>
+                </div>
+            </div>
+            
+            <!-- Threshold Setup Sub-page -->
+            <div id="thresholdSetup" style="display: none; flex-direction: column; height: 100%;">
+                <div class="header">
+                    <h1>📊 THRESHOLD</h1>
+                    <button class="icon-btn" onclick="showSettingsMenu()">←</button>
+                </div>
+                
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
+                    <div class="setting-item">
+                        <div class="setting-label">Lv1 - Stop Level</div>
+                        <div class="setting-input">
+                            <input type="number" value="0.80" step="0.01">
+                            <span class="unit">m</span>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-label">Lv2 - Pump 1 Start</div>
+                        <div class="setting-input">
+                            <input type="number" value="1.50" step="0.01">
+                            <span class="unit">m</span>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-label">Lv3 - Pump 1+2 Start</div>
+                        <div class="setting-input">
+                            <input type="number" value="1.80" step="0.01">
+                            <span class="unit">m</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="showSettingsMenu()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveThresholdSetup()">💾 Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showMain() {
+            document.getElementById('mainScreen').style.display = 'flex';
+            document.getElementById('settingsScreen').classList.remove('active');
+            document.getElementById('settingsMenu').style.display = 'block';
+            document.getElementById('sensorSetup').style.display = 'none';
+            document.getElementById('thresholdSetup').style.display = 'none';
+        }
+        
+        function showSettings() {
+            document.getElementById('mainScreen').style.display = 'none';
+            document.getElementById('settingsScreen').classList.add('active');
+            showSettingsMenu();
+        }
+        
+        function showSettingsMenu() {
+            document.getElementById('settingsMenu').style.display = 'block';
+            document.getElementById('sensorSetup').style.display = 'none';
+            document.getElementById('thresholdSetup').style.display = 'none';
+        }
+        
+        function showSensorSetup() {
+            document.getElementById('settingsMenu').style.display = 'none';
+            document.getElementById('sensorSetup').style.display = 'flex';
+            document.getElementById('thresholdSetup').style.display = 'none';
+        }
+        
+        function showThresholdSetup() {
+            document.getElementById('settingsMenu').style.display = 'none';
+            document.getElementById('sensorSetup').style.display = 'none';
+            document.getElementById('thresholdSetup').style.display = 'flex';
+        }
+        
+        function saveSensorSetup() {
+            alert('Sensor Setup Saved!\nSending to STM32 via UART...');
+            showSettingsMenu();
+        }
+        
+        function saveThresholdSetup() {
+            alert('Threshold Setup Saved!\nSending to STM32 via UART...');
+            showSettingsMenu();
+        }
+        
+        // Simulate water level animation
+        let level = 1.25;
+        setInterval(() => {
+            level += (Math.random() - 0.5) * 0.1;
+            level = Math.max(0, Math.min(2.0, level));
+            document.getElementById('currentLevel').textContent = level.toFixed(2);
+            document.getElementById('waterBar').style.height = (level / 2.0 * 100) + '%';
+        }, 2000);
+    </script>
+</body>
+</html>
