@@ -73,7 +73,7 @@ function LiveDashboard({ gate, role }: Props) {
             <div className={`transition-opacity ${dim}`}>
               <DetectionCard personCount={status?.personCount ?? null} />
             </div>
-            {role !== "viewer" && <ControlPanel devices={status?.devices ?? null} />}
+            {role !== "viewer" && <ControlPanel devices={status?.devices ?? null} stale={stale} />}
             <a
               id="download-graph-data"
               href="/api/water-level/download"

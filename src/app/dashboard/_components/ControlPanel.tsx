@@ -4,11 +4,9 @@ import { useState } from "react";
 import { Fan, Bell, Lightbulb, Power } from "lucide-react";
 import type { Command } from "@/lib/control/commands";
 import type { GateStatus } from "@/lib/telemetry/parseStatus";
+import { deviceBadge } from "@/lib/telemetry/deviceBadge";
 
 type Devices = GateStatus["devices"];
-
-// WHY: device state comes only from telemetry; null means the payload does not report it.
-const label = (v: boolean | null) => (v === null ? "—" : v ? "ON" : "OFF");
 
 function errorText(res: Response): string {
   if (res.status === 429) return `Too many commands, wait ${res.headers.get("Retry-After") ?? "a few"} s`;
@@ -18,7 +16,8 @@ function errorText(res: Response): string {
 }
 
 /** Operator/admin only (server enforces it too: POST /api/control requires "operator"). */
-export default function ControlPanel({ devices }: { devices: Devices | null }) {
+// WHY: buttons stay enabled when stale; the server is authoritative and an operator may need to act during an outage.
+export default function ControlPanel({ devices, stale }: { devices: Devices | null; stale: boolean }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,16 +56,19 @@ export default function ControlPanel({ devices }: { devices: Devices | null }) {
   const offCls = `${small} bg-gray-200 text-gray-600 hover:bg-gray-300`;
   const badge = (on: boolean | null, onCls: string) => (
     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${on ? onCls : "bg-gray-100 text-gray-400"}`}>
-      {label(on)}
+      {deviceBadge(on, stale)}
     </span>
   );
+  const unknownHint = stale && <span className="text-[10px] font-medium text-gray-400">status unknown (offline)</span>;
 
-  const pump = devices?.pump ?? null;
-  const alarm = devices?.alarm ?? null;
-  const light = devices?.light ?? null;
+  // WHY: when stale, every state reads as null so badges and icons are muted, not last-known colours.
+  const v = (x: boolean | null | undefined) => (stale ? null : (x ?? null));
+  const pump = v(devices?.pump);
+  const alarm = v(devices?.alarm);
+  const light = v(devices?.light);
   const relays = [
-    { name: "IoT Pump 1", on: devices?.relay1 ?? null, open: "R1", close: "R0" },
-    { name: "IoT Pump 2", on: devices?.relay2 ?? null, open: "Q1", close: "Q0" },
+    { name: "IoT Pump 1", on: v(devices?.relay1), open: "R1", close: "R0" },
+    { name: "IoT Pump 2", on: v(devices?.relay2), open: "Q1", close: "Q0" },
   ] as const;
 
   return (
@@ -83,13 +85,14 @@ export default function ControlPanel({ devices }: { devices: Devices | null }) {
           <div className="flex items-center gap-2">
             <Fan className="w-5 h-5 text-blue-500" />
             <h4 className="font-bold text-gray-800">Pump Control</h4>
+            {unknownHint}
           </div>
           <span
             className={`text-xs font-bold px-2 py-0.5 rounded-full ${
               pump ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-400"
             }`}
           >
-            {label(pump)}
+            {deviceBadge(pump, stale)}
           </span>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -108,7 +111,10 @@ export default function ControlPanel({ devices }: { devices: Devices | null }) {
 
       {/* ── Alarm & Light ── */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-        <h4 className="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wider">Alarm & Light</h4>
+        <div className="flex items-center gap-2 mb-3">
+          <h4 className="font-bold text-gray-800 text-sm uppercase tracking-wider">Alarm & Light</h4>
+          {unknownHint}
+        </div>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -137,7 +143,10 @@ export default function ControlPanel({ devices }: { devices: Devices | null }) {
 
       {/* ── IoT Relay Pumps ── */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-        <h4 className="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wider">IoT Relay Pumps</h4>
+        <div className="flex items-center gap-2 mb-3">
+          <h4 className="font-bold text-gray-800 text-sm uppercase tracking-wider">IoT Relay Pumps</h4>
+          {unknownHint}
+        </div>
         <div className="space-y-3">
           {relays.map((r) => (
             <div key={r.open} className="flex items-center justify-between">

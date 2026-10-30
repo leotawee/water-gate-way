@@ -97,3 +97,10 @@
 - **Why:** prove nothing in the shipped bundle points at a LAN host, broker or FastAPI.
 - **Result:** all checks clean. Dead end: first `typecheck` failed on stale `.next/types` entries for the deleted `/test` page; `next build` and `next dev` regenerate them, after which `tsc` is clean.
 - **Lesson:** Next writes route type validators into `.next/`; after deleting a route, run build/dev before trusting `tsc` errors.
+
+## [16:50] Task 10 — fix round 1: hide stale device state in control panel
+
+- **Action:** test first: `src/lib/telemetry/deviceBadge.test.ts` (4 cases). RED = "Cannot find module ./deviceBadge". Then pure `deviceBadge(value, stale)` in `src/lib/telemetry/deviceBadge.ts`; `ControlPanel` takes `stale`, shows "—" with muted badges and icons, and adds a "status unknown (offline)" hint beside each panel title when stale. Buttons stay enabled and the panel is not dimmed.
+- **Why:** review I-1. Last-known pump/alarm ON/OFF stayed full colour next to live-looking buttons, so an operator could act on a 10-minute-old "ON".
+- **Result:** `npm test` 157/157; typecheck 0; eslint on `src/app/dashboard` and `src/lib/telemetry` clean; build OK.
+- **Lesson:** a stale value is most dangerous where it drives an action; there it should be hidden, not just dimmed.
