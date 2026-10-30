@@ -69,3 +69,10 @@
 - **Why:** `net.isIP("fe80::1%eth0") === 6` but Postgres `inet` rejects `%zone`, so round 1 still let a header drop the audit row. The retry covers any other ip value Postgres might reject.
 - **Result:** `npm test` 118/118; typecheck 0; eslint clean on touched files; `npm run build` OK.
 - **Lesson:** "valid" in one parser is not "valid" in the sink. Validate against what the column accepts, and keep a fallback in the path that must not lose data.
+
+## [15:15] Task 9 — server-side MQTT subscriber + authenticated SSE stream
+
+- **Action:** tests first: `src/lib/telemetry/stream.test.ts` (14 cases, fake `mqtt` client via `vi.mock`, fake DAL). RED = suite failed to load (`./broker` and route missing). Then `src/lib/telemetry/broker.ts` (`subscribeStatus`, one client per process on `globalThis.__wgTelemetry`, topics `stm32/status/all` + `MQTT_TOPIC_STATUS` when set and different, 64 KiB payload cap, 60 s rate-limited warn without payload echo, throwing listener isolated), `src/app/api/status/stream/route.ts` (`GET` SSE + `HEAD` auth probe, `requireUser()` before the stream, 503 generic on non-auth errors, 25 s ping, idempotent cleanup on abort/cancel, `dynamic = "force-dynamic"`), `src/hooks/useGateStatus.ts` (EventSource, HEAD probe on error -> 401 redirects to `/login?next=`, reopen after 5 s when EventSource is CLOSED), `.env.example` (`MQTT_URL`, `MQTT_USERNAME`, `MQTT_PASSWORD`; `NEXT_PUBLIC_*` marked `# DEPRECATED: removed in Task 10`).
+- **Why:** the browser no longer needs broker credentials or a reachable broker port; telemetry is behind the same session check as every other API. `useMqtt.ts` and the old dashboard stay until Task 10 (controller ruling).
+- **Result:** `npm test` 132/132; typecheck 0; eslint clean on touched files; `npm run build` OK (`ƒ /api/status/stream`). Not exercised against a live broker or in a browser.
+- **Lesson:** EventSource never exposes the HTTP status and stops reconnecting for good on any non-200, so an auth-aware client needs a side probe (HEAD) and its own retry for the CLOSED state.
