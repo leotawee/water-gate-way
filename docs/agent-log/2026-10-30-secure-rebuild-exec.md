@@ -55,3 +55,10 @@
 - **Why:** order Origin -> requireUser("operator") -> JSON -> parseCommand -> controlByUser -> forward -> audit, so unauthenticated/cross-site requests touch nothing and junk commands do not burn the limit. Audit failure is logged, never returned, so a command that reached the pumps is not reported as failed (operator would resend).
 - **Result:** 104 tests pass; typecheck 0; eslint clean on touched files; `npm run build` OK. Not exercised against a live FastAPI/Postgres.
 - **Lesson:** `x < undefined` is always false in JS, so a rank lookup on an unknown key silently passes an authorization check; default the required side to `Infinity`. Also: `fetch` follows redirects with custom headers, so a secret-bearing call should use `redirect: "error"`.
+
+## [15:20] Task 8 — review fix: non-IP forwarded headers
+
+- **Action:** tests first: new `src/lib/http/clientIp.test.ts` (8 cases) and a route case (garbage XFF -> 200, audit ip null). RED = 6 failed. Then `clientIp` accepts a header value only if `net.isIP(trimmed) !== 0`, else falls through to `x-real-ip`, then null. `signIn` keeps `?? "unknown"` with a WHY line.
+- **Why:** a non-IP `X-Forwarded-For` made the `inet` audit insert fail; `audit()` swallows that by design, so an operator could run a command with no audit row.
+- **Result:** `npm test` 113/113; typecheck 0; eslint clean on touched files.
+- **Lesson:** a "log and continue" error path turns any attacker-triggerable insert failure into an audit bypass; validate audit fields to the column type before insert.

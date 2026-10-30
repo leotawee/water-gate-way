@@ -106,6 +106,12 @@ describe("POST /api/control", () => {
     expect(audits().map((a) => a[3])).toEqual(["198.51.100.4", null]);
   });
 
+  it("garbage x-forwarded-for on a valid command -> 200, audit ip null (insert cannot fail on inet)", async () => {
+    const res = await POST(req({ command: "P1" }, { "x-forwarded-for": "x" }) as never);
+    expect(res.status).toBe(200);
+    expect(audits()).toEqual([[h.user!.id, "P1", "sent", null]]);
+  });
+
   it("11th command in a minute is 429", async () => {
     for (let i = 0; i < 10; i++) expect((await POST(req({ command: "P1" }) as never)).status).toBe(200);
     const res = await POST(req({ command: "P1" }) as never);
