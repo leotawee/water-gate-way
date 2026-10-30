@@ -21,9 +21,7 @@
 
 ## Decisions needed before the window
 
-- **D1. Control path in production.** The rebuilt `/api/control` forwards to FastAPI over HTTP. In this deployment there is no FastAPI on the droplet, and the droplet cannot reach the Pi's TCP ports. Options:
-  - **A.** Run FastAPI on the Pi and get the tailnet admin to allow droplet→Pi. More moving parts.
-  - **B (recommended).** `forwardCommand` publishes `stm32/cmd` over authenticated MQTT from the Next server. The Pi's `cmd_node` already consumes that topic. The allowlist stays in Next. Needs a small change on the rebuild branch (one file plus tests).
+- **D1. Control path in production: decided and implemented (2026-10-30).** The Next server publishes `stm32/cmd` over its own authenticated MQTT connection (`forwardCommand` → `publish()` in `src/lib/telemetry/broker.ts`). No FastAPI is needed on the droplet and no tailnet rule is needed for control. The `nextjs` broker account therefore needs `write` on `stm32/cmd` (already in the A4 ACL).
 - **D2. Maintenance window.** The Pi loses the broker for a few seconds. Know what the STM32 does when commands stop (fail-safe state of pumps is not verified). Put pumps in a safe state first.
 - **D3. The 2 other clients** (`27.130.183.193`, `1.20.94.84`) are the owner's (confirmed by Leo, 2026-10-30). They connect anonymously today, so Phase B1 will refuse them. Leo says they are `ai-receiver` and `mqtt_bridge.js` (which IP is which is not yet known). Each needs its own broker user (A3) and the ACL block below (A4) before B1. **Neither supports credentials today** (`mqtt.Client()` with no `username_pw_set` at `ai-receiver/main.py:187`; `mqtt.connect(MQTT_BROKER, {...})` with no username/password at `mqtt_bridge.js:154`), so each needs a small code change reading `MQTT_USER`/`MQTT_PASS` (same names as the Pi services), and the new file must be deployed to the machine that runs it. Do not put credentials inside `MQTT_BROKER`: the bridge logs that URL (lines 164 and 255). ACLs, from the topics the code actually uses:
   ```
@@ -35,7 +33,7 @@
   topic read stm32/status/all
   topic read watergate/telemetry
   ```
-- **D4. Deploying the rebuilt app** to the droplet is a prerequisite of Phase B (the old front end needs the anonymous WebSocket). Build on the Mac (1 GB RAM will not build Next); rsync `.next`, `package.json`, lockfile, `public`, `next.config.ts`; `npm ci --omit=dev` on the droplet. Needs the DB migration, an admin user and the env vars from `.env.example`. Separate runbook.
+- **D4. Deploying the rebuilt app** to the droplet is a prerequisite of Phase B (the old front end needs the anonymous WebSocket). Build on the Mac (1 GB RAM will not build Next); rsync `.next`, `package.json`, lockfile, `public`, `next.config.ts`; `npm ci --omit=dev` on the droplet. Needs the DB migration, an admin user and the env vars from `.env.example`. Runbook: `2026-10-30-deploy-droplet.md` (it lists two blockers: the pump control path and a possible `users` table collision).
 
 ## Phase A: prepare (no outage)
 
@@ -65,7 +63,7 @@ topic read  stm32/status/all
 topic read  water/gate/status
 topic write stm32/cmd
 ```
-  (`nextjs` write on `stm32/cmd` only if D1=B.)
+  (`nextjs` write on `stm32/cmd` is required: the app publishes operator commands.)
 - [ ] **A5 [U]** Stage the new broker config (do not activate yet) as `/etc/mosquitto/conf.d/secure.conf.staged`:
 ```
 listener 1883 127.0.0.1
@@ -107,7 +105,7 @@ sudo systemctl restart stm32-serial-bridge stm32-cmd-node stm32-status-node stm3
 
 - [ ] **C1 [U]** Next listens on loopback only: in `water-gate.service` set `Environment=HOSTNAME=127.0.0.1`, then `sudo systemctl daemon-reload && sudo systemctl restart water-gate`.
 - [ ] **C2 [U]** nginx (after A7): remove the `/mqtt`, `/ws/`, `/api/control` locations; add to the `/` location `proxy_set_header X-Forwarded-For $remote_addr;` (overwrite, not append), `X-Forwarded-Proto $scheme`, `X-Forwarded-Host $host`; add a `/api/status/stream` location with `proxy_buffering off`. Then `sudo nginx -t && sudo systemctl reload nginx`.
-- [ ] **C3 [U]** Postgres. Fast: DigitalOcean cloud firewall (C4). Permanent: recreate the container with `-p 127.0.0.1:5432:5432` on the same volume `watergate_db_data`, after A1. Needs the original `docker run` env (it holds the DB password, so only you read it). Stopgap until then: `sudo iptables -I DOCKER-USER -i eth0 -p tcp --dport 5432 -j DROP` (not persistent).
+- [ ] **C3 [U]** Postgres. **Urgent:** the published port 5432 accepts logins for `water_admin`, a **superuser** (read-only check, 2026-10-30), so a password guess from the internet means full control of the database and, through `COPY ... PROGRAM`, commands inside the container. Do this one first, before the rest of Phase C. Fast: DigitalOcean cloud firewall (C4). Permanent: recreate the container with `-p 127.0.0.1:5432:5432` on the same volume `watergate_db_data`, after A1. Needs the original `docker run` env (it holds the DB password, so only you read it). Stopgap until then: `sudo iptables -I DOCKER-USER -i eth0 -p tcp --dport 5432 -j DROP` (not persistent).
 - [ ] **C4 [U]** DigitalOcean → Networking → Firewalls: inbound 80 and 443 from anywhere; 22 from your own IP only; everything else denied. Attach to the droplet.
 - [ ] **C5 [U]** Turn off SSH password login on both machines, only after testing key login from a second terminal: `PasswordAuthentication no` in `/etc/ssh/sshd_config`, then `sudo systemctl reload ssh`.
 

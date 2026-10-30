@@ -16,9 +16,8 @@ Web dashboard for the Water Gate Way system, built with [Next.js](https://nextjs
 The browser talks only to the Next.js server (behind nginx/TLS). Next.js authenticates every request (scrypt passwords, `wg_session` cookie, roles `viewer` < `operator` < `admin`) and is the only component that reaches the backends, all on loopback or the private network:
 
 - Next.js -> PostgreSQL: users, sessions, `control_audit`.
-- Next.js -> Mosquitto: subscribe only (`MQTT_URL`), fanned out to browsers as same-origin SSE at `/api/status/stream`.
-- Next.js -> FastAPI (`FASTAPI_URL`, loopback): operator commands from `POST /api/control`, sent with the `X-Control-Token` header (`CONTROL_SHARED_SECRET`).
-- Next.js -> go2rtc (`GO2RTC_URL`, loopback): WebRTC signalling via `POST /api/camera/webrtc`; video media then flows peer to peer.
+- Next.js -> Mosquitto (`MQTT_URL`, account `nextjs`): subscribes to the status topics (fanned out to browsers as same-origin SSE at `/api/status/stream`) and publishes operator commands to `stm32/cmd`. Commands from `POST /api/control` go over this connection; the Pi's `cmd_node` executes them. FastAPI/ai-receiver is not in this path.
+- Next.js -> go2rtc (`GO2RTC_URL`, private network): `GET /api/camera/stream` proxies go2rtc's live HTTP video (fragmented MP4). No WebRTC, no ICE.
 
 Content-Security-Policy and the other security headers are set in `next.config.ts`.
 
@@ -29,11 +28,11 @@ Copy `.env.example` to `.env.local`. Values never go in `NEXT_PUBLIC_*`.
 | Variable | Used by | Purpose |
 | --- | --- | --- |
 | `PGUSER` `PGHOST` `PGDATABASE` `PGPASSWORD` `PGPORT` | Next.js, `mqtt_bridge.js` | PostgreSQL connection (app user, least privilege) |
-| `MQTT_URL` `MQTT_USERNAME` `MQTT_PASSWORD` | Next.js | Read-only broker subscriber for the SSE stream |
+| `MQTT_URL` `MQTT_USERNAME` `MQTT_PASSWORD` | Next.js | Broker account `nextjs`: reads the status topics, writes only `stm32/cmd` |
 | `MQTT_TOPIC_STATUS` | Next.js, ai-receiver | Extra status topic to subscribe to |
-| `FASTAPI_URL` | Next.js | FastAPI base URL (loopback) |
-| `CONTROL_SHARED_SECRET` | Next.js, FastAPI | `X-Control-Token`; at least 32 chars; both sides refuse to work without it |
-| `GO2RTC_URL` | Next.js | go2rtc API (loopback) |
+
+| `CONTROL_SHARED_SECRET` | ai-receiver (FastAPI) | `X-Control-Token` on its HTTP endpoints; at least 32 chars; it refuses to start without it. The Next.js app no longer uses it |
+| `GO2RTC_URL` | Next.js | go2rtc API, must be reachable from the app server |
 | `API_HOST` | FastAPI | Bind address, default `127.0.0.1` |
 | `MQTT_BROKER` `MQTT_TOPIC` `MQTT_QOS` | `mqtt_bridge.js` | Bridge broker, topic, QoS |
 | `MQTT_HOST` `MQTT_PORT` `MQTT_TOPIC_CONTROL` `WGW_SERIAL_PORT` | ai-receiver | Broker, control topic, serial port |
@@ -42,7 +41,7 @@ Copy `.env.example` to `.env.local`. Values never go in `NEXT_PUBLIC_*`.
 
 1. Apply `db/migrations/001_auth.sql` as a DB role with CREATE privilege (it needs the `citext` and `pgcrypto` extensions).
 2. Create the app DB user and grant only: `SELECT, INSERT, UPDATE, DELETE` on `users`, `sessions`, `control_audit`, plus `USAGE` on `control_audit_id_seq`.
-3. Generate the secret: `openssl rand -hex 32` and set `CONTROL_SHARED_SECRET` in both Next.js and FastAPI.
+3. Only if you run ai-receiver: generate its secret with `openssl rand -hex 32` and set `CONTROL_SHARED_SECRET` for it. Give the broker account `nextjs` write access to `stm32/cmd`, or operator commands fail with `device_unavailable`.
 4. Create the first admin: `node scripts/create-user.ts <email> <role>` (roles: `viewer`, `operator`, `admin`; Node >= 22.6). There is no public sign-up.
 5. `npm install && npm run build && npm run start`.
 
@@ -50,7 +49,7 @@ Copy `.env.example` to `.env.local`. Values never go in `NEXT_PUBLIC_*`.
 
 Containment (do first):
 
-- [ ] **Mosquitto:** `listener 1883 127.0.0.1`, `allow_anonymous false`, `password_file /etc/mosquitto/passwd`, `acl_file /etc/mosquitto/acl`. ACL: user `fastapi` may `readwrite stm32/#` and `water/#`; user `nextjs` may `read stm32/status/all` and `read water/gate/status` (read-only); ESP32/STM32 gateway users as needed. Nobody except FastAPI and the devices may publish `stm32/cmd`. Remove any websocket listener.
+- [ ] **Mosquitto:** do not just bind it to loopback: the Pi's services connect over the network. Follow `docs/superpowers/plans/2026-10-30-broker-lockdown.md` (users, ACL, move the Pi to the Tailscale IP first). ACL for `nextjs`: `read stm32/status/all`, `read water/gate/status`, `write stm32/cmd`. Nobody except `nextjs` and the Pi may publish `stm32/cmd`. Remove the websocket listener.
 - [ ] **nginx:** delete the `location /mqtt` and any `location /api/control` or `/ws/` block that proxies to Mosquitto or FastAPI directly. Only `proxy_pass` to Next.js remains.
 - [ ] **FastAPI:** run with `host=127.0.0.1` (default via `API_HOST`).
 - [ ] **TLS:** `certbot --nginx -d map.hyxc.io` (or a `*.hyxc.io` DNS-01 cert); confirm `systemctl list-timers | grep certbot`.
@@ -59,10 +58,10 @@ Containment (do first):
 
 Rebuild-specific:
 
-- [ ] Do not deploy without `CONTROL_SHARED_SECRET` (at least 32 chars, `openssl rand -hex 32`).
+- [ ] Before sending a real command, confirm the `nextjs` broker account can write `stm32/cmd` and that the Pi's `cmd_node` is running. The app reports `sent` once the broker connection takes the message; delivery is visible in the status stream.
 - [ ] nginx must overwrite forwarding headers, not append: `proxy_set_header X-Forwarded-For $remote_addr;`, `proxy_set_header X-Forwarded-Proto $scheme;`, `proxy_set_header X-Forwarded-Host $host;` (rate limiting and the Origin check rely on them).
-- [ ] nginx `location /api/status/stream` needs `proxy_buffering off;` (SSE).
-- [ ] go2rtc: set `webrtc.candidates` (public IP:port) and a TURN server for video off the LAN. The player uses no STUN/TURN today.
+- [ ] nginx: `location ~ ^/api/(status|camera)/stream$` needs `proxy_buffering off;` and a long `proxy_read_timeout` (SSE and live video).
+- [ ] go2rtc: the app server must reach its API (tailnet ACL plus `tailscale serve` on the Pi, never Funnel). Video goes over HTTP through the app, so no TURN server or public WebRTC port is needed.
 - [ ] Confirm the response headers from `curl -sI https://map.hyxc.io/login` (HSTS, nosniff, X-Frame-Options, Referrer-Policy, CSP).
 
 ## Testing

@@ -17,6 +17,7 @@ type State = {
 const DEFAULT_TOPIC = "stm32/status/all";
 const MAX_PAYLOAD = 64 * 1024;
 const WARN_EVERY_MS = 60_000;
+const PUBLISH_TIMEOUT_MS = 5_000;
 
 // WHY: globalThis survives Next dev hot reloads, so one broker connection per process, not per reload.
 const g = globalThis as typeof globalThis & { __wgTelemetry?: State };
@@ -55,6 +56,8 @@ function start(s: State) {
     username: process.env.MQTT_USERNAME || undefined,
     password: process.env.MQTT_PASSWORD || undefined,
     reconnectPeriod: 5_000,
+    // WHY: publish() must fail while offline, not queue and deliver a stale pump command after a reconnect.
+    queueQoSZero: false,
   });
   s.client = client;
 
@@ -96,6 +99,28 @@ function state(): State {
     start(s);
   }
   return g.__wgTelemetry;
+}
+
+/**
+ * Publishes through the same connection as the status subscriber. Resolves true once mqtt.js has
+ * written the message to the broker connection; false when the broker is not connected, mqtt.js
+ * reports an error, or nothing happens within 5 s. QoS 0: at most once, never retried or replayed.
+ * Delivery to the subscriber is not confirmed; the status stream shows the effect.
+ */
+export function publish(topic: string, payload: string): Promise<boolean> {
+  const s = state();
+  const client = s.client;
+  if (!client || s.conn !== "connected") return Promise.resolve(false);
+  return new Promise((resolve) => {
+    // shortcut: a callback arriving after the timeout is ignored (promise already settled), so a
+    // slow write may report "failed" for a command that went out; acceptable, commands are idempotent.
+    const timer = setTimeout(() => resolve(false), PUBLISH_TIMEOUT_MS);
+    client.publish(topic, payload, { qos: 0 }, (err) => {
+      clearTimeout(timer);
+      if (err) console.error("[telemetry] publish failed:", err.message);
+      resolve(!err);
+    });
+  });
 }
 
 /** Listener gets the current conn state (and last status, if any) immediately, then live events. */

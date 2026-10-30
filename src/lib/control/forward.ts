@@ -1,39 +1,19 @@
 import "server-only";
+import { publish } from "@/lib/telemetry/broker";
 import type { Command } from "./commands";
 
-const TIMEOUT_MS = 5_000;
+// WHY: the Pi's cmd_node subscribes to this topic and expects the bare 2-character string
+// (no JSON, no newline), the same payload the old browser client published.
+const COMMAND_TOPIC = "stm32/cmd";
 
-// Sends one command to FastAPI. Anything other than a 2xx with body status "ok" is "failed".
+// Publishes one command through the server's own MQTT connection (the "nextjs" broker account,
+// the only one allowed to write COMMAND_TOPIC). "sent" means the broker connection took the bytes;
+// delivery to the Pi is not confirmed, the status stream shows the effect.
 export async function forwardCommand(cmd: Command): Promise<"sent" | "failed"> {
-  const secret = process.env.CONTROL_SHARED_SECRET;
-  if (!secret || secret.length < 32) {
-    console.error("[control/forward] CONTROL_SHARED_SECRET is missing or shorter than 32 chars");
-    return "failed";
-  }
-  const base = process.env.FASTAPI_URL ?? "http://127.0.0.1:8000";
   try {
-    const res = await fetch(`${base}/api/control`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Control-Token": secret },
-      body: JSON.stringify({ command: cmd }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-      // WHY: never re-send the token to wherever a redirect points.
-      redirect: "error",
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      console.error(`[control/forward] FastAPI responded ${res.status}`);
-      return "failed";
-    }
-    const body = (await res.json().catch(() => null)) as { status?: unknown } | null;
-    if (body?.status !== "ok") {
-      console.error("[control/forward] FastAPI did not accept the command:", String(body?.status));
-      return "failed";
-    }
-    return "sent";
+    return (await publish(COMMAND_TOPIC, cmd)) ? "sent" : "failed";
   } catch (e) {
-    // WHY: log name/message only; never the request init (it carries the token).
-    console.error("[control/forward] request failed:", e instanceof Error ? `${e.name}: ${e.message}` : "unknown");
+    console.error("[control/forward] publish failed:", e instanceof Error ? e.message : "unknown");
     return "failed";
   }
 }
