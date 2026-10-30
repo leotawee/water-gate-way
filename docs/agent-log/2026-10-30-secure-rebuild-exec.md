@@ -104,3 +104,30 @@
 - **Why:** review I-1. Last-known pump/alarm ON/OFF stayed full colour next to live-looking buttons, so an operator could act on a 10-minute-old "ON".
 - **Result:** `npm test` 157/157; typecheck 0; eslint on `src/app/dashboard` and `src/lib/telemetry` clean; build OK.
 - **Lesson:** a stale value is most dangerous where it drives an action; there it should be hidden, not just dimmed.
+
+## [17:10] Task 11 — security headers, lint override, README, branch security review
+
+- **Action:** `next.config.ts` `headers()` on `/:path*` (HSTS, nosniff, X-Frame-Options DENY, Referrer-Policy, CSP). CSP additions found by reading components: `https://unpkg.com` in `img-src` (Leaflet marker PNGs in `WaterGateMap.tsx`); `'unsafe-eval'` only when `NODE_ENV !== production`. Go2RTCPlayer uses `iceServers: []`, no external origin; media is a MediaStream (blob covered). `eslint.config.mjs` override for root `*.js` (commonjs, node globals, no-require-imports off). README rewritten (architecture, env table, setup, deploy checklist, testing).
+- **Why:** defence in depth against XSS/clickjacking/MIME sniffing. Rejected: nonce CSP now (needs dynamic rendering plumbing) -> `// TECH DEBT`.
+- **Result:** `npm run build && npm run start`, `curl -sI localhost:3000/login` shows all five headers; /login scripts are `src=` chunks. lint exit 0, tests and typecheck run after.
+- **Lesson:** a CSP is only as tight as the CDN hosts it lists; vendoring the marker icons would let us drop unpkg.
+
+### Security checklist over `ff9c6af..HEAD` (applies / handled / open)
+
+- Passwords: applies; scrypt N=2^17 + `timingSafeEqual` (`src/lib/auth`). Generic login error: handled. Brute force: per-IP + per-account limits in login route. Open: in-process limiter store (TECH DEBT, single instance OK).
+- Input/query: applies; `pg` parameterized queries, command allowlist validated server-side, `safeNext` blocks open redirect. No path or shell input. Open: none.
+- File upload: not applicable.
+- Secrets: handled; no hardcoded values, `.env.example` placeholders, no `NEXT_PUBLIC_*`. Open: app DB user must be least-privilege (documented in README); real `.env` untouched.
+- Supply chain: lockfile committed; no new runtime deps; `globals` used by eslint is a transitive dep (not declared). Open: dependency audit not run this task; versions not exact-pinned (carets).
+- Crypto: handled; `randomBytes` for sessions, tokens stored hashed. No custom primitives.
+- Errors/response: handled; generic client errors, `[module]` console.error. Open: none found.
+- Rate limiting: handled on login; 429 + Retry-After. Open: camera/control routes rely on auth + Origin check, no dedicated limit.
+- Session/token: handled; HttpOnly Secure SameSite=Lax cookie, 12 h expiry, SSE max lifetime 10 min. Not JWT.
+- Transport/headers: handled by this task; HSTS, CSP, XFO, nosniff, Referrer-Policy. Open: `'unsafe-inline'` scripts (TECH DEBT); CORS: same-origin only, no CORS headers set.
+- General: least privilege via roles, audit table for commands. Open: Phase 0 infra items are ops, not verified here.
+
+## Summary
+
+- Changed: next.config.ts, eslint.config.mjs, README.md, this log. Unchanged: mqtt_bridge.js, app logic.
+- Mistakes & dead ends: none.
+- 📌 GENERAL: check every third-party URL in source (icons, tiles) before writing a CSP.

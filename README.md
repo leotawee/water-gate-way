@@ -11,18 +11,68 @@ Web dashboard for the Water Gate Way system, built with [Next.js](https://nextjs
 - `esp32-s3/`: PlatformIO project for the ESP32-S3 HMI
 - `go2rtc.yaml`, `start-pi-webrtc.sh`: video streaming config and startup script
 
-## Quick start
+## Architecture
 
-Requires Node.js and npm (the repo includes `package-lock.json`).
+The browser talks only to the Next.js server (behind nginx/TLS). Next.js authenticates every request (scrypt passwords, `wg_session` cookie, roles `viewer` < `operator` < `admin`) and is the only component that reaches the backends, all on loopback or the private network:
+
+- Next.js -> PostgreSQL: users, sessions, `control_audit`.
+- Next.js -> Mosquitto: subscribe only (`MQTT_URL`), fanned out to browsers as same-origin SSE at `/api/status/stream`.
+- Next.js -> FastAPI (`FASTAPI_URL`, loopback): operator commands from `POST /api/control`, sent with the `X-Control-Token` header (`CONTROL_SHARED_SECRET`).
+- Next.js -> go2rtc (`GO2RTC_URL`, loopback): WebRTC signalling via `POST /api/camera/webrtc`; video media then flows peer to peer.
+
+Content-Security-Policy and the other security headers are set in `next.config.ts`.
+
+## Environment variables
+
+Copy `.env.example` to `.env.local`. Values never go in `NEXT_PUBLIC_*`.
+
+| Variable | Used by | Purpose |
+| --- | --- | --- |
+| `PGUSER` `PGHOST` `PGDATABASE` `PGPASSWORD` `PGPORT` | Next.js, `mqtt_bridge.js` | PostgreSQL connection (app user, least privilege) |
+| `MQTT_URL` `MQTT_USERNAME` `MQTT_PASSWORD` | Next.js | Read-only broker subscriber for the SSE stream |
+| `MQTT_TOPIC_STATUS` | Next.js, ai-receiver | Extra status topic to subscribe to |
+| `FASTAPI_URL` | Next.js | FastAPI base URL (loopback) |
+| `CONTROL_SHARED_SECRET` | Next.js, FastAPI | `X-Control-Token`; at least 32 chars; both sides refuse to work without it |
+| `GO2RTC_URL` | Next.js | go2rtc API (loopback) |
+| `API_HOST` | FastAPI | Bind address, default `127.0.0.1` |
+| `MQTT_BROKER` `MQTT_TOPIC` `MQTT_QOS` | `mqtt_bridge.js` | Bridge broker, topic, QoS |
+| `MQTT_HOST` `MQTT_PORT` `MQTT_TOPIC_CONTROL` `WGW_SERIAL_PORT` | ai-receiver | Broker, control topic, serial port |
+
+## First-time setup
+
+1. Apply `db/migrations/001_auth.sql` as a DB role with CREATE privilege (it needs the `citext` and `pgcrypto` extensions).
+2. Create the app DB user and grant only: `SELECT, INSERT, UPDATE, DELETE` on `users`, `sessions`, `control_audit`, plus `USAGE` on `control_audit_id_seq`.
+3. Generate the secret: `openssl rand -hex 32` and set `CONTROL_SHARED_SECRET` in both Next.js and FastAPI.
+4. Create the first admin: `node scripts/create-user.ts <email> <role>` (roles: `viewer`, `operator`, `admin`; Node >= 22.6). There is no public sign-up.
+5. `npm install && npm run build && npm run start`.
+
+## Deploy checklist
+
+Containment (do first):
+
+- [ ] **Mosquitto:** `listener 1883 127.0.0.1`, `allow_anonymous false`, `password_file /etc/mosquitto/passwd`, `acl_file /etc/mosquitto/acl`. ACL: user `fastapi` may `readwrite stm32/#` and `water/#`; user `nextjs` may `read stm32/status/all` and `read water/gate/status` (read-only); ESP32/STM32 gateway users as needed. Nobody except FastAPI and the devices may publish `stm32/cmd`. Remove any websocket listener.
+- [ ] **nginx:** delete the `location /mqtt` and any `location /api/control` or `/ws/` block that proxies to Mosquitto or FastAPI directly. Only `proxy_pass` to Next.js remains.
+- [ ] **FastAPI:** run with `host=127.0.0.1` (default via `API_HOST`).
+- [ ] **TLS:** `certbot --nginx -d map.hyxc.io` (or a `*.hyxc.io` DNS-01 cert); confirm `systemctl list-timers | grep certbot`.
+- [ ] **Verify:** from outside, the WebSocket handshake to `https://map.hyxc.io/mqtt` no longer returns `101`, and `nc -vz map.hyxc.io 1883` and `:8000` fail.
+- [ ] **Rotate** the admin password that was pasted into chat on 2026-10-30.
+
+Rebuild-specific:
+
+- [ ] Do not deploy without `CONTROL_SHARED_SECRET` (at least 32 chars, `openssl rand -hex 32`).
+- [ ] nginx must overwrite forwarding headers, not append: `proxy_set_header X-Forwarded-For $remote_addr;`, `proxy_set_header X-Forwarded-Proto $scheme;`, `proxy_set_header X-Forwarded-Host $host;` (rate limiting and the Origin check rely on them).
+- [ ] nginx `location /api/status/stream` needs `proxy_buffering off;` (SSE).
+- [ ] go2rtc: set `webrtc.candidates` (public IP:port) and a TURN server for video off the LAN. The player uses no STUN/TURN today.
+- [ ] Confirm the response headers from `curl -sI https://map.hyxc.io/login` (HSTS, nosniff, X-Frame-Options, Referrer-Policy, CSP).
+
+## Testing
 
 ```bash
-npm install
-npm run dev
+npm test
+npm run typecheck
+npm run lint
+ai-receiver/.venv/bin/python -m pytest ai-receiver/test_auth.py
 ```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-Other scripts from `package.json`: `npm run build`, `npm run start`, `npm run lint`, `npm run bridge`.
 
 ## Documentation
 
