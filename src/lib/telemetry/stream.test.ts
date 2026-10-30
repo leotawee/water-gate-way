@@ -211,6 +211,27 @@ describe("GET /api/status/stream", () => {
     expect(listeners()).toBe(1); // only the test's own subscription remains
   });
 
+  it("closes the stream after 10 minutes so the client reconnects and re-authenticates", async () => {
+    vi.useFakeTimers();
+    try {
+      subscribeStatus(() => {});
+      const res = await GET(new Request("http://localhost/api/status/stream"));
+      const { reader } = await readChunk(res);
+      expect(listeners()).toBe(2);
+      vi.advanceTimersByTime(10 * 60_000 - 1);
+      expect(listeners()).toBe(2);
+      vi.advanceTimersByTime(1);
+      expect(listeners()).toBe(1);
+      // queued pings drain first, then the stream ends
+      let r = await reader.read();
+      while (!r.done) r = await reader.read();
+      expect(r.done).toBe(true);
+      expect(vi.getTimerCount()).toBe(0); // ping and lifetime timers both cleared
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("HEAD: 401 without session, 200 empty with session", async () => {
     h.user = null;
     expect((await HEAD()).status).toBe(401);

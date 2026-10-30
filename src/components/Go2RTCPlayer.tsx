@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 
 interface Go2RTCPlayerProps {
   streamName: string;
-  go2rtcHost?: string;
-  go2rtcPort?: number;
   label?: string;
 }
 
@@ -13,8 +11,6 @@ type Status = "idle" | "connecting" | "connected" | "failed";
 
 export default function Go2RTCPlayer({
   streamName,
-  go2rtcHost = "192.168.1.151",
-  go2rtcPort = 1984,
   label,
 }: Go2RTCPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -24,6 +20,7 @@ export default function Go2RTCPlayer({
   useEffect(() => {
     let pc: RTCPeerConnection;
     let mounted = true;
+    const video = videoRef.current;
 
     const connect = async () => {
       if (!mounted) return;
@@ -52,8 +49,9 @@ export default function Go2RTCPlayer({
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
+        // WHY: same-origin authenticated proxy; the browser never talks to go2rtc directly.
         const res = await fetch(
-          `http://${go2rtcHost}:${go2rtcPort}/api/webrtc?src=${streamName}`,
+          `/api/camera/webrtc?src=${encodeURIComponent(streamName)}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/sdp" },
@@ -79,9 +77,9 @@ export default function Go2RTCPlayer({
       mounted = false;
       pcRef.current?.close();
       pcRef.current = null;
-      if (videoRef.current) videoRef.current.srcObject = null;
+      if (video) video.srcObject = null;
     };
-  }, [streamName, go2rtcHost, go2rtcPort]);
+  }, [streamName]);
 
   const displayLabel = label ?? `Office ${streamName.replace("office", "")}`;
 

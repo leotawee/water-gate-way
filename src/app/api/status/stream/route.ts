@@ -6,6 +6,8 @@ import { subscribeStatus } from "@/lib/telemetry/broker";
 export const dynamic = "force-dynamic";
 
 const PING_MS = 25_000;
+// WHY: forces the EventSource to reconnect, which re-runs requireUser (revoked sessions stop streaming).
+const MAX_LIFETIME_MS = 10 * 60_000;
 const enc = new TextEncoder();
 
 /** null when the caller may read telemetry; otherwise the 401/403/503 response. */
@@ -36,12 +38,14 @@ export async function GET(request: Request): Promise<Response> {
       let closed = false;
       let unsubscribe: (() => void) | null = null;
       let ping: ReturnType<typeof setInterval> | null = null;
+      let lifetime: ReturnType<typeof setTimeout> | null = null;
 
       cleanup = () => {
         if (closed) return;
         closed = true;
         unsubscribe?.();
         if (ping) clearInterval(ping);
+        if (lifetime) clearTimeout(lifetime);
         try {
           controller.close();
         } catch {
@@ -59,6 +63,7 @@ export async function GET(request: Request): Promise<Response> {
 
       unsubscribe = subscribeStatus((e) => send(`data: ${JSON.stringify(e)}\n\n`));
       ping = setInterval(() => send(": ping\n\n"), PING_MS);
+      lifetime = setTimeout(() => cleanup(), MAX_LIFETIME_MS);
       if (request.signal.aborted) cleanup();
       else request.signal.addEventListener("abort", () => cleanup(), { once: true });
     },

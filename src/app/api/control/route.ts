@@ -5,20 +5,9 @@ import { controlByUser } from "@/lib/auth/rateLimit";
 import { parseCommand } from "@/lib/control/commands";
 import { forwardCommand } from "@/lib/control/forward";
 import { clientIp } from "@/lib/http/clientIp";
+import { sameOrigin } from "@/lib/http/sameOrigin";
 
 type AuditStatus = "sent" | "rejected" | "failed" | "rate_limited";
-
-// CSRF: the browser sets Origin and Host; a cross-site page cannot forge either without a CORS preflight.
-function sameOrigin(req: NextRequest): boolean {
-  const origin = req.headers.get("origin");
-  if (!origin) return false;
-  if (origin === new URL(req.url).origin) return true;
-  // WHY: nginx terminates TLS, so req.url may say http://upstream while the browser says https://public.
-  const first = (v: string | null) => v?.split(",")[0]?.trim();
-  const proto = first(req.headers.get("x-forwarded-proto"));
-  const host = first(req.headers.get("x-forwarded-host")) || first(req.headers.get("host"));
-  return !!proto && !!host && origin === `${proto}://${host}`;
-}
 
 const AUDIT_SQL = "insert into control_audit (user_id, command, status, ip) values ($1, $2, $3, $4)";
 
