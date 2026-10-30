@@ -1,13 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Pool } from 'pg';
-
-const pool = new Pool({
-  user: process.env.PGUSER,
-  host: process.env.PGHOST,
-  database: process.env.PGDATABASE,
-  password: process.env.PGPASSWORD,
-  port: Number(process.env.PGPORT) || 5432,
-});
+import { db } from '@/lib/db';
 
 export async function GET() {
   try {
@@ -17,7 +9,7 @@ export async function GET() {
       ORDER BY measured_at DESC;
     `;
 
-    const { rows } = await pool.query(query);
+    const { rows } = await db.query(query);
 
     const csvHeader = 'id,device_id,water_height,measured_at\n';
     const csvRows = rows
