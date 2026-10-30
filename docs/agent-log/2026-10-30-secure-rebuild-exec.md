@@ -41,3 +41,10 @@
 - **Why:** proxy is an optimistic cookie-presence check only (Next 16 docs: Proxy is not an auth solution); `requireUser` is the real check. Limiters run before DB/scrypt; unknown email runs scrypt on a well-formed dummy hash so timing does not reveal accounts. Auth check sits inside the routes' existing try so a DB outage during the session lookup still returns 503.
 - **Result:** 81 tests pass, typecheck 0 errors, eslint clean on touched files, `npm run build` OK (Proxy listed). Dev server: `/api/water-level` and `/download` → 401 JSON; `/dashboard` → 307 `/login?next=%2Fdashboard`; `/login` → 200. Successful login NOT exercised end to end (no local Postgres).
 - **Lesson:** the WHATWG URL parser strips tab/CR/LF, so `"/\t/x"` parses as `//x` and passed the old origin check by naming the dummy host; reject control chars and return the parsed path, not the raw string.
+
+## [15:20] Task 7 — FastAPI hardening
+
+- **Action:** created `ai-receiver/.venv` (approved pkgs only); tests first in `ai-receiver/test_auth.py` (RED: 9 failed / 4 passed); then `main.py`: `API_HOST` env (default 127.0.0.1), CORS middleware + import removed, `verify_control_token` dependency (`X-Control-Token`, `hmac.compare_digest` on bytes, generic 401) on `/api/control` and `/api/update-count`, `require_control_secret()` (>=32 chars) called in lifespan and before `uvicorn.run`. `.env.example` gets `CONTROL_SHARED_SECRET`, `API_HOST`.
+- **Why:** only the Next.js server calls FastAPI now; loopback + shared secret + no CORS closes unauthenticated pump control from LAN/browsers. Secret check lives in startup, not import, so `import main` works in tests.
+- **Result:** 13 passed. Dead end: first startup test used `TestClient` context; anyio wraps `SystemExit` in an exception group, so the test enters `lifespan` directly instead.
+- **Lesson:** a secret compare must be constant-time and on bytes (`compare_digest` on str raises for non-ASCII); a fail-fast check at import breaks tests, so put it on the startup path.

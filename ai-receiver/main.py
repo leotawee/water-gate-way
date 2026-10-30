@@ -13,6 +13,7 @@ Deployment:
 """
 
 import asyncio
+import hmac
 import json
 import os
 import re
@@ -24,8 +25,7 @@ from typing import Optional, Set
 
 import paho.mqtt.client as mqtt
 import serial
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -52,7 +52,8 @@ MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 TOPIC_CONTROL = os.getenv("MQTT_TOPIC_CONTROL", "water/gate/control")
 TOPIC_STATUS = os.getenv("MQTT_TOPIC_STATUS", "water/gate/status")
 
-API_HOST = "0.0.0.0"
+# WHY: loopback by default; only the Next.js server on this host calls FastAPI.
+API_HOST = os.getenv("API_HOST", "127.0.0.1")
 API_PORT = 8000
 WS_PING_INTERVAL = 30.0
 
@@ -66,6 +67,28 @@ VALID_COMMANDS = {
     "Q1", "Q0",  # Relay 2
 }
 CMD_PATTERN = re.compile(r"^[A-Z][01]$")
+
+MIN_SECRET_LEN = 32
+
+
+def require_control_secret() -> str:
+    """Return CONTROL_SHARED_SECRET or exit. Called at startup, not at import,
+    so tests can import this module without a secret."""
+    secret = os.getenv("CONTROL_SHARED_SECRET", "")
+    if len(secret) < MIN_SECRET_LEN:
+        raise SystemExit(
+            f"[FATAL] CONTROL_SHARED_SECRET missing or shorter than {MIN_SECRET_LEN} chars. See .env.example."
+        )
+    return secret
+
+
+def verify_control_token(x_control_token: Optional[str] = Header(default=None)) -> None:
+    # WHY: constant-time compare on bytes (str compare_digest rejects non-ASCII);
+    # same generic 401 for missing and wrong so nothing leaks.
+    expected = os.getenv("CONTROL_SHARED_SECRET", "").encode("utf-8")
+    given = (x_control_token or "").encode("utf-8")
+    if len(expected) < MIN_SECRET_LEN or not hmac.compare_digest(given, expected):
+        raise HTTPException(status_code=401, detail="unauthorized")
 
 
 # ===========================================================================
@@ -364,6 +387,7 @@ async def _broadcast_to_all(payload: dict) -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    require_control_secret()
     state.loop = asyncio.get_running_loop()
     start_mqtt()
     thread = threading.Thread(target=serial_reader_thread, daemon=True)
@@ -389,13 +413,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# WHY: no CORS middleware. Browsers never call FastAPI; only the Next.js server does.
 
 
 # ===========================================================================
@@ -421,7 +439,7 @@ async def mqtt_status():
     }
 
 
-@app.post("/api/control")
+@app.post("/api/control", dependencies=[Depends(verify_control_token)])
 async def control_command(payload: CommandPayload):
     """HTTP fallback — also validates before sending."""
     cmd = sanitize_command(payload.command)
@@ -438,7 +456,7 @@ async def control_command(payload: CommandPayload):
     return {"status": "ok", "command_sent": cmd}
 
 
-@app.post("/api/update-count")
+@app.post("/api/update-count", dependencies=[Depends(verify_control_token)])
 async def update_count(payload: PersonCountPayload):
     state.latest_person_count = payload.count
     serial_sent = send_cmd("M1" if payload.count > 0 else "M0")
@@ -485,4 +503,5 @@ async def websocket_detections(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
+    require_control_secret()
     uvicorn.run("main:app", host=API_HOST, port=API_PORT, reload=False, log_level="info")
