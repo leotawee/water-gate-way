@@ -108,6 +108,7 @@ export default function DashboardPage() {
   /* ── water level state ── */
   const [data, setData] = useState<DataPoint[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [currentLevel, setCurrentLevel] = useState<number>(0);
   const [clock, setClock] = useState<string>("");
   const dataRef = useRef<DataPoint[]>([]);
@@ -159,58 +160,27 @@ export default function DashboardPage() {
 
   /* ── fetch water levels from API ── */
   const fetchWaterLevels = useCallback(async () => {
-    // Database bypass — PostgreSQL removed, using mock data
-    // try {
-    //   const res = await fetch("/api/water-level");
-    //   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    //   const rows: ApiWaterLevel[] = await res.json();
-    //   const chartData = mapApiToChart(rows);
-    //   setData(chartData);
-    //   dataRef.current = chartData;
-    //   if (chartData.length > 0) {
-    //     setCurrentLevel(chartData[chartData.length - 1].level);
-    //   }
-    // } catch (err) {
-    //   console.error("[Dashboard] Failed to fetch water levels:", err);
-    // } finally {
-    //   setDataLoading(false);
-    // }
-
-    // Mock data to keep the chart working
-    const now = new Date();
-    const mockRows: ApiWaterLevel[] = [
-      {
-        id: 1,
-        device_id: "radar-01",
-        water_height: 2.45,
-        measured_at: new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 2,
-        device_id: "radar-01",
-        water_height: 2.67,
-        measured_at: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 3,
-        device_id: "radar-01",
-        water_height: 3.12,
-        measured_at: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 4,
-        device_id: "radar-01",
-        water_height: 2.89,
-        measured_at: now.toISOString(),
-      },
-    ];
-    const chartData = mapApiToChart(mockRows);
-    setData(chartData);
-    dataRef.current = chartData;
-    if (chartData.length > 0) {
-      setCurrentLevel(chartData[chartData.length - 1].level);
+    try {
+      const res = await fetch("/api/water-level");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const rows: ApiWaterLevel[] = await res.json();
+      if (!Array.isArray(rows)) throw new Error("Response is not an array");
+      const chartData = mapApiToChart(rows);
+      setData(chartData);
+      dataRef.current = chartData;
+      setDataError(null);
+      if (chartData.length > 0) {
+        setCurrentLevel(chartData[chartData.length - 1].level);
+      }
+    } catch (err) {
+      // WHY: clear stale points so the chart never shows data we failed to refresh
+      console.error("[Dashboard] Failed to fetch water levels:", err);
+      setData([]);
+      dataRef.current = [];
+      setDataError("Failed to load water level data");
+    } finally {
+      setDataLoading(false);
     }
-    setDataLoading(false);
   }, []);
 
   /* ── initial fetch + polling every 5 minutes ── */
@@ -447,14 +417,12 @@ export default function DashboardPage() {
 
   /* ── download CSV via backend API ── */
   const downloadCSV = useCallback(() => {
-    // Database bypass — download endpoint disabled
-    // const a = document.createElement("a");
-    // a.href = "/api/water-level/download";
-    // a.download = "water_levels_report.csv";
-    // document.body.appendChild(a);
-    // a.click();
-    // document.body.removeChild(a);
-    alert("ระบบดาวน์โหลดข้อมูลปิดปรับปรุงชั่วคราวครับ");
+    const a = document.createElement("a");
+    a.href = "/api/water-level/download";
+    a.download = "water_levels_report.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }, []);
 
   /* ── clock ── */
@@ -833,9 +801,11 @@ export default function DashboardPage() {
                   Water Level — 24 Hours
                 </h3>
               </div>
-              <span className="text-xs bg-blue-50 text-blue-600 font-bold px-3 py-1 rounded-full">
-                Current: {currentLevel.toFixed(2)} m
-              </span>
+              {data.length > 0 && (
+                <span className="text-xs bg-blue-50 text-blue-600 font-bold px-3 py-1 rounded-full">
+                  Current: {currentLevel.toFixed(2)} m
+                </span>
+              )}
             </div>
 
             {dataLoading && data.length === 0 ? (
@@ -844,6 +814,12 @@ export default function DashboardPage() {
                   <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
                   <span className="text-xs text-gray-400">Loading chart data…</span>
                 </div>
+              </div>
+            ) : data.length === 0 ? (
+              <div className="w-full h-64 sm:h-80 flex items-center justify-center">
+                <span className={`text-xs ${dataError ? "text-red-500" : "text-gray-400"}`}>
+                  {dataError ?? "No water level data yet"}
+                </span>
               </div>
             ) : (
               <div className="w-full h-64 sm:h-80">

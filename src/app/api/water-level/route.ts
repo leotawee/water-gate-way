@@ -9,13 +9,6 @@ const pool = new Pool({
   port: Number(process.env.PGPORT) || 5432,
 });
 
-const mockData = Array.from({ length: 24 }).map((_, i) => ({
-  id: i + 1,
-  device_id: 'mock_device',
-  water_height: parseFloat((Math.random() * 2 + 10).toFixed(2)),
-  measured_at: new Date(Date.now() - (15 - i) * 3600000).toISOString(),
-}));
-
 export async function GET() {
   try {
     const query = `
@@ -32,7 +25,8 @@ export async function GET() {
     const { rows } = await pool.query(query);
     return NextResponse.json(rows);
   } catch (error) {
-    console.error('[API /water-level] DB error, returning mock fallback:', error);
-    return NextResponse.json(mockData);
+    // WHY: 503 + generic body so the dashboard cannot mistake an outage for real data.
+    console.error('[API /water-level] DB error:', error);
+    return NextResponse.json({ error: 'Database unavailable' }, { status: 503 });
   }
 }

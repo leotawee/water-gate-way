@@ -26,6 +26,7 @@ import paho.mqtt.client as mqtt
 import serial
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 
@@ -43,7 +44,10 @@ SERIAL_BAUD = 9600
 SERIAL_TIMEOUT = 1
 RECONNECT_DELAY = 3.0
 
-MQTT_HOST = os.getenv("MQTT_HOST", "178.128.49.254")
+# WHY: no hardcoded broker host. Missing config fails at import, before any connect.
+MQTT_HOST = os.getenv("MQTT_HOST")
+if not MQTT_HOST:
+    raise SystemExit("[FATAL] Missing required env var MQTT_HOST. See .env.example.")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 TOPIC_CONTROL = os.getenv("MQTT_TOPIC_CONTROL", "water/gate/control")
 TOPIC_STATUS = os.getenv("MQTT_TOPIC_STATUS", "water/gate/status")
@@ -184,15 +188,16 @@ def mqtt_publish_status(data_dict: dict) -> None:
 # SERIAL COMMAND SENDER
 # ===========================================================================
 
-def send_cmd(cmd: str) -> None:
+def send_cmd(cmd: str) -> bool:
     """
     Transmit a validated command to the STM32 over serial.
     The command MUST already be sanitized before reaching here.
+    Returns True only if the bytes were written to an open port.
     """
     payload = cmd.strip()
     if len(payload) != 2:
         print(f"[SERIAL TX REJECTED] Bad length: {payload!r}")
-        return
+        return False
 
     with state.serial_lock:
         if state.serial_port is not None and state.serial_port.is_open:
@@ -201,10 +206,12 @@ def send_cmd(cmd: str) -> None:
                 state.serial_port.write(payload.encode("utf-8"))
                 state.serial_port.flush()
                 print(f"[SERIAL TX SUCCESS] Sent: {payload!r}")
+                return True
             except Exception as exc:
                 print(f"[SERIAL TX ERROR] {exc}")
-        else:
-            print(f"[SERIAL TX MOCK] {payload!r} (port closed)")
+                return False
+        print(f"[SERIAL TX MOCK] {payload!r} (port closed)")
+        return False
 
 
 # ===========================================================================
@@ -420,27 +427,25 @@ async def control_command(payload: CommandPayload):
     cmd = sanitize_command(payload.command)
     if not cmd:
         return {"status": "rejected", "reason": "invalid command"}
-    send_cmd(cmd)
-    # Echo to MQTT so other subscribers see it
-    if mqtt_client is not None and state.mqtt_connected:
-        try:
-            mqtt_client.publish(TOPIC_CONTROL, cmd, qos=0)
-        except Exception as exc:
-            print(f"[MQTT Echo ERROR] {exc}")
+    # WHY: no MQTT echo to TOPIC_CONTROL. This process subscribes to that topic,
+    # so an echo re-enters on_mqtt_message and sends the command to serial twice.
+    if not send_cmd(cmd):
+        # WHY: 503 instead of 200 so the caller never treats an unsent command as done
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unavailable", "reason": "serial port not open", "command": cmd},
+        )
     return {"status": "ok", "command_sent": cmd}
 
 
 @app.post("/api/update-count")
 async def update_count(payload: PersonCountPayload):
     state.latest_person_count = payload.count
-    if payload.count > 0:
-        send_cmd("M1")
-    else:
-        send_cmd("M0")
+    serial_sent = send_cmd("M1" if payload.count > 0 else "M0")
     unified = build_unified_payload()
     await _broadcast_to_all(unified)
     mqtt_publish_status(unified)
-    return {"status": "ok", "person_count": payload.count}
+    return {"status": "ok", "person_count": payload.count, "serial_sent": serial_sent}
 
 
 # ===========================================================================

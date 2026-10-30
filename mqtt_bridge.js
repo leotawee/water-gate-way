@@ -5,8 +5,8 @@
  *
  * Permanent background service that:
  *   1. Connects to the external Enterprise MQTT broker
- *   2. Subscribes to watergate/telemetry
- *   3. Parses incoming JSON sensor payloads
+ *   2. Subscribes to watergate/telemetry and stm32/status/all (STM32 radar status)
+ *   3. Parses incoming JSON sensor payloads (status: throttled, radar.liquid only)
  *   4. Inserts them securely into the local Docker PostgreSQL DB
  *
  * Run directly:
@@ -26,15 +26,41 @@ const { Pool } = require('pg');
 
 /* ───────────────────── Configuration ───────────────────── */
 
-const MQTT_BROKER = process.env.MQTT_BROKER || 'mqtt://178.128.49.254:1883';
+// WHY: secrets and hosts come only from env. Fail fast at startup rather than
+// falling back to a hardcoded host or password.
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`[FATAL] Missing required env var ${name}. See .env.example.`);
+    process.exit(1);
+  }
+  return value;
+}
+
+const MQTT_BROKER = requireEnv('MQTT_BROKER');
 const MQTT_TOPIC  = process.env.MQTT_TOPIC  || 'watergate/telemetry';
 const MQTT_QOS    = Number(process.env.MQTT_QOS) || 1;
 
+const STATUS_TOPIC = process.env.STATUS_TOPIC || 'stm32/status/all';
+
+// WHY: the STM32 status stream arrives every ~2s. Persisting every message would
+// write ~43k rows/day, so inserts from this topic are throttled to one per window.
+const STATUS_SAMPLE_SEC = (() => {
+  const raw = process.env.STATUS_SAMPLE_SEC;
+  if (raw === undefined || raw === '') return 60;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) {
+    console.error(`[FATAL] STATUS_SAMPLE_SEC must be a positive number, got "${raw}".`);
+    process.exit(1);
+  }
+  return value;
+})();
+
 const PG_CONFIG = {
-  user:     process.env.PGUSER     || 'water_admin',
-  host:     process.env.PGHOST     || '172.17.0.2',
-  database: process.env.PGDATABASE || 'watergate_db',
-  password: process.env.PGPASSWORD || 'zxc123',
+  user:     requireEnv('PGUSER'),
+  host:     requireEnv('PGHOST'),
+  database: requireEnv('PGDATABASE'),
+  password: requireEnv('PGPASSWORD'),
   port:     Number(process.env.PGPORT) || 5432,
 };
 
@@ -79,6 +105,50 @@ async function insertTelemetry(payload) {
   return rows[0].id;
 }
 
+// Handles stm32/status/all. Inserts radar.liquid (metres) only when it is a real
+// number; a null/missing reading is skipped, never stored as 0.
+let lastStatusInsertAt = 0;
+
+async function handleStatus(raw) {
+  let payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    console.warn('[Status] Non-JSON payload. Skipping.');
+    return;
+  }
+
+  const liquid = payload?.radar?.liquid;
+  if (typeof liquid !== 'number' || !Number.isFinite(liquid)) {
+    console.debug('[Status] radar.liquid is not a finite number. Skipping.');
+    return;
+  }
+
+  const now = Date.now();
+  if (now - lastStatusInsertAt < STATUS_SAMPLE_SEC * 1000) return;
+  // WHY: claim the window before awaiting the insert so messages arriving
+  // during the query cannot start a second insert.
+  lastStatusInsertAt = now;
+
+  const device_id = typeof payload.device_id === 'string' ? payload.device_id : 'stm32-radar';
+  const parsed = typeof payload.timestamp === 'string' ? new Date(payload.timestamp) : null;
+  const measured_at = parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date(now);
+
+  try {
+    const insertedId = await insertTelemetry({ device_id, water_height: liquid, measured_at });
+    messageCount += 1;
+    console.log(
+      `[DB] Inserted row id=${insertedId} | ` +
+      `device=${device_id} | ` +
+      `height=${liquid}m | ` +
+      `total_msgs=${messageCount}`
+    );
+  } catch (err) {
+    errorCount += 1;
+    console.error(`[Status] Processing error:`, err.message);
+  }
+}
+
 /* ───────────────────── MQTT Client ───────────────────── */
 
 const client = mqtt.connect(MQTT_BROKER, {
@@ -92,17 +162,21 @@ let errorCount   = 0;
 
 client.on('connect', () => {
   console.log(`[MQTT] Connected → ${MQTT_BROKER}`);
-  client.subscribe(MQTT_TOPIC, { qos: MQTT_QOS }, (err) => {
+  client.subscribe([MQTT_TOPIC, STATUS_TOPIC], { qos: MQTT_QOS }, (err) => {
     if (err) {
       console.error(`[MQTT] Subscribe failed:`, err.message);
     } else {
-      console.log(`[MQTT] Subscribed → topic="${MQTT_TOPIC}" qos=${MQTT_QOS}`);
+      console.log(`[MQTT] Subscribed → topics="${MQTT_TOPIC}", "${STATUS_TOPIC}" qos=${MQTT_QOS}`);
     }
   });
 });
 
 client.on('message', async (topic, message) => {
   const raw = message.toString();
+  if (topic === STATUS_TOPIC) {
+    await handleStatus(raw);
+    return;
+  }
   console.log(`[MQTT] RX → ${raw}`);
 
   try {
@@ -180,6 +254,7 @@ process.on('unhandledRejection', (reason) => {
     console.log('=' .repeat(55));
     console.log(`[Config] MQTT : ${MQTT_BROKER}`);
     console.log(`[Config] Topic: ${MQTT_TOPIC}`);
+    console.log(`[Config] Status: ${STATUS_TOPIC} (1 insert per ${STATUS_SAMPLE_SEC}s)`);
     console.log(`[Config] PG   : ${PG_CONFIG.host}:${PG_CONFIG.port}/${PG_CONFIG.database}`);
     console.log('=' .repeat(55));
 

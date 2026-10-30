@@ -9,10 +9,6 @@ const pool = new Pool({
   port: Number(process.env.PGPORT) || 5432,
 });
 
-const mockCsv = `id,device_id,water_height,measured_at
-1,mock_device,12.5,2026-05-16T14:00:00.000Z
-2,mock_device,11.8,2026-05-16T13:00:00.000Z`;
-
 export async function GET() {
   try {
     const query = `
@@ -40,12 +36,8 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('[API /water-level/download] DB error, returning mock fallback:', error);
-    return new NextResponse(mockCsv, {
-      headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': 'attachment; filename="water_levels_report.csv"',
-      },
-    });
+    // WHY: no file on failure; a 503 JSON error is distinguishable from a CSV download.
+    console.error('[API /water-level/download] DB error:', error);
+    return NextResponse.json({ error: 'Database unavailable' }, { status: 503 });
   }
 }

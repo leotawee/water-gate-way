@@ -6,7 +6,8 @@ import mqtt from "mqtt/dist/mqtt.esm";
 import type { MqttClient, IClientOptions } from "mqtt";
 
 /* ── MQTT Broker config ── */
-const MQTT_BROKER_URL = "wss://map.hyxc.io/mqtt";
+// WHY: literal process.env access is required so Next inlines it at build time
+const MQTT_BROKER_URL = process.env.NEXT_PUBLIC_MQTT_URL;
 
 export const TOPIC_CONTROL = "stm32/cmd";
 export const TOPIC_STATUS = "stm32/status/all";
@@ -20,7 +21,10 @@ export type MqttConnState = "connecting" | "connected" | "disconnected" | "error
  * Next.js / Turbopack without pulling Node.js 'net' modules.
  */
 export function useMqtt() {
-  const [connState, setConnState] = useState<MqttConnState>("connecting");
+  // WHY: initial state derived here, not set inside the effect (react-hooks/set-state-in-effect)
+  const [connState, setConnState] = useState<MqttConnState>(
+    MQTT_BROKER_URL ? "connecting" : "error"
+  );
   const [statusData, setStatusData] = useState<Record<string, unknown> | null>(
     null
   );
@@ -29,11 +33,16 @@ export function useMqtt() {
   useEffect(() => {
     let cancelled = false;
 
+    if (!MQTT_BROKER_URL) {
+      console.error("[MQTT] NEXT_PUBLIC_MQTT_URL is not set");
+      return;
+    }
+
     console.log(`[MQTT] Connecting to ${MQTT_BROKER_URL} ...`);
     setConnState("connecting");
 
+    // WHY: no `protocol` here; mqtt.js takes the scheme from the URL (ws:// or wss://)
     const options: IClientOptions = {
-      protocol: "wss",
       reconnectPeriod: 3000,   // auto-reconnect every 3s
       connectTimeout: 10_000,  // 10s initial timeout
       clean: true,
