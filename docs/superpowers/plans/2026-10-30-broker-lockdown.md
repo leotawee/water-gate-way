@@ -125,6 +125,17 @@ sudo systemctl restart stm32-serial-bridge stm32-cmd-node stm32-status-node stm3
 - Pi: `sudo rm /etc/systemd/system/stm32-*.service.d/mqtt.conf && sudo systemctl daemon-reload && sudo systemctl restart <the 6 units>`. The units fall back to `178.128.49.254:1883` anonymous.
 - DO firewall: detach it from the droplet.
 
+## Camera video path (MSE over HTTP)
+
+- **App side: done.** `GET /api/camera/stream?src=office1|office2|office3` (login required) proxies `${GO2RTC_URL}/api/stream.mp4?src=<camera>`. Verified on the Pi on 2026-10-30: go2rtc answers `200 video/mp4; codecs="avc1.640029"` (H.264, no audio), body starts with `ftyp`. Per-user cap 6 open streams, each stream cut after 10 minutes, the player reconnects.
+- **Network side: not done.** The droplet cannot open TCP to the Pi (tailnet ACL, the Pi is a shared device).
+  - **[tailnet admin `xpkungzaza`]** allow droplet `100.102.67.116` → Pi `100.90.199.55:1984` in the ACL. Only that pair.
+  - **[U] on the Pi** expose go2rtc inside the tailnet only, never Funnel. Likely `sudo tailscale serve --bg --tcp 1984 tcp://127.0.0.1:1984`; confirm the syntax with `tailscale serve --help` on the Pi's version (not tested).
+  - **Droplet env:** `GO2RTC_URL=http://100.90.199.55:1984`.
+  - **Caveat:** `tailscale serve` connects to go2rtc from localhost, and go2rtc skips its own login for localhost. The ACL is the only gate, so keep it to the droplet.
+  - **Check [C]:** from the droplet, `curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://100.90.199.55:1984/api` → `200`.
+- `src/app/api/camera/webrtc` (+ its test) is unused now. Delete it once Leo agrees.
+
 ## Residual risk after this plan
 
 - The Pi still trusts the tailnet ACL. MQTT over Tailscale is encrypted by WireGuard, so plain 1883 on the Tailscale IP is acceptable.

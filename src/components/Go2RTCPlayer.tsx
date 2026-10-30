@@ -7,90 +7,58 @@ interface Go2RTCPlayerProps {
   label?: string;
 }
 
-type Status = "idle" | "connecting" | "connected" | "failed";
+type Status = "connecting" | "connected" | "failed";
 
-export default function Go2RTCPlayer({
-  streamName,
-  label,
-}: Go2RTCPlayerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const [status, setStatus] = useState<Status>("idle");
+// WHY: a frozen picture must not stay labelled LIVE. Progressive MP4 gives no error when the
+// camera drops, so playback progress is the only signal.
+const STALL_MS = 8_000;
+
+export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
+  const [status, setStatus] = useState<Status>("connecting");
+  // Bumping `attempt` remounts <video>, which opens a fresh HTTP stream.
+  const [attempt, setAttempt] = useState(0);
+  const lastProgress = useRef(0);
+
+  const retry = () => {
+    setStatus("connecting");
+    setAttempt((n) => n + 1);
+  };
 
   useEffect(() => {
-    let pc: RTCPeerConnection;
-    let mounted = true;
-    const video = videoRef.current;
-
-    const connect = async () => {
-      if (!mounted) return;
-      setStatus("connecting");
-
-      try {
-        pc = new RTCPeerConnection({
-          iceServers: [], // Pure LAN P2P — no STUN/TURN
-        });
-        pcRef.current = pc;
-
-        pc.ontrack = (e) => {
-          if (videoRef.current && e.streams[0]) {
-            videoRef.current.srcObject = e.streams[0];
-          }
-        };
-
-        pc.oniceconnectionstatechange = () => {
-          if (!mounted) return;
-          const s = pc.iceConnectionState;
-          if (s === "connected" || s === "completed") setStatus("connected");
-          else if (s === "failed" || s === "disconnected") setStatus("failed");
-        };
-
-        pc.addTransceiver("video", { direction: "recvonly" });
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        // WHY: same-origin authenticated proxy; the browser never talks to go2rtc directly.
-        const res = await fetch(
-          `/api/camera/webrtc?src=${encodeURIComponent(streamName)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/sdp" },
-            body: offer.sdp,
-          }
-        );
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const answerSdp = await res.text();
-        await pc.setRemoteDescription(
-          new RTCSessionDescription({ type: "answer", sdp: answerSdp })
-        );
-      } catch (err) {
-        console.error(`[Go2RTC] ${streamName}:`, err);
-        if (mounted) setStatus("failed");
+    if (status !== "connected") return;
+    const id = setInterval(() => {
+      if (Date.now() - lastProgress.current > STALL_MS) {
+        setStatus("connecting");
+        setAttempt((n) => n + 1);
       }
-    };
+    }, 2_000);
+    return () => clearInterval(id);
+  }, [status]);
 
-    connect();
-
-    return () => {
-      mounted = false;
-      pcRef.current?.close();
-      pcRef.current = null;
-      if (video) video.srcObject = null;
-    };
-  }, [streamName]);
-
+  // WHY: go2rtc's fragmented MP4 over HTTP through the authenticated same-origin proxy, so it needs
+  // no WebRTC/ICE and works from any network. The server ends each stream after 10 minutes
+  // (session re-check); `ended` then reconnects.
+  const src = `/api/camera/stream?src=${encodeURIComponent(streamName)}&n=${attempt}`;
   const displayLabel = label ?? `Office ${streamName.replace("office", "")}`;
 
   return (
     <div className="relative w-full h-full bg-black rounded-2xl overflow-hidden border-2 border-gray-700 shadow-lg">
       <video
-        ref={videoRef}
+        key={attempt}
+        src={src}
         autoPlay
         playsInline
         muted
         className="w-full h-full object-cover"
+        onPlaying={() => {
+          lastProgress.current = Date.now();
+          setStatus("connected");
+        }}
+        onTimeUpdate={() => {
+          lastProgress.current = Date.now();
+        }}
+        onError={() => setStatus("failed")}
+        onEnded={() => setTimeout(retry, 1_000)}
       />
 
       {/* Status dot */}
@@ -105,11 +73,7 @@ export default function Go2RTCPlayer({
           }`}
         />
         <span className="text-[10px] font-bold text-white uppercase tracking-tight">
-          {status === "connected"
-            ? "P2P LIVE"
-            : status === "failed"
-            ? "OFFLINE"
-            : "CONNECTING"}
+          {status === "connected" ? "LIVE" : status === "failed" ? "OFFLINE" : "CONNECTING"}
         </span>
       </div>
 
@@ -118,10 +82,10 @@ export default function Go2RTCPlayer({
         <span className="text-white text-xs font-bold">{displayLabel}</span>
       </div>
 
-      {/* WebRTC badge */}
+      {/* Transport badge */}
       <div className="absolute top-3 right-3">
         <span className="text-[9px] font-mono font-bold text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded-md">
-          WEBRTC P2P
+          HTTP
         </span>
       </div>
 
@@ -139,7 +103,7 @@ export default function Go2RTCPlayer({
             <p className="text-red-400 text-sm font-bold">Connection Failed</p>
             <p className="text-gray-500 text-xs mt-1">{streamName}</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={retry}
               className="mt-3 px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg"
             >
               Retry
