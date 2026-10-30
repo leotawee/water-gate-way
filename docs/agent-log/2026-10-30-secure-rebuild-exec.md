@@ -48,3 +48,10 @@
 - **Why:** only the Next.js server calls FastAPI now; loopback + shared secret + no CORS closes unauthenticated pump control from LAN/browsers. Secret check lives in startup, not import, so `import main` works in tests.
 - **Result:** 13 passed. Dead end: first startup test used `TestClient` context; anyio wraps `SystemExit` in an exception group, so the test enters `lifespan` directly instead.
 - **Lesson:** a secret compare must be constant-time and on bytes (`compare_digest` on str raises for non-ASCII); a fail-fast check at import breaks tests, so put it on the startup path.
+
+## [15:05] Task 8 — authenticated, rate-limited, audited control route
+
+- **Action:** tests first: `src/app/api/control/route.test.ts` (14), `src/lib/control/forward.test.ts` (8), one new case in `dal.test.ts`. RED = 15 failed + "Cannot find module ./forward" (old route returned 502/500, `requireUser("superuser")` resolved for admin). Then: `src/lib/control/forward.ts` (`forwardCommand`, 5 s `AbortSignal.timeout`, `redirect: "error"`), full rewrite of `src/app/api/control/route.ts`, extracted `src/lib/http/clientIp.ts` (returns null, not "unknown"; `signIn` keeps "unknown" as its limiter key), `dal.ts` `RANK[minRole] ?? Infinity`, `.env.example` note that Next.js needs `CONTROL_SHARED_SECRET`.
+- **Why:** order Origin -> requireUser("operator") -> JSON -> parseCommand -> controlByUser -> forward -> audit, so unauthenticated/cross-site requests touch nothing and junk commands do not burn the limit. Audit failure is logged, never returned, so a command that reached the pumps is not reported as failed (operator would resend).
+- **Result:** 104 tests pass; typecheck 0; eslint clean on touched files; `npm run build` OK. Not exercised against a live FastAPI/Postgres.
+- **Lesson:** `x < undefined` is always false in JS, so a rank lookup on an unknown key silently passes an authorization check; default the required side to `Infinity`. Also: `fetch` follows redirects with custom headers, so a secret-bearing call should use `redirect: "error"`.

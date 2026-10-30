@@ -23,7 +23,8 @@ export const requireUser = cache(async (minRole: Role = "viewer"): Promise<Sessi
   const user = await getUser();
   if (!user) throw new AuthError("unauthenticated");
   // WHY: unknown role strings from the DB rank below viewer, so they fail closed.
-  if ((RANK[user.role] ?? -1) < RANK[minRole]) throw new AuthError("forbidden");
+  // WHY: an unknown minRole (typo, cast) ranks above admin, so the check denies instead of passing.
+  if ((RANK[user.role] ?? -1) < (RANK[minRole] ?? Infinity)) throw new AuthError("forbidden");
   return user;
 });
 

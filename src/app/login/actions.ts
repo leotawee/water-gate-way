@@ -7,17 +7,13 @@ import { verifyPassword } from "@/lib/auth/password";
 import { createSession, revokeSession, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth/session";
 import { loginByEmail, loginByIp } from "@/lib/auth/rateLimit";
 import { safeNext } from "@/lib/auth/safeNext";
+import { clientIp } from "@/lib/http/clientIp";
 
 export type SignInState = { error?: "invalid" | "rate_limited" } | undefined;
 
 // WHY: well-formed hash (valid params, 16-byte salt, 64-byte key) so verifyPassword runs the full
 // scrypt for unknown emails too; timing then does not reveal whether an account exists.
 const DUMMY_HASH = `scrypt$131072$8$1$${Buffer.alloc(16).toString("base64")}$${Buffer.alloc(64).toString("base64")}`;
-
-function clientIp(h: Headers): string {
-  // TECH DEBT: trusts proxy headers; nginx must overwrite X-Forwarded-For
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip")?.trim() || "unknown";
-}
 
 export async function signIn(_prev: SignInState, form: FormData): Promise<SignInState> {
   const rawEmail = form.get("email");
@@ -29,7 +25,7 @@ export async function signIn(_prev: SignInState, form: FormData): Promise<SignIn
   }
 
   // WHY: limit before any DB lookup or scrypt, so brute force cannot cost us DB or 128 MiB hashes.
-  if (!loginByIp.hit(clientIp(await headers())).ok || !loginByEmail.hit(email).ok) {
+  if (!loginByIp.hit(clientIp(await headers()) ?? "unknown").ok || !loginByEmail.hit(email).ok) {
     return { error: "rate_limited" };
   }
 

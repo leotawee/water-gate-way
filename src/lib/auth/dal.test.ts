@@ -109,6 +109,10 @@ describe("requireUser", () => {
     await expect(requireUser("operator")).rejects.toMatchObject({ code: "forbidden" });
     await expect(requireUser()).resolves.toMatchObject({ id: "u-viewer", role: "viewer" });
   });
+  it("unknown minRole -> forbidden even for admin (fail closed)", async () => {
+    await loginAs("u-admin");
+    await expect(requireUser("superuser" as never)).rejects.toMatchObject({ code: "forbidden" });
+  });
   it("admin passes operator", async () => {
     await loginAs("u-admin");
     await expect(requireUser("operator")).resolves.toEqual({ id: "u-admin", email: "admin@x.co", role: "admin" });
