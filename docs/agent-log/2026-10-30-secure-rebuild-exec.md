@@ -20,3 +20,10 @@
 - **Why:** one pool instead of one per route; auth tables needed by later tasks. Migration NOT run (Hard Stop: DB migration, Leo owns it).
 - **Result:** typecheck 0 errors, `npm test` passes, `npm run build` succeeds. No local Postgres, so GET /api/water-level not exercised live; response bodies/status codes untouched.
 - **Lesson:** a module-level Pool is recreated on every HMR reload in dev unless cached on globalThis.
+
+## [14:52] Task 4 — passwords, sessions, create-user script
+
+- **Action:** tests first (RED = "Failed to load url ./password"); added `src/lib/auth/{password,session}.ts`, `auth.test.ts`, `scripts/create-user.ts`; tsconfig `allowImportingTsExtensions` (noEmit only) so the script's `.ts` import typechecks.
+- **Why:** scrypt N=2^17 needs maxmem 256 MiB (Node default 32 MiB rejects it); verify accepts only the fixed params so a tampered row cannot pick the cost; sessions store sha256(token) so a DB leak yields no usable tokens.
+- **Result:** 48 tests pass, typecheck 0 errors. Script run with bad role / bad email / short password exits 1 before any DB connection. Insert path NOT exercised (no local Postgres).
+- **Lesson:** a module imported by a plain-node script must stay free of `@/` aliases and server-only; keep the shared crypto in a pure file.
