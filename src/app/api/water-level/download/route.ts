@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireUser, authErrorResponse } from '@/lib/auth/dal';
 
 export async function GET() {
   try {
+    await requireUser();
     const query = `
       SELECT id, device_id, water_height, measured_at 
       FROM water_levels 
@@ -28,6 +30,8 @@ export async function GET() {
       },
     });
   } catch (error) {
+    const denied = authErrorResponse(error);
+    if (denied) return denied;
     // WHY: no file on failure; a 503 JSON error is distinguishable from a CSV download.
     console.error('[API /water-level/download] DB error:', error);
     return NextResponse.json({ error: 'Database unavailable' }, { status: 503 });

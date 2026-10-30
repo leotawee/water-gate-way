@@ -34,3 +34,10 @@
 - **Why:** brute-force and command-flood limits; open-redirect guard for post-login `next`.
 - **Result:** 63 tests pass, typecheck 0 errors. Dead end: my own test caught that the brief's origin check accepts `//x` (resolves to host `x` = the dummy origin), so I added an explicit `startsWith("//")` reject.
 - **Lesson:** an origin check against a dummy host is bypassed by a protocol-relative URL naming that same dummy host; reject `//` lexically as well.
+
+## [14:56] Task 6 — sign-in flow, proxy, DAL guards, protected API
+
+- **Action:** tests first (RED = "Cannot find module './dal'" + 4 safeNext failures for `/\t/x`, `/\r\n/x`, `/\u0000/x`, normalized path). Added `src/lib/auth/dal.ts` (`getUser`, `requireUser`, `AuthError`, `authErrorResponse`), `src/app/login/{page,LoginForm,actions}.tsx|ts` (`signIn`, `signOut`), `src/proxy.ts`, `src/lib/auth/dal.test.ts`; fixed `safeNext`; guarded both water-level GET routes; sign-out button in `DashboardHeaderClient.tsx`. `layout.tsx` untouched (no provider needed).
+- **Why:** proxy is an optimistic cookie-presence check only (Next 16 docs: Proxy is not an auth solution); `requireUser` is the real check. Limiters run before DB/scrypt; unknown email runs scrypt on a well-formed dummy hash so timing does not reveal accounts. Auth check sits inside the routes' existing try so a DB outage during the session lookup still returns 503.
+- **Result:** 81 tests pass, typecheck 0 errors, eslint clean on touched files, `npm run build` OK (Proxy listed). Dev server: `/api/water-level` and `/download` → 401 JSON; `/dashboard` → 307 `/login?next=%2Fdashboard`; `/login` → 200. Successful login NOT exercised end to end (no local Postgres).
+- **Lesson:** the WHATWG URL parser strips tab/CR/LF, so `"/\t/x"` parses as `//x` and passed the old origin check by naming the dummy host; reject control chars and return the parsed path, not the raw string.

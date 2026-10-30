@@ -2,7 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Droplets, Activity, ArrowLeft } from "lucide-react";
+import { Droplets, Activity, ArrowLeft, LogOut } from "lucide-react";
+import { signOut } from "@/app/login/actions";
 
 interface DashboardHeaderClientProps {
   clock: string;
@@ -56,6 +57,17 @@ export default function DashboardHeaderClient({
         <span className="hidden sm:flex text-sm font-mono font-semibold bg-yellow-300/60 rounded-lg px-3 py-1.5">
           {clock}
         </span>
+
+        <form action={signOut}>
+          <button
+            type="submit"
+            className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg bg-white/80 hover:bg-white text-gray-900 text-xs sm:text-sm font-bold shadow-sm transition-colors"
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Sign out</span>
+          </button>
+        </form>
       </div>
     </div>
   );

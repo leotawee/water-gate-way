@@ -43,9 +43,12 @@ describe("safeNext", () => {
   it("keeps same-origin paths", () => {
     expect(safeNext("/dashboard?gate=gate-1")).toBe("/dashboard?gate=gate-1");
   });
-  it.each(["//evil.com", "/\\evil.com", "https://evil.com", "javascript:alert(1)", "", null, undefined, "dashboard", "/a\\b"])(
+  it.each(["//evil.com", "/\\evil.com", "https://evil.com", "javascript:alert(1)", "", null, undefined, "dashboard", "/a\\b", "/\t/x", "/\r\n/x", "/\u0000/x"])(
     "rejects %j",
     (v) => expect(safeNext(v as string | null | undefined)).toBe("/dashboard"),
   );
+  it("returns the normalized parsed path, not the raw input", () => {
+    expect(safeNext("/a/../dashboard?x=1#h")).toBe("/dashboard?x=1#h");
+  });
   it("custom fallback", () => expect(safeNext("//x", "/home")).toBe("/home"));
 });
