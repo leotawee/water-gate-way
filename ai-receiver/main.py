@@ -49,6 +49,9 @@ MQTT_HOST = os.getenv("MQTT_HOST")
 if not MQTT_HOST:
     raise SystemExit("[FATAL] Missing required env var MQTT_HOST. See .env.example.")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+# WHY: the broker requires a login after the lockdown. Unset = anonymous (local dev only).
+MQTT_USER = os.getenv("MQTT_USER")
+MQTT_PASS = os.getenv("MQTT_PASS", "")
 TOPIC_CONTROL = os.getenv("MQTT_TOPIC_CONTROL", "water/gate/control")
 TOPIC_STATUS = os.getenv("MQTT_TOPIC_STATUS", "water/gate/status")
 
@@ -185,6 +188,8 @@ def start_mqtt() -> None:
     global mqtt_client
     print(f"[MQTT] Starting -> {MQTT_HOST}:{MQTT_PORT}")
     mqtt_client = mqtt.Client()
+    if MQTT_USER:
+        mqtt_client.username_pw_set(MQTT_USER, MQTT_PASS)
     mqtt_client.on_connect = on_mqtt_connect
     mqtt_client.on_disconnect = on_mqtt_disconnect
     mqtt_client.on_message = on_mqtt_message

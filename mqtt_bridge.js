@@ -152,6 +152,10 @@ async function handleStatus(raw) {
 /* ───────────────────── MQTT Client ───────────────────── */
 
 const client = mqtt.connect(MQTT_BROKER, {
+  // WHY: the broker requires a login after the lockdown; unset = anonymous (local dev only).
+  // Never embed credentials in MQTT_BROKER: that URL is printed to the log.
+  username: process.env.MQTT_USER || undefined,
+  password: process.env.MQTT_PASS || undefined,
   reconnectPeriod: 5000,   // Auto-reconnect every 5s
   connectTimeout: 30000,   // 30s connection timeout
   clean: true,

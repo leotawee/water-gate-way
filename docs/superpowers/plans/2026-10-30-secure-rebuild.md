@@ -55,6 +55,8 @@ The live site's auth source code is not available (not in `origin` or `upstream`
 
 Not code tasks; Leo hands this list to the owner. Each item closes a P0 today, before the rebuild ships.
 
+> ⚠️ **Do not follow the Mosquitto and nginx bullets below literally.** Verified on the live servers: the Pi's 6 services connect to the broker over the public IP (`178.128.49.254:1883`), so binding Mosquitto to `127.0.0.1` stops pump control. Use `2026-10-30-broker-lockdown.md`, which orders the cutover safely (Pi moves to the Tailscale IP with credentials first).
+
 - [ ] **Mosquitto:** `listener 1883 127.0.0.1`, `allow_anonymous false`, `password_file /etc/mosquitto/passwd`, `acl_file /etc/mosquitto/acl`. ACL: user `fastapi` may `readwrite stm32/#` and `water/#`; user `nextjs` may `read stm32/status/all` and `read water/gate/status`; ESP32/STM32 gateway users as needed. Remove any websocket listener.
 - [ ] **nginx:** delete the `location /mqtt` and any `location /api/control` or `/ws/` block that proxies to Mosquitto or FastAPI directly. Only `proxy_pass` to Next.js remains.
 - [ ] **FastAPI:** run with `host=127.0.0.1` (Task 10 makes it the default).
