@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { redirect } from "next/navigation";
 import { getSessionUser, SESSION_COOKIE, type SessionUser } from "./session";
 
 type Role = SessionUser["role"];
@@ -27,6 +28,19 @@ export const requireUser = cache(async (minRole: Role = "viewer"): Promise<Sessi
   if ((RANK[user.role] ?? -1) < (RANK[minRole] ?? Infinity)) throw new AuthError("forbidden");
   return user;
 });
+
+/** For server-component pages: unauthenticated -> redirect to /login?next=<next>; other errors rethrow. */
+export async function requirePageUser(next: string): Promise<SessionUser> {
+  let user: SessionUser | null = null;
+  try {
+    user = await requireUser();
+  } catch (e) {
+    if (!(e instanceof AuthError)) throw e;
+  }
+  // WHY: redirect() throws; Next requires it outside the try block.
+  if (!user) redirect(`/login?next=${encodeURIComponent(next)}`);
+  return user;
+}
 
 export function authErrorResponse(e: unknown): NextResponse | null {
   if (!(e instanceof AuthError)) return null;

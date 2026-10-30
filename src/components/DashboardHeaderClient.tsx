@@ -1,19 +1,21 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Droplets, Activity, ArrowLeft, LogOut } from "lucide-react";
 import { signOut } from "@/app/login/actions";
 
 interface DashboardHeaderClientProps {
+  gateName: string;
   clock: string;
+  /** Telemetry stale or disconnected: badge shows OFFLINE. */
+  stale: boolean;
 }
 
 export default function DashboardHeaderClient({
+  gateName: locationName,
   clock,
+  stale,
 }: DashboardHeaderClientProps) {
-  const searchParams = useSearchParams();
-  const locationName = searchParams?.get("location") ?? "Unknown Gate";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
@@ -50,8 +52,10 @@ export default function DashboardHeaderClient({
         </span>
 
         <div className="hidden sm:flex items-center gap-1.5 bg-yellow-300/60 rounded-lg px-3 py-1.5">
-          <Activity className="w-4 h-4 text-green-700" />
-          <span className="text-xs font-semibold text-green-800">ONLINE</span>
+          <Activity className={`w-4 h-4 ${stale ? "text-red-600" : "text-green-700"}`} />
+          <span className={`text-xs font-semibold ${stale ? "text-red-700" : "text-green-800"}`}>
+            {stale ? "OFFLINE" : "ONLINE"}
+          </span>
         </div>
 
         <span className="hidden sm:flex text-sm font-mono font-semibold bg-yellow-300/60 rounded-lg px-3 py-1.5">

@@ -66,7 +66,7 @@ vi.mock("@/lib/auth/password", () => ({
 import { redirect } from "next/navigation";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession } from "./session";
-import { requireUser, getUser, AuthError, authErrorResponse } from "./dal";
+import { requireUser, requirePageUser, getUser, AuthError, authErrorResponse } from "./dal";
 import { signIn, signOut } from "@/app/login/actions";
 
 const form = (o: Record<string, string>) => {
@@ -94,6 +94,18 @@ async function loginAs(userId: string) {
   const { token } = await createSession(userId);
   h.cookieJar.set("wg_session", token);
 }
+
+describe("requirePageUser", () => {
+  it("no session -> redirect to /login with the encoded next path", async () => {
+    await expect(requirePageUser("/dashboard?gate=gate-2")).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledWith("/login?next=%2Fdashboard%3Fgate%3Dgate-2");
+  });
+  it("session -> returns the user, no redirect", async () => {
+    await loginAs("u-viewer");
+    await expect(requirePageUser("/")).resolves.toMatchObject({ id: "u-viewer", role: "viewer" });
+    expect(redirect).not.toHaveBeenCalled();
+  });
+});
 
 describe("requireUser", () => {
   it("no session -> AuthError unauthenticated", async () => {

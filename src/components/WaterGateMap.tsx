@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { useRouter } from "next/navigation";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { GATES } from "@/lib/gates";
 
 /* ── fix default marker icon in bundled environments (Next.js/Webpack) ── */
 const iconRetinaUrl =
@@ -17,26 +18,11 @@ const shadowUrl =
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
 
-/* ── gate data ── */
-interface WaterGate {
-  name: string;
-  lat: number;
-  lng: number;
-}
-
-const GATES: WaterGate[] = [
-  { name: "Gate 1 - Nam Ping", lat: 18.795, lng: 99.015 },
-  { name: "Gate 2 - Huay Kaew", lat: 18.81, lng: 98.948 },
-  { name: "Gate 3 - Mae Kuang", lat: 18.895, lng: 99.18 },
-  { name: "Gate 4 - Mae Rim", lat: 18.926, lng: 98.94 },
-  { name: "Gate 5 - Hang Dong", lat: 18.684, lng: 98.92 },
-];
-
 export default function WaterGateMap() {
   const router = useRouter();
 
-  const handleMarkerClick = (gateName: string) => {
-    router.push(`/dashboard?location=${encodeURIComponent(gateName)}`);
+  const handleMarkerClick = (gateId: string) => {
+    router.push(`/dashboard?gate=${encodeURIComponent(gateId)}`);
   };
 
   return (
@@ -52,10 +38,10 @@ export default function WaterGateMap() {
       />
       {GATES.map((gate) => (
         <Marker
-          key={gate.name}
+          key={gate.id}
           position={[gate.lat, gate.lng]}
           eventHandlers={{
-            click: () => handleMarkerClick(gate.name),
+            click: () => handleMarkerClick(gate.id),
           }}
         >
           <Popup>

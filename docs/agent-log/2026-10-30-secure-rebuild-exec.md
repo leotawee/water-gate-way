@@ -76,3 +76,24 @@
 - **Why:** the browser no longer needs broker credentials or a reachable broker port; telemetry is behind the same session check as every other API. `useMqtt.ts` and the old dashboard stay until Task 10 (controller ruling).
 - **Result:** `npm test` 132/132; typecheck 0; eslint clean on touched files; `npm run build` OK (`ƒ /api/status/stream`). Not exercised against a live broker or in a browser.
 - **Lesson:** EventSource never exposes the HTTP status and stops reconnecting for good on any non-200, so an auth-aware client needs a side probe (HEAD) and its own retry for the CLOSED state.
+
+## [16:00] Task 10 — gate registry, staleness helper, camera proxy, SSE max lifetime
+
+- **Action:** tests first: `src/lib/gates.test.ts`, `src/lib/telemetry/stale.test.ts`, `src/app/api/camera/webrtc/route.test.ts`, one fake-timer case in `stream.test.ts`. RED = 3 suites "Cannot find module" + lifetime case `expected 2 to be 1`. Then `src/lib/gates.ts` (`GATES`, `CAMERAS`, `getGate`), `src/lib/telemetry/stale.ts` (`isStale`, 30 s), extracted `sameOrigin` from the control route to `src/lib/http/sameOrigin.ts`, new `POST /api/camera/webrtc` (requireUser -> Origin -> src allowlist -> 64 KiB capped read -> go2rtc with 10 s timeout, `redirect: "error"`, non-2xx -> generic 502), 10-minute `setTimeout` in the SSE route that calls the existing idempotent cleanup.
+- **Why:** Go2RTCPlayer called `http://192.168.1.151:1984` from an https page (mixed content + private IP), so cameras never worked on the live site; signalling now goes through an authenticated same-origin route. The SSE lifetime cap makes a revoked session stop streaming within 10 minutes.
+- **Result:** `npm test` 151/151.
+- **Lesson:** a ReadableStream keeps chunks queued after `close()`; a test that checks "stream ended" must drain the queue first (fake timers had queued 23 pings). Mini-ADR: body cap reads the stream incrementally instead of `req.text()`, because a chunked upload has no Content-Length to reject early.
+
+## [16:25] Task 10 — page auth helper, dashboard split, role-gated controls
+
+- **Action:** tests first: 2 `requirePageUser` cases in `dal.test.ts` (RED = 2 failed, export missing). Then `requirePageUser(next)` in `dal.ts` (unauthenticated -> `redirect("/login?next=…")` outside the try; other errors rethrow). Rewrote `src/app/dashboard/page.tsx` as a 21-line server component (await `searchParams`, default `gate-1`, `requirePageUser` before `getGate`, unknown -> `notFound()`); guarded `/` the same way. Moved the old 1177-line client page into `DashboardClient.tsx` + `_components/` (CameraGrid, ElectricCard, RadarCard, FloatSwitchCard, WireBreakCard, WaterLevelChart, DetectionCard, ControlPanel, Reading, LiveIcon) with the same Tailwind classes. Header takes `gateName`/`stale` props (badge ONLINE/OFFLINE). WaterGateMap uses `GATES` and links `/dashboard?gate=<id>`. Go2RTCPlayer posts to `/api/camera/webrtc`.
+- **Why:** one telemetry source (`useGateStatus`), no browser MQTT/WebSocket/direct FastAPI, viewers get no control buttons (server enforces operator anyway), gates without hardware open no stream.
+- **Result:** `npm test` 153/153; lint: only pre-existing `mqtt_bridge.js` require() errors; build OK.
+- **Lesson:** device state is now telemetry-only, so values the payload never reports (light, relays) render "—" instead of the old optimistic ON/OFF. Mini-ADR: rejected keeping optimistic local state after a 200, because a 200 means "forwarded to FastAPI", not "relay switched".
+
+## [16:35] Task 10 — cleanup and verification
+
+- **Action:** `git rm` of `src/hooks/useMqtt.ts`, `src/app/dashboard/test.tsx`, `src/app/test/page.tsx` (approved by Leo); dropped the three DEPRECATED `NEXT_PUBLIC_*` lines from `.env.example`, added `GO2RTC_URL`. `grep -rn "NEXT_PUBLIC_" src` -> none. `npm run build`, then `grep -rlE "192\.168\.|:1984|:8000|:9001|mqtt\.esm|wss?://" .next/static` -> none. `next dev`: logged-out `/dashboard?gate=gate-1` -> 307 `/login?next=%2Fdashboard%3Fgate%3Dgate-1`, `/` -> 307, camera route -> 401; server stopped.
+- **Why:** prove nothing in the shipped bundle points at a LAN host, broker or FastAPI.
+- **Result:** all checks clean. Dead end: first `typecheck` failed on stale `.next/types` entries for the deleted `/test` page; `next build` and `next dev` regenerate them, after which `tsc` is clean.
+- **Lesson:** Next writes route type validators into `.next/`; after deleting a route, run build/dev before trusting `tsc` errors.
