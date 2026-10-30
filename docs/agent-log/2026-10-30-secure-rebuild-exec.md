@@ -27,3 +27,10 @@
 - **Why:** scrypt N=2^17 needs maxmem 256 MiB (Node default 32 MiB rejects it); verify accepts only the fixed params so a tampered row cannot pick the cost; sessions store sha256(token) so a DB leak yields no usable tokens.
 - **Result:** 48 tests pass, typecheck 0 errors. Script run with bad role / bad email / short password exits 1 before any DB connection. Insert path NOT exercised (no local Postgres).
 - **Lesson:** a module imported by a plain-node script must stay free of `@/` aliases and server-only; keep the shared crypto in a pure file.
+
+## [14:56] Task 5 — rate limiter + safe redirect
+
+- **Action:** tests first (RED = "Cannot find module ./rateLimit"); added `rateLimit.ts` (fixed-window Map, sweep once per window) and `safeNext.ts`; instances loginByIp 20/15m, loginByEmail 5/15m, controlByUser 10/1m.
+- **Why:** brute-force and command-flood limits; open-redirect guard for post-login `next`.
+- **Result:** 63 tests pass, typecheck 0 errors. Dead end: my own test caught that the brief's origin check accepts `//x` (resolves to host `x` = the dummy origin), so I added an explicit `startsWith("//")` reject.
+- **Lesson:** an origin check against a dummy host is bypassed by a protocol-relative URL naming that same dummy host; reject `//` lexically as well.
