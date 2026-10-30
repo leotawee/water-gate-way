@@ -20,17 +20,21 @@ function sameOrigin(req: NextRequest): boolean {
   return !!proto && !!host && origin === `${proto}://${host}`;
 }
 
+const AUDIT_SQL = "insert into control_audit (user_id, command, status, ip) values ($1, $2, $3, $4)";
+
 async function audit(userId: string, command: string, status: AuditStatus, ip: string | null) {
   try {
-    await db.query("insert into control_audit (user_id, command, status, ip) values ($1, $2, $3, $4)", [
-      userId,
-      command,
-      status,
-      ip,
-    ]);
+    await db.query(AUDIT_SQL, [userId, command, status, ip]);
   } catch (e) {
     // WHY: a lost audit row must not report a command that reached the pumps as an error.
     console.error("[API /control] audit insert failed:", e);
+    if (ip === null) return;
+    // WHY: defence in depth: an ip the inet column rejects must not drop the row; retry without it.
+    try {
+      await db.query(AUDIT_SQL, [userId, command, status, null]);
+    } catch (e2) {
+      console.error("[API /control] audit retry without ip failed:", e2);
+    }
   }
 }
 

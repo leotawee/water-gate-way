@@ -62,3 +62,10 @@
 - **Why:** a non-IP `X-Forwarded-For` made the `inet` audit insert fail; `audit()` swallows that by design, so an operator could run a command with no audit row.
 - **Result:** `npm test` 113/113; typecheck 0; eslint clean on touched files.
 - **Lesson:** a "log and continue" error path turns any attacker-triggerable insert failure into an audit bypass; validate audit fields to the column type before insert.
+
+## [15:35] Task 8 — review fix round 2: IPv6 zone ids, audit retry
+
+- **Action:** tests first (RED = 5 failed): zone-id cases in `clientIp.test.ts`; route tests for zone-id XFF -> audit ip null, and first audit insert rejects -> retried once with ip null, still 200. Then `clientIp` rejects any value containing `%`; `audit()` retries once with `ip = null` when the first insert fails and ip was set.
+- **Why:** `net.isIP("fe80::1%eth0") === 6` but Postgres `inet` rejects `%zone`, so round 1 still let a header drop the audit row. The retry covers any other ip value Postgres might reject.
+- **Result:** `npm test` 118/118; typecheck 0; eslint clean on touched files; `npm run build` OK.
+- **Lesson:** "valid" in one parser is not "valid" in the sink. Validate against what the column accepts, and keep a fallback in the path that must not lose data.

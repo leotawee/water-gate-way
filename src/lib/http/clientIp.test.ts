@@ -16,6 +16,12 @@ describe("clientIp", () => {
   it("garbage x-real-ip -> null", () => {
     expect(clientIp(h({ "x-real-ip": "nope" }))).toBeNull();
   });
+  it.each(["fe80::1%eth0", "::1%1"])("IPv6 zone id XFF %s -> null (Postgres inet rejects %%zone)", (v) => {
+    expect(clientIp(h({ "x-forwarded-for": v }))).toBeNull();
+  });
+  it("zone id XFF falls through to a valid x-real-ip", () => {
+    expect(clientIp(h({ "x-forwarded-for": "fe80::1%eth0", "x-real-ip": "198.51.100.4" }))).toBe("198.51.100.4");
+  });
   it("IPv6 accepted", () => {
     expect(clientIp(h({ "x-forwarded-for": "2001:db8::1" }))).toBe("2001:db8::1");
   });

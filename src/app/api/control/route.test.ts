@@ -112,6 +112,25 @@ describe("POST /api/control", () => {
     expect(audits()).toEqual([[h.user!.id, "P1", "sent", null]]);
   });
 
+  it("zone-id x-forwarded-for on a valid command -> 200, audit ip null", async () => {
+    const res = await POST(req({ command: "P1" }, { "x-forwarded-for": "fe80::1%eth0" }) as never);
+    expect(res.status).toBe(200);
+    expect(audits()).toEqual([[h.user!.id, "P1", "sent", null]]);
+  });
+
+  it("audit insert failure with an ip retries once with ip null", async () => {
+    h.query.mockRejectedValueOnce(new Error("invalid input syntax for type inet"));
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await POST(req({ command: "P1" }) as never);
+    expect(res.status).toBe(200);
+    expect(audits()).toEqual([
+      [h.user!.id, "P1", "sent", "203.0.113.9"],
+      [h.user!.id, "P1", "sent", null],
+    ]);
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+
   it("11th command in a minute is 429", async () => {
     for (let i = 0; i < 10; i++) expect((await POST(req({ command: "P1" }) as never)).status).toBe(200);
     const res = await POST(req({ command: "P1" }) as never);
