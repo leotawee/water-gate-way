@@ -131,3 +131,5 @@
 - Changed: next.config.ts, eslint.config.mjs, README.md, this log. Unchanged: mqtt_bridge.js, app logic.
 - Mistakes & dead ends: none.
 - 📌 GENERAL: check every third-party URL in source (icons, tiles) before writing a CSP.
+
+- Correction to Rate limiting line above: `POST /api/control` does have a limiter (429 + Retry-After, `src/app/api/control/route.ts:66`); login limits live in `src/app/login/actions.ts` (Server Action, not a 429 route). Only `/api/camera/webrtc` has no dedicated limit.
