@@ -51,3 +51,7 @@ env/
 
 # archive
 *.zip
+
+# generated / local tool state
+.understand-anything/
+.superpowers/

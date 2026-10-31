@@ -30,13 +30,25 @@ function useNow(): number | null {
   return now;
 }
 
-function Shell({ gate, now, stale, children }: { gate: Gate; now: number | null; stale: boolean; children: ReactNode }) {
+function Shell({
+  gate,
+  now,
+  stale,
+  isAdmin,
+  children,
+}: {
+  gate: Gate;
+  now: number | null;
+  stale: boolean;
+  isAdmin: boolean;
+  children: ReactNode;
+}) {
   const clock =
     now === null ? "" : new Date(now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-yellow-400 shadow-md">
-        <DashboardHeaderClient gateName={gate.name} clock={clock} stale={stale} />
+        <DashboardHeaderClient gateName={gate.name} clock={clock} stale={stale} isAdmin={isAdmin} />
       </header>
       {children}
       <footer className="bg-gray-100 border-t border-gray-200 py-3 text-center">
@@ -57,7 +69,7 @@ function LiveDashboard({ gate, role }: Props) {
   const dim = stale ? "opacity-50" : "";
 
   return (
-    <Shell gate={gate} now={now} stale={stale}>
+    <Shell gate={gate} now={now} stale={stale} isAdmin={role === "admin"}>
       <CameraGrid />
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <section id="sensor-grid" className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 transition-opacity ${dim}`}>
@@ -90,10 +102,10 @@ function LiveDashboard({ gate, role }: Props) {
   );
 }
 
-function NoDevice({ gate }: { gate: Gate }) {
+function NoDevice({ gate, role }: { gate: Gate; role: SessionUser["role"] }) {
   const now = useNow();
   return (
-    <Shell gate={gate} now={now} stale>
+    <Shell gate={gate} now={now} stale isAdmin={role === "admin"}>
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-center">
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
           <h2 className="text-lg font-bold text-gray-700">No device installed</h2>
@@ -106,5 +118,5 @@ function NoDevice({ gate }: { gate: Gate }) {
 
 export default function DashboardClient({ gate, role }: Props) {
   // WHY: gates without hardware never open the telemetry stream or camera sessions.
-  return gate.hasDevice ? <LiveDashboard gate={gate} role={role} /> : <NoDevice gate={gate} />;
+  return gate.hasDevice ? <LiveDashboard gate={gate} role={role} /> : <NoDevice gate={gate} role={role} />;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { Gate } from "@/lib/gates";
 
 const WaterGateMap = dynamic(() => import("@/components/WaterGateMap"), {
   ssr: false,
@@ -14,6 +15,6 @@ const WaterGateMap = dynamic(() => import("@/components/WaterGateMap"), {
   ),
 });
 
-export default function WaterGateMapLoader() {
-  return <WaterGateMap />;
+export default function WaterGateMapLoader({ gates }: { gates: Gate[] }) {
+  return <WaterGateMap gates={gates} />;
 }

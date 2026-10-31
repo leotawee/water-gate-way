@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getSessionUser, SESSION_COOKIE, type SessionUser } from "./session";
 
 type Role = SessionUser["role"];
@@ -38,6 +38,23 @@ export async function requirePageUser(next: string): Promise<SessionUser> {
     if (!(e instanceof AuthError)) throw e;
   }
   // WHY: redirect() throws; Next requires it outside the try block.
+  if (!user) redirect(`/login?next=${encodeURIComponent(next)}`);
+  return user;
+}
+
+/**
+ * For admin pages: unauthenticated -> redirect to /login; logged in but not admin -> notFound().
+ * WHY: a 404 for non-admins does not reveal that /admin exists.
+ */
+export async function requireAdminPage(next: string): Promise<SessionUser> {
+  let user: SessionUser | null = null;
+  try {
+    user = await requireUser("admin");
+  } catch (e) {
+    if (!(e instanceof AuthError)) throw e;
+    if (e.code === "forbidden") notFound();
+  }
+  // WHY: redirect() and notFound() throw; both stay outside the try block.
   if (!user) redirect(`/login?next=${encodeURIComponent(next)}`);
   return user;
 }

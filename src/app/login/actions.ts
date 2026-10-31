@@ -3,7 +3,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { verifyPassword } from "@/lib/auth/password";
+import { hashPassword, needsRehash, verifyPassword } from "@/lib/auth/password";
 import { createSession, revokeSession, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth/session";
 import { loginByEmail, loginByIp } from "@/lib/auth/rateLimit";
 import { safeNext } from "@/lib/auth/safeNext";
@@ -40,6 +40,16 @@ export async function signIn(_prev: SignInState, form: FormData): Promise<SignIn
 
     const { token, expiresAt } = await createSession(u.id);
     (await cookies()).set(SESSION_COOKIE, token, sessionCookieOptions(expiresAt));
+
+    // WHY: the password is verified right now, so this is the only moment to upgrade a legacy bcrypt row to scrypt.
+    // WHY: its own try: a failed upgrade must not block a correct login (the row stays bcrypt and retries next time).
+    if (needsRehash(u.password_hash)) {
+      try {
+        await db.query("update users set password_hash = $1 where id = $2", [await hashPassword(password), u.id]);
+      } catch {
+        console.error("[auth/signIn] rehash failed");
+      }
+    }
   } catch (e) {
     console.error("[auth/signIn] failed:", e);
     throw new Error("Sign-in unavailable");

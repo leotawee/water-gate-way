@@ -9,12 +9,15 @@ interface DashboardHeaderClientProps {
   clock: string;
   /** Telemetry stale or disconnected: badge shows OFFLINE. */
   stale: boolean;
+  /** Shows the Admin link; the admin pages themselves re-check the role. */
+  isAdmin: boolean;
 }
 
 export default function DashboardHeaderClient({
   gateName: locationName,
   clock,
   stale,
+  isAdmin,
 }: DashboardHeaderClientProps) {
 
   return (
@@ -44,6 +47,15 @@ export default function DashboardHeaderClient({
 
       {/* Right: Badge + Online + Clock */}
       <div className="flex items-center gap-2 sm:gap-4 text-gray-800">
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg bg-white/80 hover:bg-white text-gray-900 text-xs sm:text-sm font-bold shadow-sm transition-colors"
+            title="Admin"
+          >
+            <span>Admin</span>
+          </Link>
+        )}
         <span
           className="text-xs sm:text-sm font-bold bg-white/80 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-gray-900 truncate max-w-[120px] sm:max-w-none"
           title={locationName}

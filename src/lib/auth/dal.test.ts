@@ -34,6 +34,7 @@ vi.mock("@/lib/db", () => {
       const u = h.users.find((x) => x.email === p[0]);
       return { rows: u ? [{ id: u.id, password_hash: u.password_hash, disabled: u.disabled }] : [] };
     }
+    if (q.startsWith("update users set password_hash")) return { rows: [], rowCount: 1 };
     throw new Error("unexpected sql: " + sql);
   });
   return { db: { query: h.query } };
@@ -56,17 +57,24 @@ vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error("NEXT_REDIRECT " + url);
   }),
+  notFound: vi.fn(() => {
+    throw new Error("NEXT_NOT_FOUND");
+  }),
 }));
 
 // WHY: real scrypt allocates ~128 MiB per call; the fake keeps tests fast and lets us see the hash used.
 vi.mock("@/lib/auth/password", () => ({
-  verifyPassword: vi.fn(async (plain: string, stored: string) => stored === "GOOD_HASH" && plain === "right-password"),
+  verifyPassword: vi.fn(
+    async (plain: string, stored: string) => ["GOOD_HASH", "scrypt$GOOD"].includes(stored) && plain === "right-password",
+  ),
+  needsRehash: (stored: string) => !stored.startsWith("scrypt$"),
+  hashPassword: vi.fn(async () => "scrypt$NEW"),
 }));
 
 import { redirect } from "next/navigation";
-import { verifyPassword } from "@/lib/auth/password";
+import { verifyPassword, hashPassword } from "@/lib/auth/password";
 import { createSession } from "./session";
-import { requireUser, requirePageUser, getUser, AuthError, authErrorResponse } from "./dal";
+import { requireUser, requirePageUser, requireAdminPage, getUser, AuthError, authErrorResponse } from "./dal";
 import { signIn, signOut } from "@/app/login/actions";
 
 const form = (o: Record<string, string>) => {
@@ -81,6 +89,7 @@ beforeEach(() => {
     { id: "u-viewer", email: "viewer@x.co", password_hash: "GOOD_HASH", role: "viewer", disabled: false },
     { id: "u-admin", email: "admin@x.co", password_hash: "GOOD_HASH", role: "admin", disabled: false },
     { id: "u-off", email: "off@x.co", password_hash: "GOOD_HASH", role: "admin", disabled: true },
+    { id: "u-scrypt", email: "modern@x.co", password_hash: "scrypt$GOOD", role: "viewer", disabled: false },
   ];
   h.sessions = [];
   h.cookieJar.clear();
@@ -104,6 +113,22 @@ describe("requirePageUser", () => {
     await loginAs("u-viewer");
     await expect(requirePageUser("/")).resolves.toMatchObject({ id: "u-viewer", role: "viewer" });
     expect(redirect).not.toHaveBeenCalled();
+  });
+});
+
+describe("requireAdminPage", () => {
+  it("no session -> redirect to /login with the encoded next path", async () => {
+    await expect(requireAdminPage("/admin/users")).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledWith("/login?next=%2Fadmin%2Fusers");
+  });
+  it("logged-in viewer -> notFound, not a redirect (the page must not reveal it exists)", async () => {
+    await loginAs("u-viewer");
+    await expect(requireAdminPage("/admin")).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(redirect).not.toHaveBeenCalled();
+  });
+  it("admin -> returns the user", async () => {
+    await loginAs("u-admin");
+    await expect(requireAdminPage("/admin")).resolves.toMatchObject({ id: "u-admin", role: "admin" });
   });
 });
 
@@ -206,6 +231,38 @@ describe("signIn", () => {
       signIn(undefined, form({ email: "viewer@x.co", password: "right-password", next: "//evil.com" })),
     ).rejects.toThrow("NEXT_REDIRECT /dashboard");
     expect(redirect).toHaveBeenCalledWith("/dashboard");
+  });
+});
+
+describe("signIn legacy rehash", () => {
+  const rehashCalls = () => h.query.mock.calls.filter(([sql]) => /^update users/i.test(sql as string));
+
+  it("bcrypt row: successful login rewrites the hash as scrypt", async () => {
+    await expect(signIn(undefined, form({ email: "viewer@x.co", password: "right-password" }))).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+    expect(hashPassword).toHaveBeenCalledWith("right-password");
+    expect(h.query).toHaveBeenCalledWith("update users set password_hash = $1 where id = $2", ["scrypt$NEW", "u-viewer"]);
+  });
+
+  it("scrypt row: no rehash write", async () => {
+    await expect(signIn(undefined, form({ email: "modern@x.co", password: "right-password" }))).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+    expect(hashPassword).not.toHaveBeenCalled();
+    expect(rehashCalls()).toHaveLength(0);
+  });
+
+  it("failed rehash is logged, does not block the login, and logs no secret", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(hashPassword).mockRejectedValueOnce(new Error("scrypt failed"));
+    await expect(signIn(undefined, form({ email: "viewer@x.co", password: "right-password" }))).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+    expect(h.set).toHaveBeenCalledTimes(1);
+    expect(err).toHaveBeenCalledWith("[auth/signIn] rehash failed");
+    expect(JSON.stringify(err.mock.calls)).not.toContain("right-password");
+    err.mockRestore();
   });
 });
 

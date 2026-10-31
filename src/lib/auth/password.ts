@@ -1,5 +1,11 @@
-// WHY: pure node:crypto only — scripts/create-user.ts imports this under plain `node` (no `@/` alias).
+// WHY: pure JS (node:crypto + bcryptjs, no native addon) — scripts/create-user.ts imports this under plain `node` (no `@/` alias).
 import { randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from "node:crypto";
+import bcrypt from "bcryptjs";
+
+// WHY: legacy rows from the old app. Verify only; every successful login rewrites them to scrypt (see needsRehash).
+const BCRYPT_RE = /^\$2[aby]\$(\d{2})\$[./A-Za-z0-9]{53}$/;
+const BCRYPT_MIN_COST = 4;
+const BCRYPT_MAX_COST = 12;
 
 const N = 2 ** 17;
 const R = 8;
@@ -21,8 +27,23 @@ export async function hashPassword(plain: string): Promise<string> {
   return `scrypt$${N}$${R}$${P}$${salt.toString("base64")}$${key.toString("base64")}`;
 }
 
+/** True when the stored value is not a current scrypt hash (legacy bcrypt). */
+export function needsRehash(stored: string): boolean {
+  return !stored.startsWith("scrypt$");
+}
+
 export async function verifyPassword(plain: string, stored: string): Promise<boolean> {
   try {
+    if (stored.startsWith("$2")) {
+      const m = BCRYPT_RE.exec(stored);
+      // WHY: the cost comes from the row, so cap it: an attacker-written cost 31 would stall the login for hours.
+      if (!m) return false;
+      const cost = Number(m[1]);
+      if (cost < BCRYPT_MIN_COST || cost > BCRYPT_MAX_COST) return false;
+      // WHY: bcrypt ignores bytes after 72, so a longer input would match on its prefix alone.
+      if (Buffer.byteLength(plain, "utf8") > 72) return false;
+      return await bcrypt.compare(plain, stored);
+    }
     const [alg, n, r, p, saltB64, hashB64, extra] = stored.split("$");
     // WHY: only accept our fixed params so a tampered row cannot pick cost (DoS) or weaken hashing.
     if (extra !== undefined || alg !== "scrypt" || n !== String(N) || r !== String(R) || p !== String(P)) return false;
