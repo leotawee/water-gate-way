@@ -38,7 +38,7 @@ function readPassword(): Promise<string> {
 }
 
 const password = await readPassword();
-if (password.length < 12) die("password must be at least 12 characters");
+if (password.length < 8) die("password must be at least 8 characters");
 
 const pool = new pg.Pool({
   user: process.env.PGUSER,

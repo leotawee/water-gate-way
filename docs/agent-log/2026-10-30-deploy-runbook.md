@@ -41,6 +41,16 @@
 - **Not verified:** a real command against the real broker and Pi; Mosquitto ACL behaviour on a denied write (MQTT 3.1.1 gives no error for it); that the `nextjs` account can write `stm32/cmd` after the lockdown.
 - **Lesson:** 📌 GENERAL: for actuators prefer at-most-once delivery and refuse to queue while offline; a late command is worse than a failed one.
 
+## [21:50] Deploy steps R0 to R4 done, migration R3 run (approved by Leo)
+
+- **Action:** backups on the droplet (unit, nginx, `pg_dumpall`, mode 600); tests and build at HEAD `7dd2edf` on the Mac; shipped `.next` (without `dev` 425 MB and `cache`), `public`, manifests to `~/wgw/releases/20261030-7dd2edf` and hard-linked the old `node_modules` (`cp -al`); created `~/wgw/app.env` server-side from the old `PG*` values (mode 600, never printed); smoke test on loopback port 3100; staged `water-gate.service.new` and `nginx-default.new`; then ran `db/migrations/001_auth.sql` with `psql -1` and `PGOPTIONS='-c search_path=wgw,public'` after `create schema wgw`.
+- **Why `cp -al` instead of `npm ci`:** the 9 runtime packages have identical versions on both sides, and the droplet had about 384 MB of available RAM and no swap, so an install could be OOM-killed next to Postgres and Mosquitto.
+- **Result:** smoke test (no cookie): `/login` 200, three data APIs and `/api/control` 401, `/dashboard` and `/` 307 to `/login`, all five security headers, process RSS 113 MB; the old app on :3000 kept answering 200. Migration: `CREATE SCHEMA`, 2 extensions (in `wgw`), 3 tables, 1 index, exit 0. `public.users` has the same 6 columns as before; nothing new in `public`; `wgw.*` have 0 rows; check and foreign-key constraints present.
+- **Mistakes and dead ends:** (1) rsync destination `~/...` was expanded by my local shell to `/Users/vactuz/...` and failed before writing anything; fixed with an absolute path. (2) My smoke helper used `$2` under `set -u` and printed no status codes on the first run; fixed and re-ran. (3) `systemd-analyze verify` refuses the `.new` suffix; the check I got was of the old unit file, so the new unit is not verified yet.
+- **Rollback of the migration:** `drop schema wgw cascade;` removes only our objects (tables and the two extensions installed into `wgw`); the old tables were never touched.
+- **Observation:** the whole-cluster dump compresses to 3.5 KB, so `water_levels` is nearly empty; the 24 h chart in the old UI is probably sample data.
+- **Lesson:** 📌 GENERAL: in zsh an unquoted `~` after a colon in a variable assignment is expanded locally; use absolute paths for remote targets.
+
 ## Summary
 
 - Changed: the runbook, one pointer line and the urgent Postgres note in the lockdown plan, this log. No code, no servers (the DB check was read-only).
