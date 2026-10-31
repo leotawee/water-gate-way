@@ -46,13 +46,13 @@ function Shell({
   const clock =
     now === null ? "" : new Date(now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-yellow-400 shadow-md">
+    <div className="min-h-dvh bg-bg flex flex-col">
+      <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur">
         <DashboardHeaderClient gateName={gate.name} clock={clock} stale={stale} isAdmin={isAdmin} />
       </header>
       {children}
-      <footer className="bg-gray-100 border-t border-gray-200 py-3 text-center">
-        <p className="text-xs text-gray-400">
+      <footer className="border-t border-border bg-surface py-3 text-center">
+        <p className="text-xs text-muted">
           © {new Date().getFullYear()} Irrigation Department — Water Gate Management System
         </p>
       </footer>
@@ -85,14 +85,21 @@ function LiveDashboard({ gate, role }: Props) {
             <div className={`transition-opacity ${dim}`}>
               <DetectionCard personCount={status?.personCount ?? null} />
             </div>
-            {role !== "viewer" && <ControlPanel devices={status?.devices ?? null} stale={stale} />}
+            {role !== "viewer" && (
+              <section aria-labelledby="controls-heading" className="flex flex-col gap-4">
+                <h2 id="controls-heading" className="card-title px-1">
+                  Controls
+                </h2>
+                <ControlPanel devices={status?.devices ?? null} stale={stale} />
+              </section>
+            )}
             <a
               id="download-graph-data"
               href="/api/water-level/download"
               download="water_levels_report.csv"
-              className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-500/25 transition-all duration-200"
+              className="btn-secondary w-full"
             >
-              <Download className="w-5 h-5" />
+              <Download className="size-5" aria-hidden="true" />
               Download Graph Data
             </a>
           </div>
@@ -107,9 +114,9 @@ function NoDevice({ gate, role }: { gate: Gate; role: SessionUser["role"] }) {
   return (
     <Shell gate={gate} now={now} stale isAdmin={role === "admin"}>
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-center">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
-          <h2 className="text-lg font-bold text-gray-700">No device installed</h2>
-          <p className="text-sm text-gray-400 mt-1">{gate.name} has no sensors or cameras yet.</p>
+        <div className="rounded-xl border border-border bg-surface p-8 text-center">
+          <h2 className="text-lg font-semibold text-fg">No device installed</h2>
+          <p className="text-sm text-muted mt-1">{gate.name} has no sensors or cameras yet.</p>
         </div>
       </main>
     </Shell>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, type ReactNode } from "react";
+import { CircleAlert } from "lucide-react";
 import type { AdminState } from "../actions";
 
 type Action = (prev: AdminState, form: FormData) => Promise<AdminState>;
@@ -20,7 +21,8 @@ export default function ActionForm({
     <form action={formAction} className={className}>
       {children}
       {state?.error && (
-        <p role="alert" className="col-span-full text-sm text-red-600">
+        <p role="alert" className="col-span-full flex items-center gap-2 text-sm font-medium text-danger">
+          <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
           {state.error}
         </p>
       )}

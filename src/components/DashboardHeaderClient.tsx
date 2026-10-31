@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Droplets, Activity, ArrowLeft, LogOut } from "lucide-react";
+import { Waves, ArrowLeft, LogOut, MapPin, Shield, Wifi, WifiOff } from "lucide-react";
 import { signOut } from "@/app/login/actions";
 
 interface DashboardHeaderClientProps {
@@ -19,68 +19,70 @@ export default function DashboardHeaderClient({
   stale,
   isAdmin,
 }: DashboardHeaderClientProps) {
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-      {/* Left: Back button + Icon + Title */}
-      <div className="flex items-center gap-2 sm:gap-3">
+    <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+      {/* Left: Back button + app mark + title. Same height as AppHeader. */}
+      <div className="flex min-w-0 items-center gap-3">
         <Link
           href="/"
-          className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-gray-900 transition-colors text-xs sm:text-sm font-bold shadow-sm"
+          aria-label="Back to map"
           title="Back to Map"
+          className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-2.5 text-sm font-medium text-fg transition-colors duration-200 hover:bg-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="size-4" aria-hidden="true" />
           <span className="hidden sm:inline">Map</span>
         </Link>
 
-        <Droplets className="w-7 h-7 sm:w-8 sm:h-8 text-blue-700 shrink-0" />
+        <span className="hidden size-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 ring-1 ring-inset ring-accent/30 sm:flex">
+          <Waves className="size-5 text-accent" aria-hidden="true" />
+        </span>
 
-        <div>
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 tracking-tight leading-tight">
-            {locationName}
-          </h1>
-          <p className="text-xs sm:text-sm text-gray-700 font-medium">
-            Irrigation Department — Real-time Monitoring
-          </p>
+        <div className="min-w-0">
+          <h1 className="truncate text-base font-semibold leading-tight text-fg sm:text-lg">{locationName}</h1>
+          <p className="hidden truncate text-xs text-muted sm:block">Irrigation Department — Real-time Monitoring</p>
         </div>
       </div>
 
-      {/* Right: Badge + Online + Clock */}
-      <div className="flex items-center gap-2 sm:gap-4 text-gray-800">
+      {/* Right: Admin + location + online state + clock + sign out */}
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         {isAdmin && (
           <Link
             href="/admin"
-            className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg bg-white/80 hover:bg-white text-gray-900 text-xs sm:text-sm font-bold shadow-sm transition-colors"
             title="Admin"
+            className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-muted transition-colors duration-200 hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
+            <Shield className="size-4" aria-hidden="true" />
             <span>Admin</span>
           </Link>
         )}
+
         <span
-          className="text-xs sm:text-sm font-bold bg-white/80 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-gray-900 truncate max-w-[120px] sm:max-w-none"
+          className="hidden max-w-[160px] items-center gap-1.5 truncate rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-fg md:inline-flex"
           title={locationName}
         >
-          📍 {locationName}
+          <MapPin className="size-4 shrink-0 text-accent" aria-hidden="true" />
+          <span className="truncate">{locationName}</span>
         </span>
 
-        <div className="hidden sm:flex items-center gap-1.5 bg-yellow-300/60 rounded-lg px-3 py-1.5">
-          <Activity className={`w-4 h-4 ${stale ? "text-red-600" : "text-green-700"}`} />
-          <span className={`text-xs font-semibold ${stale ? "text-red-700" : "text-green-800"}`}>
-            {stale ? "OFFLINE" : "ONLINE"}
-          </span>
-        </div>
-
-        <span className="hidden sm:flex text-sm font-mono font-semibold bg-yellow-300/60 rounded-lg px-3 py-1.5">
-          {clock}
+        <span
+          className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset sm:inline-flex ${
+            stale ? "bg-danger/10 text-danger ring-danger/40" : "bg-ok/10 text-ok ring-ok/40"
+          }`}
+        >
+          {stale ? <WifiOff className="size-3.5" aria-hidden="true" /> : <Wifi className="size-3.5" aria-hidden="true" />}
+          {stale ? "OFFLINE" : "ONLINE"}
         </span>
+
+        <span className="hidden font-mono text-sm font-medium tabular-nums text-muted sm:inline">{clock}</span>
 
         <form action={signOut}>
           <button
             type="submit"
-            className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg bg-white/80 hover:bg-white text-gray-900 text-xs sm:text-sm font-bold shadow-sm transition-colors"
+            aria-label="Sign out"
             title="Sign out"
+            className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-muted transition-colors duration-200 hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="size-4" aria-hidden="true" />
             <span className="hidden sm:inline">Sign out</span>
           </button>
         </form>

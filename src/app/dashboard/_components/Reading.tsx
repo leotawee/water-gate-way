@@ -3,7 +3,7 @@ export default function Reading({
   value,
   digits,
   unit,
-  color = "text-gray-700",
+  color = "text-fg",
 }: {
   value: number | null;
   digits: number;
@@ -12,10 +12,10 @@ export default function Reading({
 }) {
   return (
     <div className="text-right">
-      <div className={`text-2xl font-extrabold font-mono ${color}`}>
+      <div className={`font-mono text-2xl font-semibold tabular-nums ${color}`}>
         {value === null ? "—" : value.toFixed(digits)}
       </div>
-      <div className="text-[10px] text-gray-400 font-medium">{unit}</div>
+      <div className="text-[11px] font-medium text-muted">{unit}</div>
     </div>
   );
 }

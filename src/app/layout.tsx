@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans_Thai } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// WHY: Plex Sans Thai covers the Thai UI copy and Latin; Plex Mono keeps numeric readings aligned.
+const plexSans = IBM_Plex_Sans_Thai({
+  variable: "--font-plex-sans",
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -24,11 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-    >
-      <body className="min-h-screen bg-white">{children}</body>
+    <html lang="th" className={`${plexSans.variable} ${plexMono.variable} antialiased`}>
+      <body className="min-h-dvh bg-bg font-sans text-fg">{children}</body>
     </html>
   );
 }

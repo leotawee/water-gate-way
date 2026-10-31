@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Fan, Bell, Lightbulb, Power } from "lucide-react";
+import { CircleAlert, Fan, Bell, Lightbulb, Power } from "lucide-react";
 import type { Command } from "@/lib/control/commands";
 import type { GateStatus } from "@/lib/telemetry/parseStatus";
 import { deviceBadge } from "@/lib/telemetry/deviceBadge";
@@ -43,23 +43,18 @@ export default function ControlPanel({ devices, stale }: { devices: Devices | nu
     }
   }
 
+  // WHY: "on" actions are primary (accent), "off" actions are stop actions (danger outline).
+  const onCls = "btn-primary";
+  const offCls = "btn-danger";
   const btn = (cmd: Command, text: string, cls: string) => (
-    <button
-      onClick={() => sendCommand(cmd)}
-      disabled={sending}
-      className={`${cls} transition-all disabled:opacity-50`}
-    >
+    <button onClick={() => sendCommand(cmd)} disabled={sending} className={cls}>
       {text}
     </button>
   );
-  const small = "px-3 py-1.5 rounded-lg text-xs font-bold";
-  const offCls = `${small} bg-gray-200 text-gray-600 hover:bg-gray-300`;
-  const badge = (on: boolean | null, onCls: string) => (
-    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${on ? onCls : "bg-gray-100 text-gray-400"}`}>
-      {deviceBadge(on, stale)}
-    </span>
+  const badge = (on: boolean | null, tone: string) => (
+    <span className={`pill ${on ? tone : "bg-surface-2 text-muted ring-border"}`}>{deviceBadge(on, stale)}</span>
   );
-  const unknownHint = stale && <span className="text-[10px] font-medium text-gray-400">status unknown (offline)</span>;
+  const unknownHint = stale && <span className="text-[11px] font-medium text-muted">status unknown (offline)</span>;
 
   // WHY: when stale, every state reads as null so badges and icons are muted, not last-known colours.
   const v = (x: boolean | null | undefined) => (stale ? null : (x ?? null));
@@ -74,67 +69,59 @@ export default function ControlPanel({ devices, stale }: { devices: Devices | nu
   return (
     <>
       {error && (
-        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600">
+        <div
+          role="alert"
+          className="flex items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-2 text-sm font-medium text-danger"
+        >
+          <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
           {error}
         </div>
       )}
 
       {/* ── Pump Control ── */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Fan className="w-5 h-5 text-blue-500" />
-            <h4 className="font-bold text-gray-800">Pump Control</h4>
+      <div className="card">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h4 className="card-title">
+              <Fan className="size-4 text-accent" aria-hidden="true" />
+              Pump Control
+            </h4>
             {unknownHint}
           </div>
-          <span
-            className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-              pump ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-400"
-            }`}
-          >
-            {deviceBadge(pump, stale)}
-          </span>
+          {badge(pump, "bg-ok/10 text-ok ring-ok/40")}
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {btn(
-            "P1",
-            "เปิดปั๊มปกติ",
-            "py-2.5 rounded-xl text-sm font-bold bg-blue-500 text-white shadow-md shadow-blue-500/25 hover:bg-blue-600 active:bg-blue-700 duration-200",
-          )}
-          {btn(
-            "P0",
-            "ปิดปั๊มปกติ",
-            "py-2.5 rounded-xl text-sm font-bold bg-red-500 text-white shadow-md shadow-red-500/25 hover:bg-red-600 active:bg-red-700 duration-200",
-          )}
+          {btn("P1", "เปิดปั๊มปกติ", onCls)}
+          {btn("P0", "ปิดปั๊มปกติ", offCls)}
         </div>
       </div>
 
       {/* ── Alarm & Light ── */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <h4 className="font-bold text-gray-800 text-sm uppercase tracking-wider">Alarm & Light</h4>
+      <div className="card">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <h4 className="card-title">Alarm & Light</h4>
           {unknownHint}
         </div>
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Bell className={`w-4 h-4 ${alarm ? "text-red-500" : "text-gray-400"}`} />
-              <span className="text-sm font-medium text-gray-700">Alarm</span>
+              <Bell className={`size-4 ${alarm ? "text-danger" : "text-muted"}`} aria-hidden="true" />
+              <span className="text-sm font-medium text-fg">Alarm</span>
             </div>
-            <div className="flex items-center gap-2">
-              {badge(alarm, "bg-red-100 text-red-600")}
-              {btn("A1", "เปิด Alarm", `${small} bg-red-500 text-white hover:bg-red-600 active:bg-red-700`)}
+            <div className="flex flex-wrap items-center gap-2">
+              {badge(alarm, "bg-danger/10 text-danger ring-danger/40")}
+              {btn("A1", "เปิด Alarm", onCls)}
               {btn("A0", "ปิด Alarm", offCls)}
             </div>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Lightbulb className={`w-4 h-4 ${light ? "text-yellow-500" : "text-gray-400"}`} />
-              <span className="text-sm font-medium text-gray-700">Light</span>
+              <Lightbulb className={`size-4 ${light ? "text-warn" : "text-muted"}`} aria-hidden="true" />
+              <span className="text-sm font-medium text-fg">Light</span>
             </div>
-            <div className="flex items-center gap-2">
-              {badge(light, "bg-yellow-100 text-yellow-700")}
-              {btn("L1", "เปิดไฟ", `${small} bg-yellow-500 text-white hover:bg-yellow-600 active:bg-yellow-700`)}
+            <div className="flex flex-wrap items-center gap-2">
+              {badge(light, "bg-warn/10 text-warn ring-warn/40")}
+              {btn("L1", "เปิดไฟ", onCls)}
               {btn("L0", "ปิดไฟ", offCls)}
             </div>
           </div>
@@ -142,21 +129,21 @@ export default function ControlPanel({ devices, stale }: { devices: Devices | nu
       </div>
 
       {/* ── IoT Relay Pumps ── */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <h4 className="font-bold text-gray-800 text-sm uppercase tracking-wider">IoT Relay Pumps</h4>
+      <div className="card">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <h4 className="card-title">IoT Relay Pumps</h4>
           {unknownHint}
         </div>
         <div className="space-y-3">
           {relays.map((r) => (
-            <div key={r.open} className="flex items-center justify-between">
+            <div key={r.open} className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Power className={`w-4 h-4 ${r.on ? "text-green-500" : "text-gray-400"}`} />
-                <span className="text-sm font-medium text-gray-700">{r.name}</span>
+                <Power className={`size-4 ${r.on ? "text-ok" : "text-muted"}`} aria-hidden="true" />
+                <span className="text-sm font-medium text-fg">{r.name}</span>
               </div>
-              <div className="flex items-center gap-2">
-                {badge(r.on, "bg-green-100 text-green-600")}
-                {btn(r.open, "เปิด", `${small} bg-green-500 text-white hover:bg-green-600 active:bg-green-700`)}
+              <div className="flex flex-wrap items-center gap-2">
+                {badge(r.on, "bg-ok/10 text-ok ring-ok/40")}
+                {btn(r.open, "เปิด", onCls)}
                 {btn(r.close, "ปิด", offCls)}
               </div>
             </div>

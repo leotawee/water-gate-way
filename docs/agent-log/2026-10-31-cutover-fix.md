@@ -123,3 +123,11 @@
   2. 📌 GENERAL: certbot deploy hooks get environment variables, not stdin.
   3. Check which build is live before you debug a page.
 - Mistakes & dead ends: I could not find why the 07:53 run stopped after the cert step. The log has no FATAL line, and the script was edited after that run. The new ERR trap will show the line if it happens again.
+
+## [23:50] Admin panel review, legacy data import, redesign kickoff
+
+- **Action:** reviewed P2 (actions re-check role, explicit column lists, audit holds ids only); added bcrypt 72-byte guard + test; rounded imported `real` coordinates in 002; committed P2 (`2c3d7c5`); cherry-picked camera lag fix (`fc54349`); `pg_dump` to `~/wgw/backups/pre-002-*.sql.gz` (600) then ran 002 with `psql --single-transaction -v ON_ERROR_STOP=1`.
+- **Why:** Leo asked to bring the old Postgres data in; migration is additive, so running it before the code deploy cannot break the live release.
+- **Result:** 292 tests pass; `wgw.gates` has gate-1..5; 6 old users imported (one email already existed, skipped). 6 accounts now hold admin; two of them look like test accounts (names kept out of the repo).
+- **Lesson:** bcrypt silently truncates at 72 bytes, so two different long passwords can verify against the same hash; reject long input on the legacy path. Rejected: letting the migration map old roles 1:1 to new ones; anything other than `admin` becomes `viewer` (least privilege).
+- **Next:** Haiku redesigns all pages (visual only); then review, build, deploy.

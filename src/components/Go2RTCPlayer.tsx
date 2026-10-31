@@ -73,7 +73,7 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
   const displayLabel = label ?? `Office ${streamName.replace("office", "")}`;
 
   return (
-    <div className="relative w-full h-full bg-black rounded-2xl overflow-hidden border-2 border-gray-700 shadow-lg">
+    <div className="relative h-full w-full overflow-hidden rounded-xl bg-black">
       {!hidden && (
         <video
           ref={videoRef}
@@ -82,7 +82,7 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
           autoPlay
           playsInline
           muted
-          className="w-full h-full object-cover"
+          className="h-full w-full object-cover"
           onPlaying={(e) => {
             lastProgress.current = Date.now();
             startLag.current ??= (performance.now() - requestedAt.current) / 1000 - e.currentTarget.currentTime;
@@ -99,27 +99,27 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
       {/* Status dot */}
       <div className="absolute top-3 left-3 flex items-center gap-2">
         <div
-          className={`w-2.5 h-2.5 rounded-full ${
+          className={`size-2.5 rounded-full ${
             status === "connected"
-              ? "bg-green-500 animate-pulse"
+              ? "bg-ok"
               : status === "failed"
-              ? "bg-red-500"
-              : "bg-yellow-400 animate-pulse"
+              ? "bg-danger"
+              : "bg-warn animate-pulse"
           }`}
         />
-        <span className="text-[10px] font-bold text-white uppercase tracking-tight">
+        <span className="text-[11px] font-semibold tracking-wide text-white uppercase">
           {status === "connected" ? "LIVE" : status === "failed" ? "OFFLINE" : "CONNECTING"}
         </span>
       </div>
 
       {/* Camera label */}
-      <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/10">
-        <span className="text-white text-xs font-bold">{displayLabel}</span>
+      <div className="absolute bottom-3 left-3 rounded-lg border border-white/10 bg-black/70 px-2.5 py-1 backdrop-blur-sm">
+        <span className="font-mono text-xs font-medium text-white">{displayLabel}</span>
       </div>
 
       {/* Transport badge */}
       <div className="absolute top-3 right-3">
-        <span className="text-[9px] font-mono font-bold text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded-md">
+        <span className="rounded-md bg-accent/15 px-2 py-1 font-mono text-[10px] font-semibold text-accent">
           HTTP
         </span>
       </div>
@@ -127,7 +127,7 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
       {/* Loading */}
       {status === "connecting" && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-          <div className="w-10 h-10 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+          <div className="size-10 rounded-full border-4 border-accent border-t-transparent animate-spin" />
         </div>
       )}
 
@@ -135,11 +135,11 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
       {status === "failed" && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80">
           <div className="text-center">
-            <p className="text-red-400 text-sm font-bold">Connection Failed</p>
-            <p className="text-gray-500 text-xs mt-1">{streamName}</p>
+            <p className="text-sm font-semibold text-danger">Connection Failed</p>
+            <p className="mt-1 font-mono text-xs text-muted">{streamName}</p>
             <button
               onClick={retry}
-              className="mt-3 px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg"
+              className="btn-primary mt-3 min-h-11 px-4"
             >
               Retry
             </button>

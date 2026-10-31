@@ -5,27 +5,27 @@ import LiveIcon from "./LiveIcon";
 
 export default function ElectricCard({ pzem, live }: { pzem: GateStatus["pzem"] | null; live: boolean }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Zap className="w-5 h-5 text-yellow-500" />
-          <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider">PZEM — Electric</h3>
-        </div>
+    <div className="card">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h3 className="card-title">
+          <Zap className="size-4 text-accent" aria-hidden="true" />
+          PZEM — Electric
+        </h3>
         <LiveIcon live={live} />
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between p-3 rounded-xl bg-yellow-50 border border-yellow-100">
-          <span className="text-sm font-semibold text-gray-600">Voltage</span>
-          <Reading value={pzem?.voltage ?? null} digits={1} unit="Volts" color="text-yellow-600" />
+      <div className="space-y-2">
+        <div className="flex items-center justify-between rounded-lg border border-border bg-surface-2/50 p-3">
+          <span className="text-sm font-medium text-muted">Voltage</span>
+          <Reading value={pzem?.voltage ?? null} digits={1} unit="Volts" />
         </div>
-        <div className="flex items-center justify-between p-3 rounded-xl bg-orange-50 border border-orange-100">
-          <span className="text-sm font-semibold text-gray-600">Current</span>
-          <Reading value={pzem?.current ?? null} digits={2} unit="Amps" color="text-orange-600" />
+        <div className="flex items-center justify-between rounded-lg border border-border bg-surface-2/50 p-3">
+          <span className="text-sm font-medium text-muted">Current</span>
+          <Reading value={pzem?.current ?? null} digits={2} unit="Amps" />
         </div>
-        <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50 border border-blue-100">
-          <span className="text-sm font-semibold text-gray-600">Frequency</span>
-          <Reading value={pzem?.frequency ?? null} digits={2} unit="Hz" color="text-blue-600" />
+        <div className="flex items-center justify-between rounded-lg border border-border bg-surface-2/50 p-3">
+          <span className="text-sm font-medium text-muted">Frequency</span>
+          <Reading value={pzem?.frequency ?? null} digits={2} unit="Hz" />
         </div>
       </div>
     </div>

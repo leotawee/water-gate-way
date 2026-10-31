@@ -1,33 +1,141 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #1a1a2e;
+/* Design tokens. Components use the generated classes (bg-surface, text-muted, border-border ...).
+   Recharts SVG props cannot read CSS variables, so WaterLevelChart repeats these hex values as constants. */
+@theme {
+  --color-bg: #020617;
+  --color-surface: #0f172a;
+  --color-surface-2: #1e293b;
+  --color-border: #334155;
+  --color-fg: #f1f5f9;
+  /* slate-400 on surface is about 6.9:1, on surface-2 about 5.1:1 (WCAG AA for body text) */
+  --color-muted: #94a3b8;
+  --color-accent: #22d3ee;
+  --color-ok: #22c55e;
+  --color-warn: #f59e0b;
+  --color-danger: #ef4444;
+
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
+@layer base {
+  /* Tailwind v4 defaults borders to currentColor; use the border token instead. */
+  *,
+  ::after,
+  ::before {
+    border-color: var(--color-border);
+  }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-fg);
+  }
 }
 
-/* Custom scrollbar */
+/* Shared component classes. One definition each, so every page uses the same look. */
+@utility card {
+  @apply rounded-xl border border-border bg-surface p-4 sm:p-5;
+}
+
+@utility card-title {
+  @apply flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted;
+}
+
+@utility input-field {
+  @apply min-h-11 rounded-lg border border-border bg-bg px-3 py-2 text-sm text-fg transition-colors duration-200 placeholder:text-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent;
+}
+
+@utility btn {
+  @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-accent text-slate-950 hover:bg-cyan-300 active:bg-cyan-400;
+}
+
+@utility btn-secondary {
+  @apply btn border border-border bg-surface-2 text-fg hover:bg-border;
+}
+
+@utility btn-danger {
+  @apply btn border border-danger/60 text-danger hover:bg-danger/10;
+}
+
+@utility btn-danger-solid {
+  @apply btn bg-danger text-slate-950 hover:bg-red-400;
+}
+
+@utility pill {
+  @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset;
+}
+
+/* Dark scrollbar */
+* {
+  scrollbar-color: var(--color-border) var(--color-bg);
+}
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--color-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: #c4c4c4;
-  border-radius: 3px;
+  background: var(--color-border);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a0a0a0;
+  background: var(--color-muted);
 }
 
 /* Recharts tooltip fix */
 .recharts-tooltip-wrapper {
   z-index: 10;
+}
+
+/* Leaflet: dark popups and controls, and a darkened OSM tile layer (tile URL itself is unchanged). */
+.wg-map .leaflet-tile-pane {
+  filter: invert(0.9) hue-rotate(180deg) saturate(0.6) brightness(0.9);
+}
+/* WHY: the .leaflet-container prefix beats leaflet.css, which loads without a layer and would win on equal specificity. */
+.leaflet-container {
+  background: var(--color-bg);
+  font-family: var(--font-sans);
+}
+.leaflet-container .leaflet-popup-content-wrapper,
+.leaflet-container .leaflet-popup-tip,
+.leaflet-container .leaflet-bar a {
+  background: var(--color-surface);
+  color: var(--color-fg);
+  border-color: var(--color-border);
+}
+.leaflet-container .leaflet-bar a:hover {
+  background: var(--color-surface-2);
+}
+.leaflet-container .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  color: var(--color-muted);
+}
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--color-accent);
+}
+.leaflet-container .leaflet-popup-close-button {
+  color: var(--color-muted);
+}
+
+/* Honour the user's motion setting: stop animations and transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

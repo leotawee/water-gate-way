@@ -14,6 +14,20 @@ import {
 } from "recharts";
 import { Droplets } from "lucide-react";
 
+// WHY: Recharts takes SVG attributes, which cannot read CSS variables; these mirror the @theme tokens in globals.css.
+const CHART = {
+  accent: "#22d3ee",
+  grid: "#334155",
+  axis: "#334155",
+  tick: "#94a3b8",
+  ok: "#22c55e",
+  warn: "#f59e0b",
+  orange: "#f97316",
+  danger: "#ef4444",
+  /** Ring around the active dot: the page background, so it reads as a cut-out. */
+  bgRing: "#020617",
+} as const;
+
 interface DataPoint {
   time: string;
   level: number;
@@ -42,10 +56,10 @@ const formatTooltip = (value: TooltipValueType | undefined): [string, string] =>
 };
 
 const REFS = [
-  { y: 1, color: "#22c55e", label: "1m" },
-  { y: 3, color: "#eab308", label: "3m — P2" },
-  { y: 5, color: "#f97316", label: "5m — P1" },
-  { y: 7, color: "#ef4444", label: "7m ⚠️" },
+  { y: 1, color: CHART.ok, label: "1m" },
+  { y: 3, color: CHART.warn, label: "3m — P2" },
+  { y: 5, color: CHART.orange, label: "5m — P1" },
+  { y: 7, color: CHART.danger, label: "7m" },
 ];
 
 export default function WaterLevelChart() {
@@ -84,51 +98,61 @@ export default function WaterLevelChart() {
   const current = data.at(-1)?.level;
 
   return (
-    <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Droplets className="w-5 h-5 text-blue-500" />
-          <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider">Water Level — 24 Hours</h3>
-        </div>
+    <div className="card lg:col-span-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="card-title">
+          <Droplets className="size-4 text-accent" aria-hidden="true" />
+          Water Level — 24 Hours
+        </h3>
         {current !== undefined && (
-          <span className="text-xs bg-blue-50 text-blue-600 font-bold px-3 py-1 rounded-full">
-            Current: {current.toFixed(2)} m
-          </span>
+          <span className="pill bg-accent/10 font-mono text-accent ring-accent/40">Current: {current.toFixed(2)} m</span>
         )}
       </div>
 
       {loading && data.length === 0 ? (
-        <div className="w-full h-64 sm:h-80 flex items-center justify-center">
+        <div className="flex h-64 w-full items-center justify-center sm:h-80">
           <div className="flex flex-col items-center gap-2">
-            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-gray-400">Loading chart data…</span>
+            <div className="size-8 rounded-full border-4 border-accent border-t-transparent animate-spin" />
+            <span className="text-xs text-muted">Loading chart data…</span>
           </div>
         </div>
       ) : data.length === 0 ? (
-        <div className="w-full h-64 sm:h-80 flex items-center justify-center">
-          <span className={`text-xs ${error ? "text-red-500" : "text-gray-400"}`}>{error ?? "No water level data yet"}</span>
+        <div className="flex h-64 w-full items-center justify-center sm:h-80">
+          <span className={`text-xs ${error ? "text-danger" : "text-muted"}`}>{error ?? "No water level data yet"}</span>
         </div>
       ) : (
-        <div className="w-full h-64 sm:h-80">
+        <div className="h-64 w-full sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} strokeOpacity={0.5} />
               <XAxis
                 dataKey="time"
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
+                tick={{ fontSize: 11, fill: CHART.tick }}
                 tickLine={false}
-                axisLine={{ stroke: "#d1d5db" }}
+                axisLine={{ stroke: CHART.axis }}
                 interval="preserveStartEnd"
               />
               <YAxis
                 domain={[0, 8]}
                 ticks={[0, 1, 2, 3, 4, 5, 6, 7, 8]}
-                tick={{ fontSize: 11, fill: "#9ca3af" }}
+                tick={{ fontSize: 11, fill: CHART.tick }}
                 tickLine={false}
-                axisLine={{ stroke: "#d1d5db" }}
+                axisLine={{ stroke: CHART.axis }}
                 unit="m"
               />
-              <Tooltip formatter={formatTooltip} />
+              <Tooltip
+                formatter={formatTooltip}
+                cursor={{ stroke: CHART.tick, strokeOpacity: 0.4 }}
+                contentStyle={{
+                  backgroundColor: "var(--color-surface-2)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  color: "var(--color-fg)",
+                  fontSize: 12,
+                }}
+                labelStyle={{ color: "var(--color-muted)" }}
+                itemStyle={{ color: "var(--color-fg)" }}
+              />
               {REFS.map((r) => (
                 <ReferenceLine
                   key={r.y}
@@ -141,10 +165,10 @@ export default function WaterLevelChart() {
               <Line
                 type="monotone"
                 dataKey="level"
-                stroke="#3b82f6"
+                stroke={CHART.accent}
                 strokeWidth={2.5}
                 dot={false}
-                activeDot={{ r: 5, fill: "#3b82f6", stroke: "#fff", strokeWidth: 2 }}
+                activeDot={{ r: 5, fill: CHART.accent, stroke: CHART.bgRing, strokeWidth: 2 }}
               />
             </LineChart>
           </ResponsiveContainer>
