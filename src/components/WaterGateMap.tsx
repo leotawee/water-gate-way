@@ -1,6 +1,7 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import Link from "next/link";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -18,12 +19,31 @@ const shadowUrl =
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
 
+/** Fit the map to every gate marker on load (one gate: centre on it at a readable zoom).
+ *  WHY: a fixed centre/zoom can show an empty map when the gates are elsewhere. */
+function FitToGates({ gates }: { gates: (Gate & { location?: string })[] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (gates.length === 1) {
+      map.setView([gates[0].lat, gates[0].lng], 13);
+      return;
+    }
+    if (gates.length > 1) {
+      const bounds = L.latLngBounds(gates.map((g) => L.latLng(g.lat, g.lng)));
+      map.fitBounds(bounds, { padding: [40, 40] });
+    }
+  }, [map, gates]);
+  return null;
+}
+
 export default function WaterGateMap({ gates }: { gates: (Gate & { location?: string })[] }) {
   return (
     <MapContainer
       className="wg-map"
       center={[18.7883, 98.9853]}
       zoom={11}
+      // WHY: with FitToGates moving the view during load, the tile fade-in left loaded tiles at opacity 0 (blank grey map).
+      fadeAnimation={false}
       scrollWheelZoom
       style={{ height: "100%", width: "100%" }}
     >
@@ -31,6 +51,7 @@ export default function WaterGateMap({ gates }: { gates: (Gate & { location?: st
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <FitToGates gates={gates} />
       {gates.map((gate) => (
         <Marker key={gate.id} position={[gate.lat, gate.lng]}>
           <Popup>

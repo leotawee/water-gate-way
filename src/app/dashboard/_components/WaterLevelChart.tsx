@@ -54,10 +54,11 @@ const formatTooltip = (value: TooltipValueType | undefined): [string, string] =>
   return [`${num.toFixed(2)} ม.`, "ระดับน้ำ"];
 };
 
+/* Thresholds in Thai words, so colour never carries the meaning alone (no P1/P2 codes). */
 const REFS = [
   { y: 1, color: CHART.on, label: "1 ม." },
-  { y: 3, color: CHART.warn, label: "3 ม. (P2)" },
-  { y: 5, color: CHART.danger, label: "5 ม. (P1)" },
+  { y: 3, color: CHART.warn, label: "3 ม. — ระดับเตือน" },
+  { y: 5, color: CHART.danger, label: "5 ม. — ระดับอันตราย" },
   { y: 7, color: CHART.danger, label: "7 ม." },
 ];
 
@@ -124,7 +125,7 @@ export default function WaterLevelChart() {
       ) : (
         <div className="h-64 w-full sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+            <LineChart data={data} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} strokeOpacity={0.7} />
               <XAxis
                 dataKey="time"
@@ -133,9 +134,11 @@ export default function WaterLevelChart() {
                 axisLine={{ stroke: CHART.axis }}
                 interval="preserveStartEnd"
               />
+              {/* Fixed width wide enough for "8 ม." ticks, so the unit never clips at 375px. */}
               <YAxis
                 domain={[0, 8]}
                 ticks={[0, 1, 2, 3, 4, 5, 6, 7, 8]}
+                width={48}
                 tick={{ fontSize: 11, fill: CHART.tick }}
                 tickLine={false}
                 axisLine={{ stroke: CHART.axis }}
@@ -160,7 +163,9 @@ export default function WaterLevelChart() {
                   y={r.y}
                   stroke={r.color}
                   strokeDasharray="6 3"
-                  label={{ value: r.label, position: "right", fill: r.color, fontSize: 10 }}
+                  // WHY: insideTopRight keeps every label inside the SVG, so long Thai threshold
+                  // labels can never be clipped off the chart edge at narrow widths.
+                  label={{ value: r.label, position: "insideTopRight", fill: r.color, fontSize: 10 }}
                 />
               ))}
               <Line

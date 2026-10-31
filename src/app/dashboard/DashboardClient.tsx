@@ -45,8 +45,9 @@ function Shell({ gate, isAdmin, children }: { gate: Gate; isAdmin: boolean; chil
   );
 }
 
-/** Status strip under the app bar: connection state, gate name, clock. */
-function StatusStrip({ gateName, stale, now }: { gateName: string; stale: boolean; now: number | null }) {
+/** Status strip under the app bar: connection state and the last update time. The gate name
+ *  lives in the app bar only. */
+function StatusStrip({ stale, now }: { stale: boolean; now: number | null }) {
   const clock =
     now === null ? "" : new Date(now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   return (
@@ -56,8 +57,7 @@ function StatusStrip({ gateName, stale, now }: { gateName: string; stale: boolea
           <span className={`size-2.5 rounded-full ${stale ? "bg-danger" : "bg-on"}`} aria-hidden="true" />
           {stale ? "ขาดการเชื่อมต่อ" : "ออนไลน์"}
         </span>
-        <span className="text-muted">{gateName}</span>
-        <span className="ml-auto text-muted">{clock}</span>
+        <span className="ml-auto text-muted">{clock !== "" ? `อัปเดตล่าสุด ${clock}` : ""}</span>
       </div>
     </div>
   );
@@ -71,29 +71,28 @@ function LiveDashboard({ gate, role }: Props) {
 
   return (
     <Shell gate={gate} isAdmin={role === "admin"}>
-      <StatusStrip gateName={gate.name} stale={stale} now={now} />
+      <StatusStrip stale={stale} now={now} />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
-        <div className={`grid grid-cols-1 gap-6 ${role !== "viewer" ? "lg:grid-cols-[minmax(0,1fr)_400px]" : ""}`}>
-          {/* Control column: first on mobile, sticky 400px on the right on desktop. Viewer gets none. */}
-          {role !== "viewer" && (
-            <aside className="order-1 min-w-0 lg:order-2">
-              <div className="flex flex-col gap-4 lg:sticky lg:top-20">
-                {/* The one soft shadow in the design: the sticky control column only. */}
-                <div className="rounded-lg shadow-[0_1px_2px_rgb(20_32_41/0.06),0_4px_12px_rgb(20_32_41/0.05)]">
-                  <ControlPanel devices={status?.devices ?? null} stale={stale} />
-                </div>
-                <a
-                  id="download-graph-data"
-                  href="/api/water-level/download"
-                  download="water_levels_report.csv"
-                  className="btn-secondary w-full"
-                >
-                  <Download className="size-5" strokeWidth={1.75} aria-hidden="true" />
-                  ดาวน์โหลดข้อมูลระดับน้ำ (CSV)
-                </a>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
+          {/* Control column: first on mobile, sticky 400px on the right on desktop.
+              Viewer gets the same panel read-only: state is job #1 for every role. */}
+          <aside className="order-1 min-w-0 lg:order-2">
+            <div className="flex flex-col gap-4 lg:sticky lg:top-20">
+              {/* The one soft shadow in the design: the sticky control column only. */}
+              <div className="rounded-lg shadow-[0_1px_2px_rgb(20_32_41/0.06),0_4px_12px_rgb(20_32_41/0.05)]">
+                <ControlPanel devices={status?.devices ?? null} stale={stale} readOnly={role === "viewer"} />
               </div>
-            </aside>
-          )}
+              <a
+                id="download-graph-data"
+                href="/api/water-level/download"
+                download="water_levels_report.csv"
+                className="btn-secondary w-full"
+              >
+                <Download className="size-5" strokeWidth={1.75} aria-hidden="true" />
+                ดาวน์โหลดข้อมูลระดับน้ำ (CSV)
+              </a>
+            </div>
+          </aside>
 
           {/* Main column. Mobile: cameras → readings → chart; desktop: cameras → chart → readings. */}
           <div className="order-2 flex min-w-0 flex-col gap-6 lg:order-1">
@@ -115,7 +114,8 @@ function LiveDashboard({ gate, role }: Props) {
                   </span>
                 )}
               </header>
-              <div className="divide-y divide-border px-4 py-2 sm:px-5">
+              {/* max-w-3xl keeps each label/value pair on a readable line on wide screens. */}
+              <div className="mx-auto max-w-3xl divide-y divide-border px-4 py-2 sm:px-5">
                 <div className="py-3">
                   <ElectricCard pzem={status?.pzem ?? null} live={live} />
                 </div>

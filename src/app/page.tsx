@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { MapPin } from "lucide-react";
+import { List, MapPin } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import WaterGateMapLoader from "@/components/WaterGateMapLoader";
 import { requirePageUser } from "@/lib/auth/dal";
@@ -27,16 +27,26 @@ export default async function HomePage() {
     <main className="flex min-h-dvh w-full flex-col bg-bg lg:h-dvh lg:overflow-hidden">
       <AppHeader active="map" isAdmin={user.role === "admin"} />
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* Mobile: map first (60dvh) then the list, page scrolls; desktop: 320px list left, map fills the rest. */}
-        <div className="order-1 h-[60dvh] w-full shrink-0 lg:order-2 lg:h-auto lg:min-h-0 lg:flex-1 lg:shrink">
+        {/* Mobile: map first (50dvh, so the list below is reachable) then the list, page scrolls;
+            desktop: 320px list left, map fills the rest. */}
+        <div className="relative order-1 h-[50dvh] w-full shrink-0 lg:order-2 lg:h-auto lg:min-h-0 lg:flex-1 lg:shrink">
           <Suspense fallback={null}>
             <WaterGateMapLoader gates={gates} />
           </Suspense>
+          {/* WHY: z-[1000] sits above Leaflet's panes and controls. */}
+          <a
+            href="#gate-list"
+            className="absolute right-3 bottom-3 z-[1000] inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-bold text-fg transition-colors duration-150 hover:bg-surface-2 lg:hidden"
+          >
+            <List className="size-4" strokeWidth={1.75} aria-hidden="true" />
+            ดูรายการประตูน้ำ
+          </a>
         </div>
 
         <aside
+          id="gate-list"
           aria-label="รายการประตูน้ำ"
-          className="order-2 flex min-h-0 shrink-0 flex-col border-t border-border bg-surface lg:order-1 lg:w-80 lg:border-t-0 lg:border-r"
+          className="order-2 flex min-h-0 shrink-0 scroll-mt-14 flex-col border-t border-border bg-surface lg:order-1 lg:w-80 lg:border-t-0 lg:border-r"
         >
           <header className="border-b border-border px-4 py-3">
             <h2 className="text-base font-bold text-fg">ประตูน้ำ</h2>

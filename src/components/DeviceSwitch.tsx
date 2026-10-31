@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2 } from "lucide-react";
+import { Check, CircleAlert, Loader2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Command } from "@/lib/control/commands";
 import { deviceView } from "./deviceSwitchState";
@@ -15,23 +15,41 @@ export type DeviceSwitchProps = {
   stale: boolean;
   onCmd: Command;
   offCmd: Command;
-  /** Command currently in flight, or null. */
+  /** Command currently in flight (any row), or null. Locks every button without dimming state. */
   sending: Command | null;
+  /** This row's command status line, or null when idle (the line still reserves its height). */
+  status: SwitchStatus | null;
   onSend: (cmd: Command) => void;
   /** Colour of the "on" end: green by default, warn for the light, danger for the alarm. */
   tone?: "on" | "warn" | "danger";
+  /** Read-only: render the same row and state readout without any command buttons or notes. */
+  readOnly?: boolean;
 };
 
+/** Phase of the last command for one row, shown in the reserved status line. */
+export type SwitchStatus =
+  | { phase: "sending"; cmd: Command }
+  | { phase: "waiting"; cmd: Command }
+  | { phase: "timeout"; cmd: Command }
+  | { phase: "confirmed"; cmd: Command };
+
+/** Thai command label: the trailing digit is the target state (…1 on, …0 off). */
+export function commandLabel(cmd: Command): "สั่งเปิด" | "สั่งปิด" {
+  return cmd.endsWith("1") ? "สั่งเปิด" : "สั่งปิด";
+}
+
 const TONE = {
-  on: { solid: "bg-on text-white", soft: "bg-on-soft text-on", dot: "bg-on", icon: "text-on" },
-  warn: { solid: "bg-warn text-white", soft: "bg-warn-soft text-warn", dot: "bg-warn", icon: "text-warn" },
-  danger: { solid: "bg-danger text-white", soft: "bg-danger-soft text-danger", dot: "bg-danger", icon: "text-danger" },
+  on: { soft: "bg-on-soft text-on", dot: "bg-on", icon: "text-on" },
+  warn: { soft: "bg-warn-soft text-warn", dot: "bg-warn", icon: "text-warn" },
+  danger: { soft: "bg-danger-soft text-danger", dot: "bg-danger", icon: "text-danger" },
 } as const;
 
 /**
- * One device row per DESIGN.md: icon + Thai name, a large state readout, and a two-segment
- * switch [ ปิด | เปิด ]. The segment matching the current state is filled with a check and
- * aria-pressed="true"; the other is outlined and is the action. Unknown: neither filled.
+ * One device row per DESIGN.md: icon + Thai name, a large state readout pill, and a two-segment
+ * switch [ สั่งปิด | สั่งเปิด ]. The segment matching the current state is a soft tint with a
+ * check and aria-pressed="true" (it is a state, not the action); the other is the outlined
+ * command. Unknown: both read as commands. Under it, one fixed-height status line reports the
+ * command lifecycle, so nothing on the row ever jumps while a command is in flight.
  */
 export default function DeviceSwitch({
   name,
@@ -41,36 +59,82 @@ export default function DeviceSwitch({
   onCmd,
   offCmd,
   sending,
+  status,
   onSend,
   tone = "on",
+  readOnly = false,
 }: DeviceSwitchProps) {
   const view = deviceView(state, stale);
   // WHY: every switch locks while any command is in flight, but only the commanded row says so.
   const busy = sending !== null;
-  const mine = sending === onCmd || sending === offCmd;
 
   const segment = (which: "off" | "on") => {
-    const label = which === "off" ? "ปิด" : "เปิด";
+    const label = which === "off" ? "สั่งปิด" : "สั่งเปิด";
     const cmd = which === "off" ? offCmd : onCmd;
     const pressed = view === which;
-    const filled = pressed;
-    const fillCls =
-      which === "off" ? "bg-off text-white hover:bg-off/85" : `${TONE[tone].solid} hover:opacity-90`;
+    const softCls = which === "off" ? "bg-off-soft text-off" : TONE[tone].soft;
     return (
       <button
         type="button"
         aria-pressed={pressed}
         aria-label={`${label} ${name}`}
-        disabled={busy}
-        onClick={() => onSend(cmd)}
-        className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-md px-4 text-sm font-bold transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60 ${
-          filled ? fillCls : "border border-border bg-surface text-fg hover:bg-surface-2"
+        // WHY: aria-disabled instead of disabled — the row keeps its colours (nothing is dimmed)
+        // and focus is never thrown away; the click handler refuses the command while busy.
+        aria-disabled={busy || undefined}
+        onClick={() => {
+          if (!busy) onSend(cmd);
+        }}
+        className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-md px-4 text-sm font-bold transition-colors duration-150 ${
+          busy ? "cursor-not-allowed" : "cursor-pointer"
+        } ${
+          pressed
+            ? softCls
+            : "border border-fg/30 bg-surface text-fg hover:bg-surface-2"
         }`}
       >
-        {filled && <Check className="size-4" strokeWidth={1.75} aria-hidden="true" />}
+        {pressed && <Check className="size-4" strokeWidth={1.75} aria-hidden="true" />}
         {label}
+        {pressed && <span className="sr-only">(สถานะปัจจุบัน)</span>}
       </button>
     );
+  };
+
+  const statusLine = () => {
+    if (!status) return null;
+    const label = commandLabel(status.cmd);
+    switch (status.phase) {
+      case "sending":
+        return (
+          <span className="inline-flex items-center gap-2 text-muted">
+            <Loader2 className="size-4 animate-spin" strokeWidth={1.75} aria-hidden="true" />
+            กำลังส่งคำสั่ง: {label}…
+          </span>
+        );
+      case "waiting":
+        return <span className="text-accent">ส่งแล้ว: {label} — รออุปกรณ์ยืนยัน</span>;
+      case "timeout":
+        return (
+          <span className="inline-flex items-center gap-2 text-danger">
+            <CircleAlert className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            อุปกรณ์ยังไม่ยืนยันคำสั่ง {label}
+            <button
+              type="button"
+              aria-label={`ส่ง ${label} อีกครั้ง`}
+              onClick={() => onSend(status.cmd)}
+              className="cursor-pointer font-bold underline underline-offset-2 hover:no-underline"
+            >
+              ส่งอีกครั้ง
+            </button>
+          </span>
+        );
+      case "confirmed":
+        return (
+          <span className="inline-flex items-center gap-2 text-on">
+            <Check className="size-4" strokeWidth={1.75} aria-hidden="true" />
+            อุปกรณ์ยืนยันแล้ว
+          </span>
+        );
+    }
   };
 
   return (
@@ -85,9 +149,10 @@ export default function DeviceSwitch({
           <span className="text-base font-bold text-fg">{name}</span>
         </div>
 
-        {/* State readout: word + dot, never colour alone. */}
+        {/* State readout: word + dot, never colour alone. The pill is THE indicator, so it is the
+            largest element in the row; min-w keeps the three states equal in width. */}
         <span
-          className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-bold ${
+          className={`inline-flex min-w-40 items-center justify-center gap-2 rounded-full px-3 py-2 text-base font-bold ${
             view === "on"
               ? TONE[tone].soft
               : view === "off"
@@ -109,16 +174,19 @@ export default function DeviceSwitch({
         </span>
       </div>
 
-      <div role="group" aria-label={`ควบคุม${name}`} className="mt-3 grid grid-cols-2 gap-2">
-        {segment("off")}
-        {segment("on")}
-      </div>
+      {!readOnly && (
+        <>
+          <div role="group" aria-label={`ควบคุม${name}`} className="mt-3 grid grid-cols-2 gap-2">
+            {segment("off")}
+            {segment("on")}
+          </div>
 
-      {mine && (
-        <p className="mt-2 flex items-center gap-2 text-sm text-muted" aria-live="polite">
-          <Loader2 className="size-4 animate-spin" strokeWidth={1.75} aria-hidden="true" />
-          กำลังส่งคำสั่ง…
-        </p>
+          {/* Reserved status line: always rendered at one fixed height, empty when idle, so
+              sending/waiting/timeout/confirmed never push the other rows down. */}
+          <p className="mt-2 flex min-h-5 items-center gap-2 text-sm" aria-live="polite">
+            {statusLine()}
+          </p>
+        </>
       )}
     </div>
   );

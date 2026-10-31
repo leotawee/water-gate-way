@@ -35,6 +35,7 @@
 
   html {
     color-scheme: light;
+    scroll-behavior: smooth;
   }
 
   body {
@@ -153,6 +154,15 @@
 }
 .leaflet-container .leaflet-popup-close-button {
   color: var(--color-muted);
+}
+/* WHY: leaflet.css is unlayered, so its `.leaflet-container a { color: #0078A8 }` beats the
+   layered btn-primary utility and leaves blue-on-blue text in the popup button. This rule is
+   unlayered too and more specific, so it wins back the button's white text in every state. */
+.leaflet-container a.btn-primary,
+.leaflet-container a.btn-primary:hover,
+.leaflet-container a.btn-primary:focus-visible,
+.leaflet-container a.btn-primary:active {
+  color: #ffffff;
 }
 
 /* Honour the user's motion setting: stop animations and transitions. */

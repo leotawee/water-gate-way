@@ -46,7 +46,7 @@ export default async function AdminUsersPage() {
               รหัสผ่าน (8 ตัวอักษรขึ้นไป)
               <input name="password" type="password" required minLength={8} maxLength={1024} autoComplete="new-password" className={input} />
             </label>
-            <button type="submit" className="btn-primary">
+            <button type="submit" className="btn-primary whitespace-nowrap">
               สร้าง
             </button>
           </ActionForm>
@@ -86,7 +86,7 @@ export default async function AdminUsersPage() {
                               </option>
                             ))}
                           </select>
-                          <button type="submit" className="btn-primary">
+                          <button type="submit" className="btn-secondary whitespace-nowrap">
                             บันทึก
                           </button>
                         </ActionForm>
@@ -105,10 +105,18 @@ export default async function AdminUsersPage() {
                         </span>
                       )}
                       {!self && (
-                        <ActionForm action={setUserDisabled} className="mt-2">
+                        <ActionForm
+                          action={setUserDisabled}
+                          className="mt-2"
+                          confirm={
+                            u.disabled
+                              ? `เปิดใช้งานบัญชี ${u.email} อีกครั้ง?`
+                              : `ปิดใช้งานบัญชี ${u.email}?`
+                          }
+                        >
                           <input type="hidden" name="id" value={u.id} />
                           <input type="hidden" name="disabled" value={u.disabled ? "false" : "true"} />
-                          <button type="submit" className={u.disabled ? "btn-secondary" : "btn-danger"}>
+                          <button type="submit" className={`${u.disabled ? "btn-secondary" : "btn-danger"} whitespace-nowrap`}>
                             {u.disabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}
                           </button>
                         </ActionForm>
@@ -116,7 +124,11 @@ export default async function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3 tabular-nums text-muted">{u.created_at.toISOString().slice(0, 10)}</td>
                     <td className="px-4 py-3">
-                      <ActionForm action={resetUserPassword} className="flex flex-wrap items-center gap-2">
+                      <ActionForm
+                        action={resetUserPassword}
+                        className="flex flex-wrap items-center gap-2"
+                        confirm={`ตั้งรหัสผ่านใหม่ให้ ${u.email}?`}
+                      >
                         <input type="hidden" name="id" value={u.id} />
                         <input
                           name="password"
@@ -129,7 +141,7 @@ export default async function AdminUsersPage() {
                           aria-label={`ตั้งรหัสผ่านใหม่สำหรับ ${u.email}`}
                           className={input}
                         />
-                        <button type="submit" className="btn-secondary">
+                        <button type="submit" className="btn-secondary whitespace-nowrap">
                           ตั้งรหัสผ่านใหม่
                         </button>
                       </ActionForm>

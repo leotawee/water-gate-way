@@ -9,13 +9,14 @@ export default function CameraGrid() {
         กล้องสด
       </h2>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {CAMERAS.map((src) => (
+        {/* WHY: labelled by position (กล้อง 1…), never by the raw stream id. */}
+        {CAMERAS.map((src, i) => (
           <div
             key={src}
             id={`camera-stream-${src}`}
             className="aspect-video overflow-hidden rounded-lg border border-border bg-black"
           >
-            <Go2RTCPlayer streamName={src} label={`กล้อง ${src.replace("office", "")}`} />
+            <Go2RTCPlayer streamName={src} label={`กล้อง ${i + 1}`} />
           </div>
         ))}
       </div>

@@ -70,7 +70,9 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
   // no WebRTC/ICE and works from any network. The server ends each stream after 10 minutes
   // (session re-check); `ended` then reconnects.
   const src = `/api/camera/stream?src=${encodeURIComponent(streamName)}&n=${attempt}`;
-  const displayLabel = label ?? `กล้อง ${streamName.replace("office", "")}`;
+  // WHY: labels come from the grid position (กล้อง 1, กล้อง 2, …); the fallback never shows a raw
+  // stream id to users.
+  const displayLabel = label ?? "กล้อง";
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
@@ -96,8 +98,9 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
         />
       )}
 
-      {/* Status: dot + word (never colour alone) */}
-      <div className="absolute top-3 left-3 flex items-center gap-2">
+      {/* Status: dot + word (never colour alone). z-10 keeps both chips readable above the
+          connecting/failed overlays instead of dimmed underneath them. */}
+      <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
         <span
           aria-hidden="true"
           className={`size-2.5 rounded-full ${
@@ -110,7 +113,7 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
       </div>
 
       {/* Camera label: small white chip */}
-      <div className="absolute bottom-3 left-3 rounded-md bg-white px-2 py-1">
+      <div className="absolute bottom-3 left-3 z-10 rounded-md bg-white px-2 py-1">
         <span className="text-xs font-bold text-fg">{displayLabel}</span>
       </div>
 
@@ -121,13 +124,16 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
         </div>
       )}
 
-      {/* Error */}
+      {/* Error. WHY: centred with side padding so the heading clears the status chip at 375px and
+          at the 2-up desktop width; secondary (outline) styling stays readable on black. */}
       {status === "failed" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-          <div className="text-center">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80 px-4">
+          <div className="flex max-w-full flex-col items-center gap-3 text-center">
             <p className="text-sm font-bold text-white">เชื่อมต่อกล้องไม่สำเร็จ</p>
-            <p className="mt-1 text-xs text-white/60">{streamName}</p>
-            <button onClick={retry} className="btn-primary mt-3 min-h-11 px-4">
+            <button
+              onClick={retry}
+              className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-md border border-white/40 bg-transparent px-4 text-sm font-bold text-white transition-colors duration-150 hover:bg-white/10"
+            >
               ลองอีกครั้ง
             </button>
           </div>

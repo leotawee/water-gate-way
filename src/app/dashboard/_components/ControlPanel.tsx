@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell, CircleAlert, Fan, Lightbulb, Power } from "lucide-react";
 import type { Command } from "@/lib/control/commands";
 import type { GateStatus } from "@/lib/telemetry/parseStatus";
-import DeviceSwitch from "@/components/DeviceSwitch";
+import DeviceSwitch, { type SwitchStatus } from "@/components/DeviceSwitch";
 
 type Devices = GateStatus["devices"];
 type DeviceKey = keyof Devices;
@@ -34,12 +34,22 @@ function deviceOf(cmd: Command): DeviceKey {
 
 /** How long to wait for the device to report the target state before saying it did not answer. */
 const CONFIRM_MS = 15_000;
+/** How long the "device confirmed" line stays visible before the row returns to idle. */
+const CONFIRMED_MS = 3_000;
 
-type Note = { key: DeviceKey; target: boolean; waiting: boolean };
+type Note = { key: DeviceKey; target: boolean; cmd: Command; phase: "waiting" | "timeout" | "confirmed" };
 
-/** Operator/admin only (server enforces it too: POST /api/control requires "operator"). */
-// WHY: buttons stay enabled when stale; the server is authoritative and an operator may need to act during an outage.
-export default function ControlPanel({ devices, stale }: { devices: Devices | null; stale: boolean }) {
+type Props = {
+  devices: Devices | null;
+  stale: boolean;
+  /** Viewer mode: the same panel and state readouts, no command buttons, notes or fetch. */
+  readOnly?: boolean;
+};
+
+/** Operator/admin sends commands (server enforces it too: POST /api/control requires "operator").
+ *  WHY: buttons stay enabled when stale; the server is authoritative and an operator may need to
+ *  act during an outage. */
+export default function ControlPanel({ devices, stale, readOnly = false }: Props) {
   const [sending, setSending] = useState<Command | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<Note | null>(null);
@@ -59,7 +69,7 @@ export default function ControlPanel({ devices, stale }: { devices: Devices | nu
         return;
       }
       if (!res.ok) setError(errorText(res));
-      else setNote({ key: deviceOf(cmd), target: cmd.endsWith("1"), waiting: true });
+      else setNote({ key: deviceOf(cmd), target: cmd.endsWith("1"), cmd, phase: "waiting" });
     } catch {
       setError("ส่งคำสั่งไม่สำเร็จ");
     } finally {
@@ -67,16 +77,28 @@ export default function ControlPanel({ devices, stale }: { devices: Devices | nu
     }
   }
 
-  // The device confirmed: it now reports the target state, so drop the note.
+  // The device confirmed: it now reports the target state, so say so briefly.
   // WHY: a stale reading may still hold an old value equal to the target; that is not a confirmation.
   useEffect(() => {
-    if (note && !stale && devices && devices[note.key] === note.target) setNote(null);
+    if (note && note.phase === "waiting" && !stale && devices && devices[note.key] === note.target) {
+      setNote({ ...note, phase: "confirmed" });
+    }
   }, [devices, note, stale]);
 
-  // No confirmation within 15 s: say so; the switch itself is the retry.
+  // No confirmation within 15 s: say so and offer a one-tap retry of the same command.
   useEffect(() => {
-    if (!note?.waiting) return;
-    const id = setTimeout(() => setNote((n) => (n ? { ...n, waiting: false } : n)), CONFIRM_MS);
+    if (!note || note.phase !== "waiting") return;
+    const id = setTimeout(
+      () => setNote((n) => (n && n.phase === "waiting" ? { ...n, phase: "timeout" } : n)),
+      CONFIRM_MS,
+    );
+    return () => clearTimeout(id);
+  }, [note]);
+
+  // The confirmed line is brief feedback, not a state: clear it after 3 s.
+  useEffect(() => {
+    if (!note || note.phase !== "confirmed") return;
+    const id = setTimeout(() => setNote((n) => (n && n.phase === "confirmed" ? null : n)), CONFIRMED_MS);
     return () => clearTimeout(id);
   }, [note]);
 
@@ -88,11 +110,17 @@ export default function ControlPanel({ devices, stale }: { devices: Devices | nu
     { key: "relay2", name: "ปั๊ม IoT 2", icon: Power, onCmd: "Q1", offCmd: "Q0", state: devices?.relay2 ?? null, tone: "on" },
   ] as const;
 
+  const rowStatus = (key: DeviceKey): SwitchStatus | null => {
+    if (sending && deviceOf(sending) === key) return { phase: "sending", cmd: sending };
+    if (note && note.key === key) return { phase: note.phase, cmd: note.cmd };
+    return null;
+  };
+
   return (
     <section aria-labelledby="controls-heading" className="rounded-lg border border-border bg-surface">
       <header className="border-b border-border px-4 py-3">
         <h2 id="controls-heading" className="text-base font-bold text-fg">
-          ควบคุมอุปกรณ์
+          {readOnly ? "สถานะอุปกรณ์" : "ควบคุมอุปกรณ์"}
         </h2>
       </header>
 
@@ -103,7 +131,7 @@ export default function ControlPanel({ devices, stale }: { devices: Devices | nu
         </div>
       )}
 
-      {error && (
+      {!readOnly && error && (
         <div
           role="alert"
           className="mx-4 mt-3 flex items-center gap-2 rounded-md bg-danger-soft px-3 py-2 text-sm font-medium text-danger"
@@ -115,28 +143,20 @@ export default function ControlPanel({ devices, stale }: { devices: Devices | nu
 
       <div className="divide-y divide-border px-4">
         {rows.map((row) => (
-          <div key={row.key}>
-            <DeviceSwitch
-              name={row.name}
-              icon={row.icon}
-              state={row.state}
-              stale={stale}
-              onCmd={row.onCmd}
-              offCmd={row.offCmd}
-              sending={sending}
-              onSend={sendCommand}
-              tone={row.tone}
-            />
-            {note && note.key === row.key && (
-              <p className="-mt-1 pb-4 text-sm font-medium" role="status">
-                {note.waiting ? (
-                  <span className="text-accent">ส่งแล้ว รออุปกรณ์ยืนยัน</span>
-                ) : (
-                  <span className="text-danger">อุปกรณ์ยังไม่ตอบ ลองอีกครั้ง</span>
-                )}
-              </p>
-            )}
-          </div>
+          <DeviceSwitch
+            key={row.key}
+            name={row.name}
+            icon={row.icon}
+            state={row.state}
+            stale={stale}
+            onCmd={row.onCmd}
+            offCmd={row.offCmd}
+            sending={readOnly ? null : sending}
+            status={readOnly ? null : rowStatus(row.key)}
+            onSend={sendCommand}
+            tone={row.tone}
+            readOnly={readOnly}
+          />
         ))}
       </div>
     </section>

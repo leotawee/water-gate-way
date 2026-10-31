@@ -55,7 +55,7 @@ export default async function AdminGatesPage() {
               <input name="id" required pattern="gate-[0-9]{1,4}" maxLength={9} className={input} />
             </label>
             <GateFields />
-            <button type="submit" className="btn-primary justify-self-start">
+            <button type="submit" className="btn-primary justify-self-start whitespace-nowrap">
               สร้างประตูน้ำ
             </button>
           </ActionForm>
@@ -81,16 +81,25 @@ export default async function AdminGatesPage() {
               <ActionForm action={updateGate} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <input type="hidden" name="id" value={g.id} />
                 <GateFields name={g.name} location={g.location} lat={g.lat} lng={g.lng} hasDevice={g.hasDevice} />
-                <button type="submit" className="btn-primary justify-self-start">
+                <button type="submit" className="btn-secondary justify-self-start whitespace-nowrap">
                   บันทึก
                 </button>
               </ActionForm>
-              <ActionForm action={setGateActive}>
+              <ActionForm
+                action={setGateActive}
+                confirm={
+                  g.active
+                    ? `ซ่อน “${g.name || g.id}” จากแผนที่และแดชบอร์ด?`
+                    : `แสดง “${g.name || g.id}” บนแผนที่อีกครั้ง?`
+                }
+              >
                 <input type="hidden" name="id" value={g.id} />
                 <input type="hidden" name="active" value={g.active ? "false" : "true"} />
-                <button type="submit" className={g.active ? "btn-danger" : "btn-secondary"}>
-                  {g.active ? "ปิดประตูนี้" : "เปิดใช้งาน"}
+                <button type="submit" className={`${g.active ? "btn-danger" : "btn-secondary"} whitespace-nowrap`}>
+                  {g.active ? "ซ่อนประตูน้ำนี้" : "แสดงประตูน้ำนี้"}
                 </button>
+                {/* WHY: the wording must not suggest it closes the physical gate. */}
+                <p className="mt-1.5 text-xs text-muted">ซ่อนจากแผนที่และแดชบอร์ด ไม่มีผลกับประตูน้ำจริง</p>
               </ActionForm>
             </li>
           ))}
