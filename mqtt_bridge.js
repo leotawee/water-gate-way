@@ -18,7 +18,7 @@
  *   pm2 startup
  *
  * Run as systemd service:
- *   See mqtt-bridge.service template in this repo.
+ *   See mqtt-bridge.service.example in this repo.
  */
 
 const mqtt = require('mqtt');

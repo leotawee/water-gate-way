@@ -2,7 +2,7 @@
 # ============================================================
 #
 # Install:
-#   1. Copy this file to /etc/systemd/system/mqtt-bridge.service
+#   1. Copy this file to /etc/systemd/system/mqtt-bridge.service (template: never commit real values)
 #   2. Edit paths and environment variables below to match your server
 #   3. sudo systemctl daemon-reload
 #   4. sudo systemctl enable --now mqtt-bridge
@@ -21,25 +21,16 @@ Wants=docker.service
 
 [Service]
 Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/water-gate-way
-ExecStart=/usr/bin/node /home/ubuntu/water-gate-way/mqtt_bridge.js
+User=<USER>
+WorkingDirectory=/home/<USER>/water-gate-way
+ExecStart=/usr/bin/node /home/<USER>/water-gate-way/mqtt_bridge.js
 Restart=always
 RestartSec=5
 
-# Environment variables (adjust to your setup)
-Environment="NODE_ENV=production"
-Environment="MQTT_BROKER=mqtt://178.128.49.254:1883"
-Environment="MQTT_TOPIC=watergate/telemetry"
-Environment="MQTT_QOS=1"
-Environment="PGUSER=water_admin"
-Environment="PGHOST=172.17.0.2"
-Environment="PGDATABASE=watergate_db"
-Environment="PGPASSWORD=zxc123"
-Environment="PGPORT=5432"
-
-# Optional: load from an env file instead
-# EnvironmentFile=/home/ubuntu/water-gate-way/.env.bridge
+# WHY: secrets live in an env file (mode 600), never in this unit or in git.
+# The file holds: NODE_ENV, MQTT_BROKER, MQTT_TOPIC, MQTT_QOS, MQTT_USER, MQTT_PASS,
+# PGUSER, PGHOST, PGDATABASE, PGPASSWORD, PGPORT (see .env.example).
+EnvironmentFile=/home/<USER>/water-gate-way/.env.bridge
 
 [Install]
 WantedBy=multi-user.target

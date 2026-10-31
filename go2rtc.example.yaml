@@ -1,0 +1,14 @@
+# go2rtc on the Raspberry Pi (template; the real go2rtc.yaml lives only on the Pi and is gitignored).
+# Copy to go2rtc.yaml on the Pi and fill in the camera account from the Tapo app (Camera Account, not the cloud login).
+# Never commit the real file: it holds the camera passwords.
+
+streams:
+  # stream2 = Tapo sub-stream (low resolution). Lighter on the Pi uplink than stream1.
+  office1: rtsp://<CAMERA_USER>:<CAMERA_PASS>@<CAMERA1_LAN_IP>:554/stream2
+  office2: rtsp://<CAMERA_USER>:<CAMERA_PASS>@<CAMERA2_LAN_IP>:554/stream2
+  office3: rtsp://<CAMERA_USER>:<CAMERA_PASS>@<CAMERA3_LAN_IP>:554/stream2
+
+api:
+  # WHY: loopback only. The droplet reaches it through `tailscale serve --tcp 1984`; the API has no auth,
+  # so binding 0.0.0.0 would hand the cameras to anyone on the LAN.
+  listen: "127.0.0.1:1984"

@@ -55,3 +55,8 @@ env/
 # generated / local tool state
 .understand-anything/
 .superpowers/
+
+# Real configs hold secrets; commit only the .example templates.
+/go2rtc.yaml
+/mqtt-bridge.service
+.env.bridge
