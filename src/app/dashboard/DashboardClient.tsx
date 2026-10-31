@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { Download } from "lucide-react";
 import DashboardHeaderClient from "@/components/DashboardHeaderClient";
 import { useGateStatus } from "@/hooks/useGateStatus";
@@ -30,32 +31,34 @@ function useNow(): number | null {
   return now;
 }
 
-function Shell({
-  gate,
-  now,
-  stale,
-  isAdmin,
-  children,
-}: {
-  gate: Gate;
-  now: number | null;
-  stale: boolean;
-  isAdmin: boolean;
-  children: ReactNode;
-}) {
+function Shell({ gate, isAdmin, children }: { gate: Gate; isAdmin: boolean; children: ReactNode }) {
+  return (
+    <div className="flex min-h-dvh flex-col bg-bg">
+      <header className="sticky top-0 z-40 border-b border-border bg-surface">
+        <DashboardHeaderClient gateName={gate.name} isAdmin={isAdmin} />
+      </header>
+      {children}
+      <footer className="border-t border-border py-3 text-center">
+        <p className="text-xs text-muted">Water Gate Way</p>
+      </footer>
+    </div>
+  );
+}
+
+/** Status strip under the app bar: connection state, gate name, clock. */
+function StatusStrip({ gateName, stale, now }: { gateName: string; stale: boolean; now: number | null }) {
   const clock =
     now === null ? "" : new Date(now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   return (
-    <div className="min-h-dvh bg-bg flex flex-col">
-      <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur">
-        <DashboardHeaderClient gateName={gate.name} clock={clock} stale={stale} isAdmin={isAdmin} />
-      </header>
-      {children}
-      <footer className="border-t border-border bg-surface py-3 text-center">
-        <p className="text-xs text-muted">
-          © {new Date().getFullYear()} Irrigation Department — Water Gate Management System
-        </p>
-      </footer>
+    <div className="border-b border-border bg-surface">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-6 gap-y-1 px-4 py-2.5 text-sm sm:px-6 lg:px-8">
+        <span className={`inline-flex items-center gap-2 font-bold ${stale ? "text-danger" : "text-on"}`}>
+          <span className={`size-2.5 rounded-full ${stale ? "bg-danger" : "bg-on"}`} aria-hidden="true" />
+          {stale ? "ขาดการเชื่อมต่อ" : "ออนไลน์"}
+        </span>
+        <span className="text-muted">{gateName}</span>
+        <span className="ml-auto text-muted">{clock}</span>
+      </div>
     </div>
   );
 }
@@ -65,58 +68,92 @@ function LiveDashboard({ gate, role }: Props) {
   const { status, conn } = useGateStatus();
   const stale = now === null || isStale(status, conn, now);
   const live = !stale;
-  // WHY: stale cards keep the last values but greyed, so an old reading is never mistaken for a live one.
-  const dim = stale ? "opacity-50" : "";
 
   return (
-    <Shell gate={gate} now={now} stale={stale} isAdmin={role === "admin"}>
-      <CameraGrid />
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        <section id="sensor-grid" className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 transition-opacity ${dim}`}>
-          <ElectricCard pzem={status?.pzem ?? null} live={live} />
-          <RadarCard radar={status?.radar ?? null} live={live} />
-          <FloatSwitchCard float={status?.float ?? null} live={live} />
-          <WireBreakCard wireBreak={status?.wireBreak ?? null} live={live} />
-        </section>
+    <Shell gate={gate} isAdmin={role === "admin"}>
+      <StatusStrip gateName={gate.name} stale={stale} now={now} />
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <div className={`grid grid-cols-1 gap-6 ${role !== "viewer" ? "lg:grid-cols-[minmax(0,1fr)_400px]" : ""}`}>
+          {/* Control column: first on mobile, sticky 400px on the right on desktop. Viewer gets none. */}
+          {role !== "viewer" && (
+            <aside className="order-1 min-w-0 lg:order-2">
+              <div className="flex flex-col gap-4 lg:sticky lg:top-20">
+                {/* The one soft shadow in the design: the sticky control column only. */}
+                <div className="rounded-lg shadow-[0_1px_2px_rgb(20_32_41/0.06),0_4px_12px_rgb(20_32_41/0.05)]">
+                  <ControlPanel devices={status?.devices ?? null} stale={stale} />
+                </div>
+                <a
+                  id="download-graph-data"
+                  href="/api/water-level/download"
+                  download="water_levels_report.csv"
+                  className="btn-secondary w-full"
+                >
+                  <Download className="size-5" strokeWidth={1.75} aria-hidden="true" />
+                  ดาวน์โหลดข้อมูลระดับน้ำ (CSV)
+                </a>
+              </div>
+            </aside>
+          )}
 
-        <section id="graph-and-controls" className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          <WaterLevelChart />
-          <div className="lg:col-span-2 flex flex-col gap-4">
-            <div className={`transition-opacity ${dim}`}>
-              <DetectionCard personCount={status?.personCount ?? null} />
-            </div>
-            {role !== "viewer" && (
-              <section aria-labelledby="controls-heading" className="flex flex-col gap-4">
-                <h2 id="controls-heading" className="card-title px-1">
-                  Controls
-                </h2>
-                <ControlPanel devices={status?.devices ?? null} stale={stale} />
-              </section>
-            )}
-            <a
-              id="download-graph-data"
-              href="/api/water-level/download"
-              download="water_levels_report.csv"
-              className="btn-secondary w-full"
+          {/* Main column. Mobile: cameras → readings → chart; desktop: cameras → chart → readings. */}
+          <div className="order-2 flex min-w-0 flex-col gap-6 lg:order-1">
+            <CameraGrid />
+
+            <section
+              id="sensor-grid"
+              aria-labelledby="readings-heading"
+              className="order-2 rounded-lg border border-border bg-surface lg:order-3"
             >
-              <Download className="size-5" aria-hidden="true" />
-              Download Graph Data
-            </a>
+              <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border px-4 py-3 sm:px-5">
+                <h2 id="readings-heading" className="text-base font-bold text-fg">
+                  ค่าที่วัดได้
+                </h2>
+                {!live && (
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-muted">
+                    <span className="size-2 rounded-full border-2 border-dashed border-unknown" aria-hidden="true" />
+                    ข้อมูลไม่เป็นปัจจุบัน
+                  </span>
+                )}
+              </header>
+              <div className="divide-y divide-border px-4 py-2 sm:px-5">
+                <div className="py-3">
+                  <ElectricCard pzem={status?.pzem ?? null} live={live} />
+                </div>
+                <div className="py-3">
+                  <RadarCard radar={status?.radar ?? null} live={live} />
+                </div>
+                <div className="py-3">
+                  <FloatSwitchCard float={status?.float ?? null} live={live} />
+                </div>
+                <div className="py-3">
+                  <WireBreakCard wireBreak={status?.wireBreak ?? null} live={live} />
+                </div>
+                <div className="py-3">
+                  <DetectionCard personCount={status?.personCount ?? null} live={live} />
+                </div>
+              </div>
+            </section>
+
+            <div className="order-3 lg:order-2">
+              <WaterLevelChart />
+            </div>
           </div>
-        </section>
+        </div>
       </main>
     </Shell>
   );
 }
 
 function NoDevice({ gate, role }: { gate: Gate; role: SessionUser["role"] }) {
-  const now = useNow();
   return (
-    <Shell gate={gate} now={now} stale isAdmin={role === "admin"}>
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-center">
-        <div className="rounded-xl border border-border bg-surface p-8 text-center">
-          <h2 className="text-lg font-semibold text-fg">No device installed</h2>
-          <p className="text-sm text-muted mt-1">{gate.name} has no sensors or cameras yet.</p>
+    <Shell gate={gate} isAdmin={role === "admin"}>
+      <main className="flex flex-1 items-center justify-center px-4 py-16">
+        <div className="text-center">
+          <p className="text-lg font-bold text-fg">ประตูนี้ยังไม่ได้ติดตั้งอุปกรณ์</p>
+          <p className="mt-1 text-sm text-muted">{gate.name} ยังไม่มีเซนเซอร์หรือกล้อง</p>
+          <Link href="/" className="btn-secondary mt-5">
+            กลับไปแผนที่
+          </Link>
         </div>
       </main>
     </Shell>

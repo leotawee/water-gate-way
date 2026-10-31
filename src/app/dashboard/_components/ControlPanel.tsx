@@ -1,29 +1,52 @@
 "use client";
 
-import { useState } from "react";
-import { CircleAlert, Fan, Bell, Lightbulb, Power } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, CircleAlert, Fan, Lightbulb, Power } from "lucide-react";
 import type { Command } from "@/lib/control/commands";
 import type { GateStatus } from "@/lib/telemetry/parseStatus";
-import { deviceBadge } from "@/lib/telemetry/deviceBadge";
+import DeviceSwitch from "@/components/DeviceSwitch";
 
 type Devices = GateStatus["devices"];
+type DeviceKey = keyof Devices;
 
 function errorText(res: Response): string {
-  if (res.status === 429) return `Too many commands, wait ${res.headers.get("Retry-After") ?? "a few"} s`;
-  if (res.status === 502) return "Device unavailable";
-  if (res.status === 403) return "Not allowed";
-  return "Command failed";
+  if (res.status === 429) return `ส่งคำสั่งบ่อยเกินไป รอ ${res.headers.get("Retry-After") ?? "สักครู่"} วินาที`;
+  if (res.status === 502) return "อุปกรณ์ไม่พร้อมใช้งาน";
+  if (res.status === 403) return "ไม่ได้รับอนุญาต";
+  return "ส่งคำสั่งไม่สำเร็จ";
 }
+
+/** The command's first letter identifies the device (P1 → pump … Q1 → relay2). */
+function deviceOf(cmd: Command): DeviceKey {
+  switch (cmd[0]) {
+    case "P":
+      return "pump";
+    case "A":
+      return "alarm";
+    case "L":
+      return "light";
+    case "R":
+      return "relay1";
+    default:
+      return "relay2";
+  }
+}
+
+/** How long to wait for the device to report the target state before saying it did not answer. */
+const CONFIRM_MS = 15_000;
+
+type Note = { key: DeviceKey; target: boolean; waiting: boolean };
 
 /** Operator/admin only (server enforces it too: POST /api/control requires "operator"). */
 // WHY: buttons stay enabled when stale; the server is authoritative and an operator may need to act during an outage.
 export default function ControlPanel({ devices, stale }: { devices: Devices | null; stale: boolean }) {
-  const [sending, setSending] = useState(false);
+  const [sending, setSending] = useState<Command | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<Note | null>(null);
 
   async function sendCommand(cmd: Command) {
     if (sending) return;
-    setSending(true);
+    setSending(cmd);
     setError(null);
     try {
       const res = await fetch("/api/control", {
@@ -36,120 +59,86 @@ export default function ControlPanel({ devices, stale }: { devices: Devices | nu
         return;
       }
       if (!res.ok) setError(errorText(res));
+      else setNote({ key: deviceOf(cmd), target: cmd.endsWith("1"), waiting: true });
     } catch {
-      setError("Command failed");
+      setError("ส่งคำสั่งไม่สำเร็จ");
     } finally {
-      setSending(false);
+      setSending(null);
     }
   }
 
-  // WHY: "on" actions are primary (accent), "off" actions are stop actions (danger outline).
-  const onCls = "btn-primary";
-  const offCls = "btn-danger";
-  const btn = (cmd: Command, text: string, cls: string) => (
-    <button onClick={() => sendCommand(cmd)} disabled={sending} className={cls}>
-      {text}
-    </button>
-  );
-  const badge = (on: boolean | null, tone: string) => (
-    <span className={`pill ${on ? tone : "bg-surface-2 text-muted ring-border"}`}>{deviceBadge(on, stale)}</span>
-  );
-  const unknownHint = stale && <span className="text-[11px] font-medium text-muted">status unknown (offline)</span>;
+  // The device confirmed: it now reports the target state, so drop the note.
+  // WHY: a stale reading may still hold an old value equal to the target; that is not a confirmation.
+  useEffect(() => {
+    if (note && !stale && devices && devices[note.key] === note.target) setNote(null);
+  }, [devices, note, stale]);
 
-  // WHY: when stale, every state reads as null so badges and icons are muted, not last-known colours.
-  const v = (x: boolean | null | undefined) => (stale ? null : (x ?? null));
-  const pump = v(devices?.pump);
-  const alarm = v(devices?.alarm);
-  const light = v(devices?.light);
-  const relays = [
-    { name: "IoT Pump 1", on: v(devices?.relay1), open: "R1", close: "R0" },
-    { name: "IoT Pump 2", on: v(devices?.relay2), open: "Q1", close: "Q0" },
+  // No confirmation within 15 s: say so; the switch itself is the retry.
+  useEffect(() => {
+    if (!note?.waiting) return;
+    const id = setTimeout(() => setNote((n) => (n ? { ...n, waiting: false } : n)), CONFIRM_MS);
+    return () => clearTimeout(id);
+  }, [note]);
+
+  const rows = [
+    { key: "pump", name: "ปั๊มหลัก", icon: Fan, onCmd: "P1", offCmd: "P0", state: devices?.pump ?? null, tone: "on" },
+    { key: "alarm", name: "สัญญาณเตือน", icon: Bell, onCmd: "A1", offCmd: "A0", state: devices?.alarm ?? null, tone: "danger" },
+    { key: "light", name: "ไฟส่องสว่าง", icon: Lightbulb, onCmd: "L1", offCmd: "L0", state: devices?.light ?? null, tone: "warn" },
+    { key: "relay1", name: "ปั๊ม IoT 1", icon: Power, onCmd: "R1", offCmd: "R0", state: devices?.relay1 ?? null, tone: "on" },
+    { key: "relay2", name: "ปั๊ม IoT 2", icon: Power, onCmd: "Q1", offCmd: "Q0", state: devices?.relay2 ?? null, tone: "on" },
   ] as const;
 
   return (
-    <>
+    <section aria-labelledby="controls-heading" className="rounded-lg border border-border bg-surface">
+      <header className="border-b border-border px-4 py-3">
+        <h2 id="controls-heading" className="text-base font-bold text-fg">
+          ควบคุมอุปกรณ์
+        </h2>
+      </header>
+
+      {stale && (
+        <div className="hatch flex items-center gap-2.5 border-b border-border px-4 py-2.5 text-sm font-medium text-fg">
+          <span className="size-2.5 shrink-0 rounded-full border-2 border-dashed border-unknown" aria-hidden="true" />
+          ขาดการเชื่อมต่อ — สถานะอุปกรณ์อาจไม่ตรงความจริง
+        </div>
+      )}
+
       {error && (
         <div
           role="alert"
-          className="flex items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-2 text-sm font-medium text-danger"
+          className="mx-4 mt-3 flex items-center gap-2 rounded-md bg-danger-soft px-3 py-2 text-sm font-medium text-danger"
         >
-          <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+          <CircleAlert className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
           {error}
         </div>
       )}
 
-      {/* ── Pump Control ── */}
-      <div className="card">
-        <div className="mb-4 flex items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h4 className="card-title">
-              <Fan className="size-4 text-accent" aria-hidden="true" />
-              Pump Control
-            </h4>
-            {unknownHint}
+      <div className="divide-y divide-border px-4">
+        {rows.map((row) => (
+          <div key={row.key}>
+            <DeviceSwitch
+              name={row.name}
+              icon={row.icon}
+              state={row.state}
+              stale={stale}
+              onCmd={row.onCmd}
+              offCmd={row.offCmd}
+              sending={sending}
+              onSend={sendCommand}
+              tone={row.tone}
+            />
+            {note && note.key === row.key && (
+              <p className="-mt-1 pb-4 text-sm font-medium" role="status">
+                {note.waiting ? (
+                  <span className="text-accent">ส่งแล้ว รออุปกรณ์ยืนยัน</span>
+                ) : (
+                  <span className="text-danger">อุปกรณ์ยังไม่ตอบ ลองอีกครั้ง</span>
+                )}
+              </p>
+            )}
           </div>
-          {badge(pump, "bg-ok/10 text-ok ring-ok/40")}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {btn("P1", "เปิดปั๊มปกติ", onCls)}
-          {btn("P0", "ปิดปั๊มปกติ", offCls)}
-        </div>
+        ))}
       </div>
-
-      {/* ── Alarm & Light ── */}
-      <div className="card">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <h4 className="card-title">Alarm & Light</h4>
-          {unknownHint}
-        </div>
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Bell className={`size-4 ${alarm ? "text-danger" : "text-muted"}`} aria-hidden="true" />
-              <span className="text-sm font-medium text-fg">Alarm</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {badge(alarm, "bg-danger/10 text-danger ring-danger/40")}
-              {btn("A1", "เปิด Alarm", onCls)}
-              {btn("A0", "ปิด Alarm", offCls)}
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Lightbulb className={`size-4 ${light ? "text-warn" : "text-muted"}`} aria-hidden="true" />
-              <span className="text-sm font-medium text-fg">Light</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {badge(light, "bg-warn/10 text-warn ring-warn/40")}
-              {btn("L1", "เปิดไฟ", onCls)}
-              {btn("L0", "ปิดไฟ", offCls)}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── IoT Relay Pumps ── */}
-      <div className="card">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <h4 className="card-title">IoT Relay Pumps</h4>
-          {unknownHint}
-        </div>
-        <div className="space-y-3">
-          {relays.map((r) => (
-            <div key={r.open} className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Power className={`size-4 ${r.on ? "text-ok" : "text-muted"}`} aria-hidden="true" />
-                <span className="text-sm font-medium text-fg">{r.name}</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {badge(r.on, "bg-ok/10 text-ok ring-ok/40")}
-                {btn(r.open, "เปิด", onCls)}
-                {btn(r.close, "ปิด", offCls)}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
+    </section>
   );
 }

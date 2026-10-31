@@ -1,13 +1,14 @@
-import { Activity } from "lucide-react";
-
-/** Live/offline state as icon + text (never colour alone). */
+/** Connection state as dot + word (never colour alone), same vocabulary as the status strip. */
 export default function LiveIcon({ live }: { live: boolean }) {
-  return (
-    <span
-      className={`pill ${live ? "bg-ok/10 text-ok ring-ok/40" : "bg-surface-2 text-muted ring-border"}`}
-    >
-      <Activity className="size-3.5" aria-hidden="true" />
-      {live ? "Live" : "Offline"}
+  return live ? (
+    <span className="pill bg-on-soft text-on">
+      <span className="size-2 rounded-full bg-on" aria-hidden="true" />
+      ออนไลน์
+    </span>
+  ) : (
+    <span className="pill bg-danger-soft text-danger">
+      <span className="size-2 rounded-full bg-danger" aria-hidden="true" />
+      ขาดการเชื่อมต่อ
     </span>
   );
 }

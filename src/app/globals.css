@@ -1,22 +1,28 @@
 @import "tailwindcss";
 
-/* Design tokens. Components use the generated classes (bg-surface, text-muted, border-border ...).
+/* Design tokens from DESIGN.md (light only). Components use the generated classes
+   (bg-surface, text-muted, border-border, bg-on-soft ...).
    Recharts SVG props cannot read CSS variables, so WaterLevelChart repeats these hex values as constants. */
 @theme {
-  --color-bg: #020617;
-  --color-surface: #0f172a;
-  --color-surface-2: #1e293b;
-  --color-border: #334155;
-  --color-fg: #f1f5f9;
-  /* slate-400 on surface is about 6.9:1, on surface-2 about 5.1:1 (WCAG AA for body text) */
-  --color-muted: #94a3b8;
-  --color-accent: #22d3ee;
-  --color-ok: #22c55e;
-  --color-warn: #f59e0b;
-  --color-danger: #ef4444;
+  --color-bg: #f4f5f2;
+  --color-surface: #ffffff;
+  --color-surface-2: #eceee9;
+  --color-border: #d3d8d0;
+  --color-fg: #142029;
+  /* muted is ≥4.5:1 on white (WCAG AA for body text) */
+  --color-muted: #55606a;
+  --color-accent: #0a58a3;
+  --color-on: #157f3c;
+  --color-on-soft: #e3f3e8;
+  --color-off: #3f4b57;
+  --color-off-soft: #e6e9ec;
+  --color-warn: #a35207;
+  --color-warn-soft: #fdf0dc;
+  --color-danger: #b4231b;
+  --color-danger-soft: #fbe7e5;
+  --color-unknown: #7b858e;
 
-  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-sans: var(--font-line-seed), system-ui, sans-serif;
 }
 
 @layer base {
@@ -28,53 +34,70 @@
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
     background: var(--color-bg);
     color: var(--color-fg);
+    font-variant-numeric: tabular-nums;
+    caret-color: var(--color-accent);
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  }
+
+  /* Focus ring: 2px accent with 2px offset, on everything. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 }
 
-/* Shared component classes. One definition each, so every page uses the same look. */
-@utility card {
-  @apply rounded-xl border border-border bg-surface p-4 sm:p-5;
-}
-
-@utility card-title {
-  @apply flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted;
-}
-
-@utility input-field {
-  @apply min-h-11 rounded-lg border border-border bg-bg px-3 py-2 text-sm text-fg transition-colors duration-200 placeholder:text-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent;
-}
-
+/* Shared component classes. One definition each, so every page uses the same look.
+   (Deliberately no card class: panels are styled where they are used.) */
 @utility btn {
-  @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md px-4 text-sm font-bold transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60;
 }
 
 @utility btn-primary {
-  @apply btn bg-accent text-slate-950 hover:bg-cyan-300 active:bg-cyan-400;
+  @apply btn bg-accent text-white hover:bg-accent/85;
 }
 
 @utility btn-secondary {
-  @apply btn border border-border bg-surface-2 text-fg hover:bg-border;
+  @apply btn border border-border bg-surface text-fg hover:bg-surface-2;
 }
 
 @utility btn-danger {
-  @apply btn border border-danger/60 text-danger hover:bg-danger/10;
+  @apply btn border border-danger bg-surface text-danger hover:bg-danger-soft;
 }
 
-@utility btn-danger-solid {
-  @apply btn bg-danger text-slate-950 hover:bg-red-400;
+@utility input-field {
+  @apply min-h-11 rounded-md border border-border bg-surface px-3 py-2 text-sm text-fg transition-colors duration-150 placeholder:text-muted/70 disabled:cursor-not-allowed disabled:opacity-60;
 }
 
+@utility data-table {
+  @apply min-w-full text-sm;
+}
+
+/* Status pill: dot + word, so colour never carries meaning alone. */
 @utility pill {
-  @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset;
+  @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold;
 }
 
-/* Dark scrollbar */
+/* UNKNOWN state: diagonal hatch in the unknown token at ~12% opacity, 6px stripes. */
+@utility hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--color-unknown) 12%, transparent) 0px,
+    color-mix(in srgb, var(--color-unknown) 12%, transparent) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+/* Light scrollbar */
 * {
   scrollbar-color: var(--color-border) var(--color-bg);
 }
@@ -98,17 +121,21 @@
   z-index: 10;
 }
 
-/* Leaflet: dark popups and controls, and a darkened OSM tile layer (tile URL itself is unchanged). */
-.wg-map .leaflet-tile-pane {
-  filter: invert(0.9) hue-rotate(180deg) saturate(0.6) brightness(0.9);
-}
+/* Leaflet: light popups and controls on the standard OSM tiles (no tile filter). */
 /* WHY: the .leaflet-container prefix beats leaflet.css, which loads without a layer and would win on equal specificity. */
 .leaflet-container {
   background: var(--color-bg);
   font-family: var(--font-sans);
 }
-.leaflet-container .leaflet-popup-content-wrapper,
-.leaflet-container .leaflet-popup-tip,
+.leaflet-container .leaflet-popup-content-wrapper {
+  background: var(--color-surface);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+.leaflet-container .leaflet-popup-tip {
+  background: var(--color-surface);
+}
 .leaflet-container .leaflet-bar a {
   background: var(--color-surface);
   color: var(--color-fg);

@@ -1,24 +1,20 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans_Thai } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-// WHY: Plex Sans Thai covers the Thai UI copy and Latin; Plex Mono keeps numeric readings aligned.
-const plexSans = IBM_Plex_Sans_Thai({
-  variable: "--font-plex-sans",
-  subsets: ["thai", "latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+// WHY: LINE Seed Sans TH is the one family for the whole UI; 400 covers body copy, 700 headings and values.
+const lineSeed = localFont({
+  src: [
+    { path: "./fonts/LINESeedSansTH_Rg.otf", weight: "400" },
+    { path: "./fonts/LINESeedSansTH_Bd.otf", weight: "700" },
+  ],
+  variable: "--font-line-seed",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Water Gate 1 — Irrigation Department Dashboard",
-  description:
-    "Real-time water management dashboard for monitoring water levels, pump controls, and 3-phase electrical systems.",
+  title: "Water Gate Way — ระบบติดตามและควบคุมประตูน้ำ",
+  description: "ระบบติดตามระดับน้ำ ควบคุมปั๊ม และกล้อง สำหรับประตูน้ำชลประทาน",
 };
 
 export default function RootLayout({
@@ -27,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th" className={`${plexSans.variable} ${plexMono.variable} antialiased`}>
+    <html lang="th" className={`${lineSeed.variable} antialiased`}>
       <body className="min-h-dvh bg-bg font-sans text-fg">{children}</body>
     </html>
   );

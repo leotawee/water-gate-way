@@ -59,9 +59,9 @@ export async function createUser(_prev: AdminState, form: FormData): Promise<Adm
   const email = (field(form, "email", 254) ?? "").trim().toLowerCase();
   const role = field(form, "role", 16) ?? "";
   const password = field(form, "password", PASSWORD_MAX);
-  if (!EMAIL.test(email)) return { error: "Enter a valid email." };
-  if (!ROLES.includes(role)) return { error: "Choose a valid role." };
-  if (password === null || password.length < PASSWORD_MIN) return { error: "Password must be 8 to 1024 characters." };
+  if (!EMAIL.test(email)) return { error: "รูปแบบอีเมลไม่ถูกต้อง" };
+  if (!ROLES.includes(role)) return { error: "เลือกบทบาทไม่ถูกต้อง" };
+  if (password === null || password.length < PASSWORD_MIN) return { error: "รหัสผ่านต้องมี 8 ถึง 1024 ตัวอักษร" };
 
   const passwordHash = await hashPassword(password);
   let id: string;
@@ -72,7 +72,7 @@ export async function createUser(_prev: AdminState, form: FormData): Promise<Adm
     );
     id = (rows[0] as { id: string }).id;
   } catch (e) {
-    if (isUniqueViolation(e)) return { error: "That email already has an account." };
+    if (isUniqueViolation(e)) return { error: "อีเมลนี้มีบัญชีอยู่แล้ว" };
     throw e;
   }
   await audit(actor.id, "user.create", `user:${id}`);
@@ -83,12 +83,12 @@ export async function setUserRole(_prev: AdminState, form: FormData): Promise<Ad
   const actor = await requireUser("admin");
   const id = field(form, "id", 36) ?? "";
   const role = field(form, "role", 16) ?? "";
-  if (!UUID.test(id) || !ROLES.includes(role)) return { error: "Invalid request." };
+  if (!UUID.test(id) || !ROLES.includes(role)) return { error: "คำขอไม่ถูกต้อง" };
   // WHY: an admin who demotes themselves can lock every admin out of the panel.
-  if (id === actor.id && role !== "admin") return { error: "You cannot demote your own account." };
+  if (id === actor.id && role !== "admin") return { error: "ลดระดับบัญชีของตนเองไม่ได้" };
 
   const { rowCount } = await db.query("update users set role = $1 where id = $2", [role, id]);
-  if (!rowCount) return { error: "User not found." };
+  if (!rowCount) return { error: "ไม่พบผู้ใช้" };
   await audit(actor.id, `user.role:${role}`, `user:${id}`);
   revalidatePath("/admin/users");
 }
@@ -97,12 +97,12 @@ export async function setUserDisabled(_prev: AdminState, form: FormData): Promis
   const actor = await requireUser("admin");
   const id = field(form, "id", 36) ?? "";
   const flag = field(form, "disabled", 5);
-  if (!UUID.test(id) || (flag !== "true" && flag !== "false")) return { error: "Invalid request." };
+  if (!UUID.test(id) || (flag !== "true" && flag !== "false")) return { error: "คำขอไม่ถูกต้อง" };
   const disabled = flag === "true";
-  if (disabled && id === actor.id) return { error: "You cannot disable your own account." };
+  if (disabled && id === actor.id) return { error: "ปิดใช้งานบัญชีของตนเองไม่ได้" };
 
   const { rowCount } = await db.query("update users set disabled = $1 where id = $2", [disabled, id]);
-  if (!rowCount) return { error: "User not found." };
+  if (!rowCount) return { error: "ไม่พบผู้ใช้" };
   // WHY: getSessionUser already rejects disabled users; deleting their sessions ends them now and leaves no stale rows.
   if (disabled) await db.query("delete from sessions where user_id = $1", [id]);
   await audit(actor.id, disabled ? "user.disable" : "user.enable", `user:${id}`);
@@ -113,12 +113,12 @@ export async function resetUserPassword(_prev: AdminState, form: FormData): Prom
   const actor = await requireUser("admin");
   const id = field(form, "id", 36) ?? "";
   const password = field(form, "password", PASSWORD_MAX);
-  if (!UUID.test(id)) return { error: "Invalid request." };
-  if (password === null || password.length < PASSWORD_MIN) return { error: "Password must be 8 to 1024 characters." };
+  if (!UUID.test(id)) return { error: "คำขอไม่ถูกต้อง" };
+  if (password === null || password.length < PASSWORD_MIN) return { error: "รหัสผ่านต้องมี 8 ถึง 1024 ตัวอักษร" };
 
   const passwordHash = await hashPassword(password);
   const { rowCount } = await db.query("update users set password_hash = $1 where id = $2", [passwordHash, id]);
-  if (!rowCount) return { error: "User not found." };
+  if (!rowCount) return { error: "ไม่พบผู้ใช้" };
   // WHY: sessions opened before the reset must not survive it.
   await db.query("delete from sessions where user_id = $1", [id]);
   await audit(actor.id, "user.password_reset", `user:${id}`);
@@ -129,7 +129,7 @@ export async function createGate(_prev: AdminState, form: FormData): Promise<Adm
   const actor = await requireUser("admin");
   const id = field(form, "id", 16) ?? "";
   const gate = parseGate(form);
-  if (!GATE_ID.test(id) || !gate) return { error: "Check the gate id, name, location and coordinates." };
+  if (!GATE_ID.test(id) || !gate) return { error: "ตรวจสอบรหัส ชื่อ ที่ตั้ง และพิกัดของประตูน้ำ" };
 
   try {
     await db.query(
@@ -137,7 +137,7 @@ export async function createGate(_prev: AdminState, form: FormData): Promise<Adm
       [id, gate.name, gate.location, gate.lat, gate.lng, gate.hasDevice],
     );
   } catch (e) {
-    if (isUniqueViolation(e)) return { error: `${id} already exists.` };
+    if (isUniqueViolation(e)) return { error: `${id} มีอยู่แล้ว` };
     throw e;
   }
   await audit(actor.id, "gate.create", `gate:${id}`);
@@ -150,13 +150,13 @@ export async function updateGate(_prev: AdminState, form: FormData): Promise<Adm
   const actor = await requireUser("admin");
   const id = field(form, "id", 16) ?? "";
   const gate = parseGate(form);
-  if (!GATE_ID.test(id) || !gate) return { error: "Check the gate name, location and coordinates." };
+  if (!GATE_ID.test(id) || !gate) return { error: "ตรวจสอบชื่อ ที่ตั้ง และพิกัดของประตูน้ำ" };
 
   const { rowCount } = await db.query(
     "update gates set name = $1, location = $2, lat = $3, lng = $4, has_device = $5, updated_at = now() where id = $6",
     [gate.name, gate.location, gate.lat, gate.lng, gate.hasDevice, id],
   );
-  if (!rowCount) return { error: "Gate not found." };
+  if (!rowCount) return { error: "ไม่พบประตูน้ำ" };
   await audit(actor.id, "gate.update", `gate:${id}`);
   revalidatePath("/admin/gates");
   revalidatePath("/");
@@ -167,10 +167,10 @@ export async function setGateActive(_prev: AdminState, form: FormData): Promise<
   const actor = await requireUser("admin");
   const id = field(form, "id", 16) ?? "";
   const flag = field(form, "active", 5);
-  if (!GATE_ID.test(id) || (flag !== "true" && flag !== "false")) return { error: "Invalid request." };
+  if (!GATE_ID.test(id) || (flag !== "true" && flag !== "false")) return { error: "คำขอไม่ถูกต้อง" };
 
   const { rowCount } = await db.query("update gates set active = $1, updated_at = now() where id = $2", [flag === "true", id]);
-  if (!rowCount) return { error: "Gate not found." };
+  if (!rowCount) return { error: "ไม่พบประตูน้ำ" };
   await audit(actor.id, flag === "true" ? "gate.activate" : "gate.deactivate", `gate:${id}`);
   revalidatePath("/admin/gates");
   revalidatePath("/");

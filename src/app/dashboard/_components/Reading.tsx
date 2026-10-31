@@ -11,11 +11,9 @@ export default function Reading({
   color?: string;
 }) {
   return (
-    <div className="text-right">
-      <div className={`font-mono text-2xl font-semibold tabular-nums ${color}`}>
-        {value === null ? "—" : value.toFixed(digits)}
-      </div>
-      <div className="text-[11px] font-medium text-muted">{unit}</div>
-    </div>
+    <span className={`text-base font-bold tabular-nums ${color}`}>
+      {value === null ? "—" : value.toFixed(digits)}
+      {value !== null && <span className="ml-1 text-sm font-normal text-muted">{unit}</span>}
+    </span>
   );
 }

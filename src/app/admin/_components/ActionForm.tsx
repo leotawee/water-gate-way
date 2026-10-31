@@ -22,7 +22,7 @@ export default function ActionForm({
       {children}
       {state?.error && (
         <p role="alert" className="col-span-full flex items-center gap-2 text-sm font-medium text-danger">
-          <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+          <CircleAlert className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
           {state.error}
         </p>
       )}

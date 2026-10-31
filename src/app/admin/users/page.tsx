@@ -1,4 +1,3 @@
-import { Ban, CircleCheck } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { requireAdminPage } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
@@ -6,9 +5,10 @@ import ActionForm from "../_components/ActionForm";
 import AdminNav from "../_components/AdminNav";
 import { createUser, resetUserPassword, setUserDisabled, setUserRole } from "../actions";
 
-const ROLES = ["viewer", "operator", "admin"];
+const ROLES = ["viewer", "operator", "admin"] as const;
+const ROLE_THAI: Record<string, string> = { viewer: "ผู้ชม", operator: "ผู้ควบคุม", admin: "ผู้ดูแลระบบ" };
 const input = "input-field w-auto";
-const label = "flex flex-col gap-1.5 text-sm font-medium text-muted";
+const label = "flex flex-col gap-1.5 text-sm font-bold text-fg";
 
 type UserRow = { id: string; email: string; role: string; disabled: boolean; created_at: Date };
 
@@ -23,44 +23,44 @@ export default async function AdminUsersPage() {
       <AppHeader active="admin" isAdmin />
       <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6 sm:px-6">
         <AdminNav />
-        <h1 className="text-xl font-semibold text-fg">Users</h1>
+        <h1 className="text-xl font-bold text-fg">ผู้ใช้</h1>
 
-        <section className="card space-y-4">
-          <h2 className="font-semibold text-fg">Create user</h2>
+        <section className="rounded-lg border border-border bg-surface space-y-4 p-4">
+          <h2 className="text-base font-bold text-fg">สร้างผู้ใช้</h2>
           <ActionForm action={createUser} className="flex flex-wrap items-end gap-3">
             <label className={label}>
-              Email
+              อีเมล
               <input name="email" type="email" required maxLength={254} className={input} />
             </label>
             <label className={label}>
-              Role
+              บทบาท
               <select name="role" defaultValue="viewer" className={input}>
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
-                    {r}
+                    {ROLE_THAI[r]}
                   </option>
                 ))}
               </select>
             </label>
             <label className={label}>
-              Password (8+ characters)
+              รหัสผ่าน (8 ตัวอักษรขึ้นไป)
               <input name="password" type="password" required minLength={8} maxLength={1024} autoComplete="new-password" className={input} />
             </label>
             <button type="submit" className="btn-primary">
-              Create
+              สร้าง
             </button>
           </ActionForm>
         </section>
 
-        <section className="overflow-x-auto rounded-xl border border-border bg-surface">
-          <table className="min-w-full text-sm">
-            <thead className="bg-surface-2 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+        <section className="overflow-x-auto rounded-lg border border-border bg-surface">
+          <table className="data-table">
+            <thead className="bg-surface-2 text-left text-xs font-bold text-muted">
               <tr>
-                <th className="px-4 py-3 font-semibold">Email</th>
-                <th className="px-4 py-3 font-semibold">Role</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Created</th>
-                <th className="px-4 py-3 font-semibold">Actions</th>
+                <th className="px-4 py-3">อีเมล</th>
+                <th className="px-4 py-3">บทบาท</th>
+                <th className="px-4 py-3">สถานะ</th>
+                <th className="px-4 py-3">สร้างเมื่อ</th>
+                <th className="px-4 py-3">จัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -68,40 +68,40 @@ export default async function AdminUsersPage() {
                 // WHY: the UI hides self-lockout controls; the actions refuse them anyway.
                 const self = u.id === me.id;
                 return (
-                  <tr key={u.id} className="align-top transition-colors duration-200 hover:bg-surface-2/50">
+                  <tr key={u.id} className="align-top transition-colors duration-150 hover:bg-surface-2/50">
                     <td className="px-4 py-3 text-fg">
                       {u.email}
-                      {self && <span className="ml-2 text-xs text-muted">(you)</span>}
+                      {self && <span className="ml-2 text-xs text-muted">(คุณ)</span>}
                     </td>
                     <td className="px-4 py-3 text-fg">
                       {self ? (
-                        u.role
+                        ROLE_THAI[u.role] ?? u.role
                       ) : (
                         <ActionForm action={setUserRole} className="flex flex-wrap items-center gap-2">
                           <input type="hidden" name="id" value={u.id} />
                           <select name="role" defaultValue={u.role} className={input}>
                             {ROLES.map((r) => (
                               <option key={r} value={r}>
-                                {r}
+                                {ROLE_THAI[r]}
                               </option>
                             ))}
                           </select>
                           <button type="submit" className="btn-primary">
-                            Save
+                            บันทึก
                           </button>
                         </ActionForm>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       {u.disabled ? (
-                        <span className="pill bg-danger/10 text-danger ring-danger/40">
-                          <Ban className="size-3.5" aria-hidden="true" />
-                          Disabled
+                        <span className="pill bg-danger-soft text-danger">
+                          <span className="size-2 rounded-full bg-danger" aria-hidden="true" />
+                          ปิดใช้งาน
                         </span>
                       ) : (
-                        <span className="pill bg-ok/10 text-ok ring-ok/40">
-                          <CircleCheck className="size-3.5" aria-hidden="true" />
-                          Active
+                        <span className="pill bg-on-soft text-on">
+                          <span className="size-2 rounded-full bg-on" aria-hidden="true" />
+                          ใช้งาน
                         </span>
                       )}
                       {!self && (
@@ -109,12 +109,12 @@ export default async function AdminUsersPage() {
                           <input type="hidden" name="id" value={u.id} />
                           <input type="hidden" name="disabled" value={u.disabled ? "false" : "true"} />
                           <button type="submit" className={u.disabled ? "btn-secondary" : "btn-danger"}>
-                            {u.disabled ? "Enable" : "Disable"}
+                            {u.disabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}
                           </button>
                         </ActionForm>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-muted tabular-nums">{u.created_at.toISOString().slice(0, 10)}</td>
+                    <td className="px-4 py-3 tabular-nums text-muted">{u.created_at.toISOString().slice(0, 10)}</td>
                     <td className="px-4 py-3">
                       <ActionForm action={resetUserPassword} className="flex flex-wrap items-center gap-2">
                         <input type="hidden" name="id" value={u.id} />
@@ -125,12 +125,12 @@ export default async function AdminUsersPage() {
                           minLength={8}
                           maxLength={1024}
                           autoComplete="new-password"
-                          placeholder="New password"
-                          aria-label={`New password for ${u.email}`}
+                          placeholder="รหัสผ่านใหม่"
+                          aria-label={`ตั้งรหัสผ่านใหม่สำหรับ ${u.email}`}
                           className={input}
                         />
                         <button type="submit" className="btn-secondary">
-                          Reset password
+                          ตั้งรหัสผ่านใหม่
                         </button>
                       </ActionForm>
                     </td>

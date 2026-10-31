@@ -16,16 +16,15 @@ import { Droplets } from "lucide-react";
 
 // WHY: Recharts takes SVG attributes, which cannot read CSS variables; these mirror the @theme tokens in globals.css.
 const CHART = {
-  accent: "#22d3ee",
-  grid: "#334155",
-  axis: "#334155",
-  tick: "#94a3b8",
-  ok: "#22c55e",
-  warn: "#f59e0b",
-  orange: "#f97316",
-  danger: "#ef4444",
-  /** Ring around the active dot: the page background, so it reads as a cut-out. */
-  bgRing: "#020617",
+  accent: "#0a58a3",
+  grid: "#d3d8d0",
+  axis: "#d3d8d0",
+  tick: "#55606a",
+  on: "#157f3c",
+  warn: "#a35207",
+  danger: "#b4231b",
+  /** Ring around the active dot: the panel surface, so it reads as a cut-out. */
+  bgRing: "#ffffff",
 } as const;
 
 interface DataPoint {
@@ -52,14 +51,14 @@ function mapApiToChart(rows: ApiWaterLevel[]): DataPoint[] {
 const formatTooltip = (value: TooltipValueType | undefined): [string, string] => {
   const raw = Array.isArray(value) ? value[0] : value;
   const num = typeof raw === "number" ? raw : Number(raw ?? 0);
-  return [`${num.toFixed(2)} m`, "Water Level"];
+  return [`${num.toFixed(2)} ม.`, "ระดับน้ำ"];
 };
 
 const REFS = [
-  { y: 1, color: CHART.ok, label: "1m" },
-  { y: 3, color: CHART.warn, label: "3m — P2" },
-  { y: 5, color: CHART.orange, label: "5m — P1" },
-  { y: 7, color: CHART.danger, label: "7m" },
+  { y: 1, color: CHART.on, label: "1 ม." },
+  { y: 3, color: CHART.warn, label: "3 ม. (P2)" },
+  { y: 5, color: CHART.danger, label: "5 ม. (P1)" },
+  { y: 7, color: CHART.danger, label: "7 ม." },
 ];
 
 export default function WaterLevelChart() {
@@ -83,7 +82,7 @@ export default function WaterLevelChart() {
       // WHY: clear stale points so the chart never shows data we failed to refresh
       console.error("[Dashboard] Failed to fetch water levels:", err);
       setData([]);
-      setError("Failed to load water level data");
+      setError("โหลดข้อมูลระดับน้ำไม่สำเร็จ");
     } finally {
       setLoading(false);
     }
@@ -98,14 +97,16 @@ export default function WaterLevelChart() {
   const current = data.at(-1)?.level;
 
   return (
-    <div className="card lg:col-span-3">
+    <section aria-labelledby="water-level-heading" className="rounded-lg border border-border bg-surface p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="card-title">
-          <Droplets className="size-4 text-accent" aria-hidden="true" />
-          Water Level — 24 Hours
-        </h3>
+        <h2 id="water-level-heading" className="flex items-center gap-2 text-base font-bold text-fg">
+          <Droplets className="size-5 text-accent" strokeWidth={1.75} aria-hidden="true" />
+          ระดับน้ำ — 24 ชั่วโมง
+        </h2>
         {current !== undefined && (
-          <span className="pill bg-accent/10 font-mono text-accent ring-accent/40">Current: {current.toFixed(2)} m</span>
+          <span className="rounded-full bg-accent/10 px-3 py-1 text-sm font-bold tabular-nums text-accent">
+            ปัจจุบัน {current.toFixed(2)} ม.
+          </span>
         )}
       </div>
 
@@ -113,18 +114,18 @@ export default function WaterLevelChart() {
         <div className="flex h-64 w-full items-center justify-center sm:h-80">
           <div className="flex flex-col items-center gap-2">
             <div className="size-8 rounded-full border-4 border-accent border-t-transparent animate-spin" />
-            <span className="text-xs text-muted">Loading chart data…</span>
+            <span className="text-xs text-muted">กำลังโหลดข้อมูล…</span>
           </div>
         </div>
       ) : data.length === 0 ? (
         <div className="flex h-64 w-full items-center justify-center sm:h-80">
-          <span className={`text-xs ${error ? "text-danger" : "text-muted"}`}>{error ?? "No water level data yet"}</span>
+          <span className={`text-xs ${error ? "text-danger" : "text-muted"}`}>{error ?? "ยังไม่มีข้อมูลระดับน้ำ"}</span>
         </div>
       ) : (
         <div className="h-64 w-full sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} strokeOpacity={0.5} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} strokeOpacity={0.7} />
               <XAxis
                 dataKey="time"
                 tick={{ fontSize: 11, fill: CHART.tick }}
@@ -138,20 +139,20 @@ export default function WaterLevelChart() {
                 tick={{ fontSize: 11, fill: CHART.tick }}
                 tickLine={false}
                 axisLine={{ stroke: CHART.axis }}
-                unit="m"
+                unit=" ม."
               />
               <Tooltip
                 formatter={formatTooltip}
                 cursor={{ stroke: CHART.tick, strokeOpacity: 0.4 }}
                 contentStyle={{
-                  backgroundColor: "var(--color-surface-2)",
-                  border: "1px solid var(--color-border)",
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #d3d8d0",
                   borderRadius: 8,
-                  color: "var(--color-fg)",
+                  color: "#142029",
                   fontSize: 12,
                 }}
-                labelStyle={{ color: "var(--color-muted)" }}
-                itemStyle={{ color: "var(--color-fg)" }}
+                labelStyle={{ color: "#55606a" }}
+                itemStyle={{ color: "#142029" }}
               />
               {REFS.map((r) => (
                 <ReferenceLine
@@ -174,6 +175,6 @@ export default function WaterLevelChart() {
           </ResponsiveContainer>
         </div>
       )}
-    </div>
+    </section>
   );
 }

@@ -1,25 +1,41 @@
-import { CircleAlert, ScanLine } from "lucide-react";
+function StateWord({ seen, unknown }: { seen: boolean; unknown: boolean }) {
+  if (unknown) {
+    return (
+      <span className="hatch inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-bold text-muted">
+        <span className="size-2 shrink-0 rounded-full border-2 border-dashed border-unknown" aria-hidden="true" />
+        ไม่ทราบสถานะ
+      </span>
+    );
+  }
+  return seen ? (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-warn-soft px-2.5 py-1 text-xs font-bold text-warn">
+      <span className="size-2 shrink-0 rounded-full bg-warn" aria-hidden="true" />
+      พบคน
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-off-soft px-2.5 py-1 text-xs font-bold text-off">
+      <span className="size-2 shrink-0 rounded-full bg-off" aria-hidden="true" />
+      ไม่พบคน
+    </span>
+  );
+}
 
-export default function DetectionCard({ personCount }: { personCount: number | null }) {
-  const seen = personCount !== null && personCount > 0;
+/** Person detection count; a detection is a warning, so "พบคน" uses the warn tone. */
+export default function DetectionCard({ personCount, live = true }: { personCount: number | null; live?: boolean }) {
+  const unknown = personCount === null || !live;
+  const seen = !unknown && personCount > 0;
   return (
-    <div className={`card text-center transition-colors duration-300 ${seen ? "border-warn/50 bg-warn/5" : ""}`}>
-      <h3 className="card-title justify-center">
-        <ScanLine className="size-4 text-accent" aria-hidden="true" />
-        AI Detection
-      </h3>
-      <div
-        className={`mt-3 font-mono text-2xl font-semibold ${seen ? "text-warn" : personCount === null ? "text-muted" : "text-ok"}`}
-      >
-        {personCount === null ? "—" : seen ? "เจอคน" : "ไม่มีคน"}
-      </div>
-      {seen && (
-        <span className="pill mt-2 bg-warn/10 text-warn ring-warn/40">
-          <CircleAlert className="size-3.5" aria-hidden="true" />
-          Person detected! ({personCount})
+    <section aria-label="การตรวจจับ">
+      <h3 className="mb-1 text-sm font-bold text-fg">การตรวจจับ</h3>
+      <div className="flex items-center justify-between gap-4 py-2">
+        <span className="text-sm text-muted">จำนวนคนที่ตรวจพบ</span>
+        <span className="flex items-center gap-3">
+          <span className={`text-base font-bold tabular-nums ${unknown ? "text-muted" : seen ? "text-warn" : "text-fg"}`}>
+            {unknown ? "—" : personCount}
+          </span>
+          <StateWord seen={seen} unknown={unknown} />
         </span>
-      )}
-      <div className="mt-2 text-[11px] font-medium text-muted">Mode: {personCount === null ? "—" : seen ? "M1" : "M0"}</div>
-    </div>
+      </div>
+    </section>
   );
 }

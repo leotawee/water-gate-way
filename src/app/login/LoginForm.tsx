@@ -5,8 +5,8 @@ import { CircleAlert } from "lucide-react";
 import { signIn } from "./actions";
 
 const MESSAGES = {
-  invalid: "Invalid email or password",
-  rate_limited: "Too many attempts. Try again later.",
+  invalid: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+  rate_limited: "พยายามบ่อยเกินไป ลองอีกครั้งภายหลัง",
 } as const;
 
 export default function LoginForm({ next }: { next: string }) {
@@ -17,41 +17,39 @@ export default function LoginForm({ next }: { next: string }) {
     <form action={action} className="space-y-5">
       <input type="hidden" name="next" value={next} />
       <div className="space-y-1.5">
-        <label htmlFor="email" className="block text-sm font-medium text-muted">
-          Email
+        <label htmlFor="email" className="block text-sm font-bold text-fg">
+          อีเมล
         </label>
         <input
           id="email"
           name="email"
           type="email"
-          placeholder="you@example.com"
           autoComplete="email"
           required
           className="input-field w-full"
         />
       </div>
       <div className="space-y-1.5">
-        <label htmlFor="password" className="block text-sm font-medium text-muted">
-          Password
+        <label htmlFor="password" className="block text-sm font-bold text-fg">
+          รหัสผ่าน
         </label>
         <input
           id="password"
           name="password"
           type="password"
-          placeholder="••••••••"
           autoComplete="current-password"
           required
           className="input-field w-full"
         />
       </div>
       {error && (
-        <p role="alert" className="flex items-center gap-2 text-sm font-medium text-danger">
-          <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+        <p role="alert" className="flex items-center gap-2 text-sm font-bold text-danger">
+          <CircleAlert className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
           {error}
         </p>
       )}
       <button type="submit" disabled={pending} aria-busy={pending} className="btn-primary w-full">
-        {pending ? "Signing in…" : "Sign in"}
+        {pending ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบ"}
       </button>
     </form>
   );

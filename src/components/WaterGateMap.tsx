@@ -1,7 +1,7 @@
 "use client";
 
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { Gate } from "@/lib/gates";
@@ -18,13 +18,7 @@ const shadowUrl =
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
 
-export default function WaterGateMap({ gates }: { gates: Gate[] }) {
-  const router = useRouter();
-
-  const handleMarkerClick = (gateId: string) => {
-    router.push(`/dashboard?gate=${encodeURIComponent(gateId)}`);
-  };
-
+export default function WaterGateMap({ gates }: { gates: (Gate & { location?: string })[] }) {
   return (
     <MapContainer
       className="wg-map"
@@ -38,20 +32,16 @@ export default function WaterGateMap({ gates }: { gates: Gate[] }) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {gates.map((gate) => (
-        <Marker
-          key={gate.id}
-          position={[gate.lat, gate.lng]}
-          eventHandlers={{
-            click: () => handleMarkerClick(gate.id),
-          }}
-        >
+        <Marker key={gate.id} position={[gate.lat, gate.lng]}>
           <Popup>
-            <div className="text-sm font-semibold text-fg">
-              {gate.name}
-            </div>
-            <div className="text-xs text-muted mt-1">
-              Click marker to open dashboard
-            </div>
+            <div className="text-sm font-bold text-fg">{gate.name}</div>
+            {gate.location && <div className="mt-0.5 text-xs text-muted">{gate.location}</div>}
+            <Link
+              href={`/dashboard?gate=${encodeURIComponent(gate.id)}`}
+              className="btn-primary mt-2 w-full"
+            >
+              เปิดแดชบอร์ด
+            </Link>
           </Popup>
         </Marker>
       ))}

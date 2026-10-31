@@ -70,10 +70,10 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
   // no WebRTC/ICE and works from any network. The server ends each stream after 10 minutes
   // (session re-check); `ended` then reconnects.
   const src = `/api/camera/stream?src=${encodeURIComponent(streamName)}&n=${attempt}`;
-  const displayLabel = label ?? `Office ${streamName.replace("office", "")}`;
+  const displayLabel = label ?? `กล้อง ${streamName.replace("office", "")}`;
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-xl bg-black">
+    <div className="relative h-full w-full overflow-hidden bg-black">
       {!hidden && (
         <video
           ref={videoRef}
@@ -96,32 +96,22 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
         />
       )}
 
-      {/* Status dot */}
+      {/* Status: dot + word (never colour alone) */}
       <div className="absolute top-3 left-3 flex items-center gap-2">
-        <div
+        <span
+          aria-hidden="true"
           className={`size-2.5 rounded-full ${
-            status === "connected"
-              ? "bg-ok"
-              : status === "failed"
-              ? "bg-danger"
-              : "bg-warn animate-pulse"
+            status === "connected" ? "bg-on" : status === "failed" ? "bg-danger" : "bg-warn animate-pulse"
           }`}
         />
-        <span className="text-[11px] font-semibold tracking-wide text-white uppercase">
-          {status === "connected" ? "LIVE" : status === "failed" ? "OFFLINE" : "CONNECTING"}
+        <span className="text-xs font-bold text-white">
+          {status === "connected" ? "สด" : status === "failed" ? "ออฟไลน์" : "กำลังเชื่อมต่อ"}
         </span>
       </div>
 
-      {/* Camera label */}
-      <div className="absolute bottom-3 left-3 rounded-lg border border-white/10 bg-black/70 px-2.5 py-1 backdrop-blur-sm">
-        <span className="font-mono text-xs font-medium text-white">{displayLabel}</span>
-      </div>
-
-      {/* Transport badge */}
-      <div className="absolute top-3 right-3">
-        <span className="rounded-md bg-accent/15 px-2 py-1 font-mono text-[10px] font-semibold text-accent">
-          HTTP
-        </span>
+      {/* Camera label: small white chip */}
+      <div className="absolute bottom-3 left-3 rounded-md bg-white px-2 py-1">
+        <span className="text-xs font-bold text-fg">{displayLabel}</span>
       </div>
 
       {/* Loading */}
@@ -135,13 +125,10 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
       {status === "failed" && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80">
           <div className="text-center">
-            <p className="text-sm font-semibold text-danger">Connection Failed</p>
-            <p className="mt-1 font-mono text-xs text-muted">{streamName}</p>
-            <button
-              onClick={retry}
-              className="btn-primary mt-3 min-h-11 px-4"
-            >
-              Retry
+            <p className="text-sm font-bold text-white">เชื่อมต่อกล้องไม่สำเร็จ</p>
+            <p className="mt-1 text-xs text-white/60">{streamName}</p>
+            <button onClick={retry} className="btn-primary mt-3 min-h-11 px-4">
+              ลองอีกครั้ง
             </button>
           </div>
         </div>

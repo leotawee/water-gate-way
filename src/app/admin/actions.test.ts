@@ -125,7 +125,7 @@ describe("createUser", () => {
   it("duplicate email -> friendly error, not a throw", async () => {
     h.query.mockRejectedValueOnce(dupError());
     expect(await createUser(undefined, form({ email: "taken@x.co", role: "viewer", password: "longenough1" }))).toEqual({
-      error: "That email already has an account.",
+      error: "อีเมลนี้มีบัญชีอยู่แล้ว",
     });
     expect(audits()).toHaveLength(0);
   });
@@ -162,14 +162,14 @@ describe("setUserRole", () => {
 
   it("admin cannot demote their own account", async () => {
     expect(await setUserRole(undefined, form({ id: ADMIN_ID, role: "viewer" }))).toEqual({
-      error: "You cannot demote your own account.",
+      error: "ลดระดับบัญชีของตนเองไม่ได้",
     });
     expect(h.query).not.toHaveBeenCalled();
   });
 
   it("unknown user -> error, no audit row", async () => {
     h.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-    expect(await setUserRole(undefined, form({ id: OTHER_ID, role: "viewer" }))).toEqual({ error: "User not found." });
+    expect(await setUserRole(undefined, form({ id: OTHER_ID, role: "viewer" }))).toEqual({ error: "ไม่พบผู้ใช้" });
     expect(audits()).toHaveLength(0);
   });
 
@@ -192,7 +192,7 @@ describe("setUserDisabled", () => {
 
   it("admin cannot disable their own account", async () => {
     expect(await setUserDisabled(undefined, form({ id: ADMIN_ID, disabled: "true" }))).toEqual({
-      error: "You cannot disable your own account.",
+      error: "ปิดใช้งานบัญชีของตนเองไม่ได้",
     });
     expect(h.query).not.toHaveBeenCalled();
   });
@@ -226,7 +226,7 @@ describe("resetUserPassword", () => {
   it("unknown user -> error, sessions untouched", async () => {
     h.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
     expect(await resetUserPassword(undefined, form({ id: OTHER_ID, password: "longenough1" }))).toEqual({
-      error: "User not found.",
+      error: "ไม่พบผู้ใช้",
     });
     expect(calls(/delete from sessions/i)).toHaveLength(0);
   });
@@ -260,7 +260,7 @@ describe("createGate", () => {
 
   it("duplicate id -> friendly error", async () => {
     h.query.mockRejectedValueOnce(dupError());
-    expect(await createGate(undefined, form(GATE_FIELDS))).toEqual({ error: "gate-9 already exists." });
+    expect(await createGate(undefined, form(GATE_FIELDS))).toEqual({ error: "gate-9 มีอยู่แล้ว" });
     expect(audits()).toHaveLength(0);
   });
 
@@ -290,7 +290,7 @@ describe("updateGate", () => {
 
   it("unknown gate -> error, no audit", async () => {
     h.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-    expect(await updateGate(undefined, form({ ...GATE_FIELDS, id: "gate-1" }))).toEqual({ error: "Gate not found." });
+    expect(await updateGate(undefined, form({ ...GATE_FIELDS, id: "gate-1" }))).toEqual({ error: "ไม่พบประตูน้ำ" });
     expect(audits()).toHaveLength(0);
   });
 
@@ -316,7 +316,7 @@ describe("setGateActive", () => {
 
   it("unknown gate -> error", async () => {
     h.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-    expect(await setGateActive(undefined, form({ id: "gate-2", active: "false" }))).toEqual({ error: "Gate not found." });
+    expect(await setGateActive(undefined, form({ id: "gate-2", active: "false" }))).toEqual({ error: "ไม่พบประตูน้ำ" });
   });
 
   it("deactivate: parameterized update (no delete), audit", async () => {

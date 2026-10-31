@@ -131,3 +131,17 @@
 - **Result:** 292 tests pass; `wgw.gates` has gate-1..5; 6 old users imported (one email already existed, skipped). 6 accounts now hold admin; two of them look like test accounts (names kept out of the repo).
 - **Lesson:** bcrypt silently truncates at 72 bytes, so two different long passwords can verify against the same hash; reject long input on the legacy path. Rejected: letting the migration map old roles 1:1 to new ones; anything other than `admin` becomes `viewer` (least privilege).
 - **Next:** Haiku redesigns all pages (visual only); then review, build, deploy.
+
+## [00:20] Redesign review and deploy of 38b7ab3
+
+- **Action:** reviewed Haiku's redesign diff (no change under src/lib, src/hooks, src/app/api, proxy; ControlPanel `onClick`/`disabled` intact); committed `38b7ab3`; built in a clean worktree (298 tests, tsc, eslint, build pass); copied to `releases/20261031-38b7ab3`, ran `npm ci --omit=dev` there (bcryptjs is new, so hard-linking the old node_modules would miss it); smoke test on 127.0.0.1:3100; switched `current`.
+- **Why:** the local build fails only on untracked `scripts/dev/db-inspect.ts`; a clean worktree builds exactly what is committed.
+- **Result:** /login 200, protected pages 307 to login, /api/control 401; login page renders with the new theme. Waiting on Leo's `sudo systemctl restart water-gate`.
+- **Lesson:** a release that adds a dependency cannot reuse the previous node_modules by hard link. Rejected: excluding scripts/dev in tsconfig only to make the dirty checkout build.
+
+## [00:40] Second redesign: light instrument panel with explicit device state (GLM via opencode)
+
+- **Action:** asked Leo 3 product questions (users: phone and desktop equally; light theme; all-Thai copy); wrote PRODUCT.md and DESIGN.md; copied LINE Seed Sans TH Rg/Bd (OFL) into src/app/fonts; briefed opencode `zai/glm-5.3-flash` (default variant; `medium` does not exist, only `low`/`high`) with the impeccable skill. Reviewed its diff: nothing under src/lib, src/hooks, src/app/api, proxy, liveLag; actions.ts changed error strings only.
+- **Why:** operators could not tell on from off: a small ON/OFF pill sat beside two buttons that looked identical in every state. Now each device has a `[ปิด | เปิด]` switch whose current-state segment is filled with a check and `aria-pressed`, plus a large Thai state word; stale shows hatched "ไม่ทราบสถานะ".
+- **Result:** fixed two GLM bugs: the "sending" line showed under all five devices (now only the commanded row), and the confirmation check accepted a stale value equal to the target (now requires live telemetry). 302 tests, tsc (outside scripts/dev), eslint, impeccable detector `[]`.
+- **Lesson:** a state toggle must show the current state in the control itself, not only beside it. Rejected: a single toggle switch; with stale telemetry it cannot express "unknown", and a two-segment control can (neither segment filled).

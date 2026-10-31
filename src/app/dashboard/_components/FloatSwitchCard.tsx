@@ -1,53 +1,52 @@
-import { Minus, ToggleLeft, ToggleRight, Waves } from "lucide-react";
-import LiveIcon from "./LiveIcon";
+import { Waves } from "lucide-react";
 
 const ROWS = [
-  { key: "f1", label: "F1 — Upper" },
-  { key: "f2", label: "F2 — Lower" },
-  { key: "f3", label: "F3" },
-];
+  { key: "f1", label: "ลูกลอยบน (F1)" },
+  { key: "f2", label: "ลูกลอยล่าง (F2)" },
+  { key: "f3", label: "ลูกลอย F3" },
+] as const;
 
+function StateWord({ on }: { on: boolean | undefined }) {
+  if (on === undefined) {
+    return (
+      <span className="hatch inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-bold text-muted">
+        <span className="size-2 shrink-0 rounded-full border-2 border-dashed border-unknown" aria-hidden="true" />
+        ไม่ทราบสถานะ
+      </span>
+    );
+  }
+  return on ? (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-on-soft px-2.5 py-1 text-xs font-bold text-on">
+      <span className="size-2 shrink-0 rounded-full bg-on" aria-hidden="true" />
+      ทำงาน
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-off-soft px-2.5 py-1 text-xs font-bold text-off">
+      <span className="size-2 shrink-0 rounded-full bg-off" aria-hidden="true" />
+      ปิดอยู่
+    </span>
+  );
+}
+
+/** Float switches F1–F3 with the shared on/off/unknown vocabulary (word + dot). */
 export default function FloatSwitchCard({ float, live }: { float: Record<string, boolean> | null; live: boolean }) {
   return (
-    <div className="card">
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="card-title">
-          <Waves className="size-4 text-accent" aria-hidden="true" />
-          Float Switch
-        </h3>
-        <LiveIcon live={live} />
-      </div>
-
-      <div className="space-y-2">
-        {ROWS.map(({ key, label }) => {
-          // WHY: a missing key means the payload did not report it; show "—", not OFF.
-          const on = float?.[key];
-          return (
-            <div
-              key={key}
-              className="flex items-center justify-between rounded-lg border border-border bg-surface-2/50 p-3"
-            >
-              <span className="text-sm font-medium text-fg">{label}</span>
-              {on === undefined ? (
-                <span className="pill bg-surface-2 text-muted ring-border">
-                  <Minus className="size-3.5" aria-hidden="true" />
-                  —
-                </span>
-              ) : on ? (
-                <span className="pill bg-ok/10 text-ok ring-ok/40">
-                  <ToggleRight className="size-3.5" aria-hidden="true" />
-                  ON
-                </span>
-              ) : (
-                <span className="pill bg-surface-2 text-muted ring-border">
-                  <ToggleLeft className="size-3.5" aria-hidden="true" />
-                  OFF
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <section aria-label="ลูกลอย">
+      <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-fg">
+        <Waves className="size-4 text-muted" strokeWidth={1.75} aria-hidden="true" />
+        ลูกลอย
+      </h3>
+      {ROWS.map(({ key, label }) => {
+        // WHY: a missing key means the payload did not report it; show unknown, not OFF.
+        // Stale telemetry must never look live, so it reads as unknown too.
+        const on = live ? float?.[key] : undefined;
+        return (
+          <div key={key} className="flex items-center justify-between gap-4 py-2">
+            <span className="text-sm text-muted">{label}</span>
+            <StateWord on={on} />
+          </div>
+        );
+      })}
+    </section>
   );
 }

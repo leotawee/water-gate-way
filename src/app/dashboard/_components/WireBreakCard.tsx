@@ -1,58 +1,52 @@
-import { CircleAlert, CircleCheck, Minus, Cable } from "lucide-react";
+import { Cable } from "lucide-react";
 import type { GateStatus } from "@/lib/telemetry/parseStatus";
 
 const WIRES = [
-  { key: "red", label: "Red (WB1)", bar: "bg-danger" },
-  { key: "blue", label: "Blue (WB2)", bar: "bg-blue-500" },
+  { key: "red", label: "สายขาด WB1 (สายแดง)" },
+  { key: "blue", label: "สายขาด WB2 (สายน้ำเงิน)" },
 ] as const;
 
+function StateWord({ broken }: { broken: boolean | null }) {
+  if (broken === null) {
+    return (
+      <span className="hatch inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-bold text-muted">
+        <span className="size-2 shrink-0 rounded-full border-2 border-dashed border-unknown" aria-hidden="true" />
+        ไม่ทราบสถานะ
+      </span>
+    );
+  }
+  // Alarm-type state: broken wire reads danger; intact reads the on-green.
+  return broken ? (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-soft px-2.5 py-1 text-xs font-bold text-danger">
+      <span className="size-2 shrink-0 rounded-full bg-danger" aria-hidden="true" />
+      ขาด
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-on-soft px-2.5 py-1 text-xs font-bold text-on">
+      <span className="size-2 shrink-0 rounded-full bg-on" aria-hidden="true" />
+      ปกติ
+    </span>
+  );
+}
+
+/** Wire-break loops; a broken loop is an alarm, so it uses the danger tone. */
 export default function WireBreakCard({ wireBreak, live }: { wireBreak: GateStatus["wireBreak"] | null; live: boolean }) {
   return (
-    <div className="card">
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="card-title">
-          <Cable className="size-4 text-accent" aria-hidden="true" />
-          Wire Break
-        </h3>
-        <span
-          className={`pill ${live ? "bg-ok/10 text-ok ring-ok/40" : "bg-surface-2 text-muted ring-border"}`}
-        >
-          {live ? "Live" : "Offline"}
-        </span>
-      </div>
-
-      <div className="space-y-2">
-        {WIRES.map(({ key, label, bar }) => {
-          const broken = wireBreak?.[key] ?? null;
-          return (
-            <div
-              key={key}
-              className="flex items-center justify-between rounded-lg border border-border bg-surface-2/50 p-3"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`h-8 w-1 rounded-full ${bar}`} aria-hidden="true" />
-                <span className="text-sm font-medium text-fg">{label}</span>
-              </div>
-              {broken === null ? (
-                <span className="pill bg-surface-2 text-muted ring-border">
-                  <Minus className="size-3.5" aria-hidden="true" />
-                  —
-                </span>
-              ) : broken ? (
-                <span className="pill bg-danger/10 text-danger ring-danger/40">
-                  <CircleAlert className="size-3.5" aria-hidden="true" />
-                  BROKEN
-                </span>
-              ) : (
-                <span className="pill bg-ok/10 text-ok ring-ok/40">
-                  <CircleCheck className="size-3.5" aria-hidden="true" />
-                  NORMAL
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <section aria-label="สายขาด">
+      <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-fg">
+        <Cable className="size-4 text-muted" strokeWidth={1.75} aria-hidden="true" />
+        สายขาด
+      </h3>
+      {WIRES.map(({ key, label }) => {
+        // WHY: stale telemetry must never look live; an unread loop reads as unknown.
+        const broken = live ? (wireBreak?.[key] ?? null) : null;
+        return (
+          <div key={key} className="flex items-center justify-between gap-4 py-2">
+            <span className="text-sm text-muted">{label}</span>
+            <StateWord broken={broken} />
+          </div>
+        );
+      })}
+    </section>
   );
 }
