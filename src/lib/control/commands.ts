@@ -1,5 +1,7 @@
-// WHY: the device commands are the same set as VALID_COMMANDS in ai-receiver/main.py.
-export const DEVICE_COMMANDS = ["P1", "P0", "A1", "A0", "L1", "L0", "M1", "M0", "R1", "R0", "Q1", "Q0"] as const;
+// WHY: ai-receiver/main.py command letters minus the master-gate commands (M1/M0, Q1/Q0).
+// The STM32 binds both master relays to its mode, so gates are not remotely controllable;
+// cmd_node still parses those letters, but this app must never send them.
+export const DEVICE_COMMANDS = ["P1", "P0", "A1", "A0", "L1", "L0", "R1", "R0"] as const;
 
 // WHY: the Pi's cmd_node (shared/protocol.py parse_mode_command) accepts these bare strings on stm32/cmd
 // and sets the controller mode; the status payload reports the mode back as the same word.

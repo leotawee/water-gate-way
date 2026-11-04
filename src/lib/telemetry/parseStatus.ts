@@ -18,7 +18,6 @@ export type GateStatus = {
     alarm: boolean | null;
     light: boolean | null;
     relay1: boolean | null;
-    relay2: boolean | null;
   };
   personCount: number | null;
   receivedAt: string;
@@ -75,7 +74,7 @@ export function parseStatus(payload: unknown, now: Date): GateStatus | null {
     radar: { liquid: null, airGap: null },
     float: {},
     wireBreak: { red: null, blue: null },
-    devices: { pump: null, alarm: null, light: null, relay1: null, relay2: null },
+    devices: { pump: null, alarm: null, light: null, relay1: null },
     personCount: num(payload.person_count),
     receivedAt: now.toISOString(),
   };
@@ -129,10 +128,12 @@ export function parseStatus(payload: unknown, now: Date): GateStatus | null {
     out.wireBreak = { red: bool(wb.wb1), blue: bool(wb.wb2) };
     out.mode = mode(payload.mode);
     if (isObj(payload.pump)) {
-      // Real payload: pump is an object of contact states; web keys map pc0→pump, pc1→relay1, pc2→relay2.
+      // Real payload: pump is an object of contact states; web keys map pc0→pump, pc1→relay1.
+      // WHY not pc2/pc3: those are the master-relay bits. The STM32 binds both master relays to
+      // its mode, so they are gates, not web-controllable devices (pc2 is what the removed
+      // "IoT 2" row used to read — it stayed true through every button press).
       out.devices.pump = bool(payload.pump.pc0);
       out.devices.relay1 = bool(payload.pump.pc1);
-      out.devices.relay2 = bool(payload.pump.pc2);
     } else {
       out.devices.pump = bool(payload.pump);
     }

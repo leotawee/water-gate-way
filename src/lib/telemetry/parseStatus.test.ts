@@ -12,7 +12,7 @@ describe("parseStatus", () => {
       radar: { liquid: null, airGap: 1.85 },
       float: { f1: true, f2: false },
       wireBreak: { red: true, blue: null },
-      devices: { pump: true, alarm: false, light: null, relay1: null, relay2: null },
+      devices: { pump: true, alarm: false, light: null, relay1: null },
       mode: null,
       personCount: 2,
       receivedAt: iso,
@@ -25,7 +25,7 @@ describe("parseStatus", () => {
       radar: { liquid: 3.2, airGap: 0.8 },
       float: { f1: true, f2: true, f3: false },
       wireBreak: { red: false, blue: true },
-      devices: { pump: true, alarm: true, light: null, relay1: null, relay2: null },
+      devices: { pump: true, alarm: true, light: null, relay1: null },
       mode: null,
       personCount: null,
       receivedAt: iso,
@@ -72,7 +72,6 @@ describe("parseStatus", () => {
     expect(s.mode).toBe("MANUAL");
     expect(s.devices.pump).toBe(false);
     expect(s.devices.relay1).toBe(false);
-    expect(s.devices.relay2).toBe(true);
     expect(s.devices.alarm).toBe(false);
     expect(s.radar.liquid).toBe(2.236);
   });
@@ -108,7 +107,16 @@ describe("parseStatus", () => {
     expect(s.devices.pump).toBe(true);
     expect(s.devices.alarm).toBe(true);
     expect(s.devices.relay1).toBeNull();
-    expect(s.devices.relay2).toBeNull();
+  });
+
+  it("master-gate bits pc2/pc3 never reach devices", () => {
+    // WHY: pc2/pc3 are the mode-bound master relays; no web device maps to them.
+    expect(parseStatus({ pump: { pc2: true, pc3: true } }, now)!.devices).toEqual({
+      pump: null,
+      alarm: null,
+      light: null,
+      relay1: null,
+    });
   });
 
   it("pump object with garbage pc0 -> null", () => {

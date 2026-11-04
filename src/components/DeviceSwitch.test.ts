@@ -7,7 +7,6 @@ describe("commandLabel", () => {
     expect(commandLabel("A1")).toBe("สั่งเปิด");
     expect(commandLabel("L1")).toBe("สั่งเปิด");
     expect(commandLabel("R1")).toBe("สั่งเปิด");
-    expect(commandLabel("Q1")).toBe("สั่งเปิด");
   });
 
   it("…0 targets off → สั่งปิด", () => {
@@ -15,6 +14,5 @@ describe("commandLabel", () => {
     expect(commandLabel("A0")).toBe("สั่งปิด");
     expect(commandLabel("L0")).toBe("สั่งปิด");
     expect(commandLabel("R0")).toBe("สั่งปิด");
-    expect(commandLabel("Q0")).toBe("สั่งปิด");
   });
 });
