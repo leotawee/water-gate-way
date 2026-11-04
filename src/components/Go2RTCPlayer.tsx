@@ -1,6 +1,7 @@
 "use client";
 
-// FULL REWRITE: progressive <video src> replaced by MSE fed from the same authenticated route.
+// WebRTC (WHEP relay through /api/camera/webrtc) is the primary transport; MSE fMP4 over
+// /api/camera/stream is the fallback when UDP is blocked. See the stream effect below.
 import { useEffect, useRef, useState } from "react";
 import { useRedirectToLogin } from "@/hooks/useRedirectToLogin";
 import { liveEdgeAction } from "./liveEdge";
@@ -11,6 +12,7 @@ interface Go2RTCPlayerProps {
 }
 
 type Status = "connecting" | "connected" | "failed";
+type Transport = "webrtc" | "mse";
 
 // WHY: a frozen picture must not stay labelled LIVE; playback progress is the only reliable signal.
 const STALL_MS = 8_000;
@@ -22,6 +24,11 @@ const MAX_FAILURES = 3;
 // reboot; before, three quick refusals left every camera offline until someone clicked.
 const RETRY_BASE_MS = 2_000;
 const RETRY_MAX_MS = 30_000;
+// Same STUN the proven v1.0 dashboard used; go2rtc.yml carries its own STUN candidate for the Pi side.
+const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
+// Non-trickle relay: the offer must already carry our candidates. STUN bindings usually take < 1 s;
+// the cap just bounds the worst case (blocked UDP) at a bit over the connect timeout.
+const ICE_GATHER_CAP_MS = 4_000;
 
 // Safari on iOS 17.1+ exposes MSE only as ManagedMediaSource.
 type MSCtor = typeof MediaSource;
@@ -31,17 +38,17 @@ function mediaSourceCtor(): MSCtor | null {
 }
 
 /**
- * Live camera tile. WHY MSE: go2rtc's fragmented MP4 over a plain `<video src>` never autoplays in
- * Chrome (autoplay waits for HAVE_ENOUGH_DATA, which a live file whose duration equals its buffer
- * never reaches, and a paused element stops downloading after ~3 s), and a forced start hits `ended`
- * at the buffer end. MSE with an infinite duration plays continuously and keeps the playhead ~0.3 s
- * behind the newest frame (measured ~2 s glass-to-glass). Same HTTP route, so auth, the per-user and
- * global stream caps, and the 10-minute cut all still apply.
+ * Live camera tile. Transport: WebRTC first — the browser trades SDP offers with go2rtc on the Pi
+ * through the one-shot authenticated relay (/api/camera/webrtc), then media flows P2P over UDP and
+ * never touches the server or the Cloudflare tunnel (which cuts long streams). When UDP is blocked
+ * (MAX_FAILURES in a row), the tile drops to the MSE fMP4 fallback over the HTTP proxy, and the
+ * manual retry button always tries WebRTC again first.
  */
 export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
   const [status, setStatus] = useState<Status>("connecting");
   // Bumping `attempt` remounts <video> and opens a fresh stream.
   const [attempt, setAttempt] = useState(0);
+  const [transport, setTransport] = useState<Transport>("webrtc");
   // WHY: a hidden tab drops the stream so the server closes it and frees the slot.
   const [hidden, setHidden] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -58,12 +65,24 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
     setStatus("connecting");
     setAttempt((n) => n + 1);
   };
+  // Manual retry always gives WebRTC another chance (it is the better transport when UDP works).
   const retry = () => {
     failures.current = 0;
+    setTransport("webrtc");
     reconnect();
   };
   const fail = () => {
     failures.current += 1;
+    // WebRTC failed MAX_FAILURES in a row: UDP is likely blocked — drop to the MSE fallback and
+    // start its own failure counting fresh, so a blocked-UDP network never lands on "ออฟไลน์".
+    if (failures.current >= MAX_FAILURES && transport === "webrtc") {
+      failures.current = 0;
+      setTransport("mse");
+      clearRetry();
+      setStatus("connecting");
+      setAttempt((n) => n + 1);
+      return;
+    }
     setStatus(failures.current >= MAX_FAILURES ? "failed" : "connecting");
     // Backoff 2, 4, 8, 16, 30, 30 … s, so a long outage does not hammer the server or the Pi.
     const delay = Math.min(RETRY_BASE_MS * 2 ** (failures.current - 1), RETRY_MAX_MS);
@@ -98,11 +117,82 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
     };
   }, []);
 
-  // The stream: fetch the fMP4 body and append it to a MediaSource.
+  // The stream.
   useEffect(() => {
     const video = videoRef.current;
     if (hidden || !video) return;
     const abort = new AbortController();
+
+    // ---- WebRTC (primary): SDP relay, then P2P media straight from the Pi. ----
+    if (transport === "webrtc") {
+      if (typeof RTCPeerConnection === "undefined") {
+        actions.current.fail();
+        return;
+      }
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, iceCandidatePoolSize: 4 });
+      let closed = false;
+      pc.addTransceiver("video", { direction: "recvonly" });
+      pc.addTransceiver("audio", { direction: "recvonly" });
+      pc.ontrack = (e) => {
+        if (closed) return;
+        video.srcObject = e.streams[0];
+        void video.play().catch(() => {});
+      };
+      pc.onconnectionstatechange = () => {
+        if (closed) return;
+        const st = pc.connectionState;
+        if (st === "failed" || st === "disconnected") actions.current.fail();
+        // "closed" only happens from our own cleanup during unmount — nothing to do.
+      };
+
+      const run = async () => {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        // WHY wait for gathering: the relay is non-trickle — the offer must already carry our candidates.
+        await new Promise<void>((resolve) => {
+          if (pc.iceGatheringState === "complete") return resolve();
+          const done = () => {
+            pc.removeEventListener("icegatheringstatechange", done);
+            resolve();
+          };
+          pc.addEventListener("icegatheringstatechange", done);
+          setTimeout(done, ICE_GATHER_CAP_MS);
+        });
+        const res = await fetch(`/api/camera/webrtc?src=${encodeURIComponent(streamName)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/sdp" },
+          body: pc.localDescription?.sdp ?? "",
+          cache: "no-store",
+          signal: abort.signal,
+        });
+        if (res.status === 401) {
+          actions.current.redirectToLogin();
+          return;
+        }
+        if (!res.ok) throw new Error(`relay ${res.status}`);
+        const answer = await res.text();
+        if (!answer.startsWith("v=0")) throw new Error("go2rtc returned a non-SDP answer");
+        if (!closed) await pc.setRemoteDescription({ type: "answer", sdp: answer });
+      };
+
+      run().catch((e: unknown) => {
+        if (abort.signal.aborted || closed) return;
+        if (process.env.NODE_ENV !== "production") console.debug(`[camera-webrtc] ${streamName}:`, e);
+        actions.current.fail();
+      });
+
+      return () => {
+        closed = true;
+        try {
+          pc.close();
+        } catch {
+          // already closed — nothing to do
+        }
+        video.srcObject = null;
+      };
+    }
+
+    // ---- MSE fallback: fMP4 over the HTTP proxy (survives UDP-blocked networks). ----
     const src = `/api/camera/stream?src=${encodeURIComponent(streamName)}&n=${attempt}`;
     const MS = mediaSourceCtor();
     let objectUrl: string | null = null;
@@ -185,7 +275,7 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
       video.load();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [attempt, hidden, streamName]);
+  }, [attempt, hidden, streamName, transport]);
 
   // Connect timeout: no playing frame within 15 s counts as a failed attempt (also while "failed",
   // so a background retry that hangs cannot stall the retry loop).
