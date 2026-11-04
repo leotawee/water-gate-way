@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { ViewTransition } from "react";
 import "./globals.css";
 
 // WHY: LINE Seed Sans TH is the one family for the whole UI; 400 covers body copy, 700 headings and values.
@@ -35,7 +36,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th" className={`${lineSeed.variable} antialiased`}>
-      <body className="min-h-dvh bg-bg font-sans text-fg">{children}</body>
+      <body className="min-h-dvh bg-bg font-sans text-fg">
+        {/* WHY: route changes crossfade instead of cutting — the browser interpolates the swap,
+            so shared chrome (headers) stays put and client state is not sacrificed for motion. */}
+        <ViewTransition>{children}</ViewTransition>
+      </body>
     </html>
   );
 }

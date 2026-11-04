@@ -71,7 +71,7 @@ Mode: **Operate**. World: a field engineering instrument panel — calm, light, 
 - Every number is tabular; every state is a word plus a dot, never colour alone.
 - Motion is a crisp utility: short fades and colour transitions, one entrance per arrival, nothing over 260 ms.
 
-**Motion contract:** tokens live in `src/app/globals.css` — `--dur-fast` 120 ms, `--dur-base` 180 ms, `--dur-slow` 260 ms, `--ease-out cubic-bezier(0.23, 1, 0.32, 1)`, `--ease-in-out cubic-bezier(0.77, 0, 0.175, 1)`. Entrances are rare-tier one-shots (page-enter 180 ms on route change, the post-login stagger, overlay fades 120–180 ms). Rapidly retriggered feedback uses transitions, never keyframes. `prefers-reduced-motion` demotes transform entrances to a short opacity fade and keeps spinners spinning.
+**Motion contract:** tokens live in `src/app/globals.css` — `--dur-fast` 120 ms, `--dur-base` 180 ms, `--dur-slow` 260 ms, `--ease-out cubic-bezier(0.23, 1, 0.32, 1)`, `--ease-in-out cubic-bezier(0.77, 0, 0.175, 1)`. Route changes crossfade through React's `<ViewTransition>` in `layout.tsx` (opacity, ≈250 ms, browser-interpolated — shared chrome never remounts for motion). Other entrances are rare-tier one-shots (the post-login stagger, overlay fades 120–180 ms). Rapidly retriggered feedback uses transitions, never keyframes. `prefers-reduced-motion` demotes transform entrances to a short opacity fade and keeps spinners spinning.
 
 ## Colors
 
