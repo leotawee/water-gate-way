@@ -185,8 +185,10 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
   // WHY: the pumps sit together and the siren closes the pump group — the alarm belongs to the
   // pump station, it must not split the two pumps apart in the reading order.
   const rows = [
+    // WHY both pumps share the Fan glyph: same role, same icon — the siren (Bell) and the
+    // read-only master relay (Power) are different roles and keep their own glyphs.
     { key: "pump", name: "ปั๊ม 1", icon: Fan, onCmd: "P1", offCmd: "P0", state: devices?.pump ?? null, tone: "on" },
-    { key: "relay1", name: "ปั๊ม 2", icon: Power, onCmd: "R1", offCmd: "R0", state: devices?.relay1 ?? null, tone: "on" },
+    { key: "relay1", name: "ปั๊ม 2", icon: Fan, onCmd: "R1", offCmd: "R0", state: devices?.relay1 ?? null, tone: "on" },
     { key: "alarm", name: "สัญญาณเตือน", icon: Bell, onCmd: "A1", offCmd: "A0", state: devices?.alarm ?? null, tone: "danger" },
   ] as const;
 

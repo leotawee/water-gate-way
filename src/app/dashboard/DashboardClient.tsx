@@ -66,7 +66,7 @@ function DashboardHeader({
       </a>
       <div className="mx-auto flex w-full max-w-[1376px] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
         <Link href="/" className={`${link} bg-white/15`}>
-          <ArrowLeft className="size-4" strokeWidth={2} aria-hidden="true" />
+          <ArrowLeft className="size-4" strokeWidth={1.75} aria-hidden="true" />
           แผนที่
         </Link>
 
