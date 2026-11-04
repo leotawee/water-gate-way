@@ -39,7 +39,15 @@ export async function GET(request: Request): Promise<Response> {
   const gateId = new URL(request.url).searchParams.get("gate") ?? LEGACY_GATE;
   if (!isGateId(gateId)) return NextResponse.json({ error: "invalid_gate" }, { status: 400 });
   // WHY: getGate returns null for unknown or inactive ids, so no listener is created for them.
-  if (!(await getGate(gateId))) return NextResponse.json({ error: "unknown_gate" }, { status: 404 });
+  let gate;
+  try {
+    gate = await getGate(gateId);
+  } catch (e) {
+    // WHY: same generic 503 as the auth step; message only, the error may carry query text.
+    console.error("[status/stream] gate lookup failed:", e instanceof Error ? e.message : "unknown");
+    return NextResponse.json({ error: "unavailable" }, { status: 503 });
+  }
+  if (!gate) return NextResponse.json({ error: "unknown_gate" }, { status: 404 });
 
   let cleanup = () => {};
   const stream = new ReadableStream<Uint8Array>({

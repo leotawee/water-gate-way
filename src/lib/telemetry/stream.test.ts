@@ -49,6 +49,7 @@ import { recordLevel } from "./recordLevel";
 import { startKnownGatesRefresh } from "./knownGates";
 import { GET, HEAD } from "@/app/api/status/stream/route";
 import { requireUser } from "@/lib/auth/dal";
+import { getGate } from "@/lib/gatesDb";
 
 const VALID = JSON.stringify({ pzem: { v: 230 }, pump: 1 });
 const client = () => h.clients.at(-1)!;
@@ -477,6 +478,17 @@ describe("GET /api/status/stream", () => {
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "unknown_gate" });
     expect(h.clients).toHaveLength(0);
+  });
+
+  it("getGate throwing -> generic 503, nothing subscribes, error payload not echoed", async () => {
+    vi.mocked(getGate).mockRejectedValueOnce(new Error("db down SECRETISH"));
+    const res = await GET(new Request("http://localhost/api/status/stream?gate=gate-2"));
+    expect(res.status).toBe(503);
+    const body = await res.text();
+    expect(JSON.parse(body)).toEqual({ error: "unavailable" });
+    expect(body).not.toContain("SECRETISH");
+    expect(h.clients).toHaveLength(0); // broker never started: nothing subscribed
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).toContain("db down");
   });
 
   it("auth is checked before the gate parameter", async () => {
