@@ -64,7 +64,7 @@ const REFS = [
 ];
 
 /** History of the stored water levels (the last 24 rows), with the CSV export of the same table. */
-export default function WaterLevelChart() {
+export default function WaterLevelChart({ gateId }: { gateId: string }) {
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +72,7 @@ export default function WaterLevelChart() {
 
   const fetchWaterLevels = useCallback(async () => {
     try {
-      const res = await fetch("/api/water-level", { cache: "no-store" });
+      const res = await fetch(`/api/water-level?gate=${encodeURIComponent(gateId)}`, { cache: "no-store" });
       if (res.status === 401) {
         redirectToLogin();
         return;
@@ -90,7 +90,7 @@ export default function WaterLevelChart() {
     } finally {
       setLoading(false);
     }
-  }, [redirectToLogin]);
+  }, [gateId, redirectToLogin]);
 
   useEffect(() => {
     // WHY: the first load awaits the network before any setState, so this is not a synchronous update.
@@ -107,7 +107,7 @@ export default function WaterLevelChart() {
         <h3 className="text-sm font-bold text-fg">ประวัติ 24 ค่าล่าสุด</h3>
         <a
           id="download-graph-data"
-          href="/api/water-level/download"
+          href={`/api/water-level/download?gate=${encodeURIComponent(gateId)}`}
           download="water_levels_report.csv"
           className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm text-muted transition-colors duration-(--dur-base) hover:bg-surface-2 hover:text-fg"
         >

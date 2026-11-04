@@ -57,6 +57,7 @@ const MODES: { cmd: ModeCommand; mode: GateMode; label: string; icon: LucideIcon
 ];
 
 type Props = {
+  gateId: string;
   devices: Devices | null;
   mode: GateMode | null;
   stale: boolean;
@@ -75,7 +76,7 @@ function reached(note: Note, devices: Devices | null, mode: GateMode | null): bo
  *  WHY: buttons stay enabled when stale; the server is authoritative and an operator may need to
  *  act during an outage. Each row keeps its OWN note, so a second command never erases the first
  *  row's confirmation or timeout. */
-export default function ControlPanel({ devices, mode, stale, readOnly = false }: Props) {
+export default function ControlPanel({ gateId, devices, mode, stale, readOnly = false }: Props) {
   const [sending, setSending] = useState<Partial<Record<Key, Command>>>({});
   const [notes, setNotes] = useState<Notes>({});
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +94,7 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
     fetch("/api/control", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ command: cmd }),
+      body: JSON.stringify({ command: cmd, gate: gateId }),
     });
 
   async function sendCommand(cmd: Command) {

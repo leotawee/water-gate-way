@@ -6,24 +6,24 @@ import { useRedirectToLogin } from "./useRedirectToLogin";
 
 export type GateConn = "connecting" | "connected" | "disconnected";
 
-const STREAM_URL = "/api/status/stream";
 const RETRY_MS = 5_000;
 
 /** Live gate telemetry from the authenticated SSE stream (same origin, session cookie). */
-export function useGateStatus(): { status: GateStatus | null; conn: GateConn } {
+export function useGateStatus(gateId: string): { status: GateStatus | null; conn: GateConn } {
   const [status, setStatus] = useState<GateStatus | null>(null);
   const [conn, setConn] = useState<GateConn>("connecting");
 
   const redirectToLogin = useRedirectToLogin();
 
   useEffect(() => {
+    const streamUrl = `/api/status/stream?gate=${encodeURIComponent(gateId)}`;
     let es: EventSource | null = null;
     let retry: ReturnType<typeof setTimeout> | null = null;
     let disposed = false;
     let probing = false;
 
     const open = () => {
-      es = new EventSource(STREAM_URL);
+      es = new EventSource(streamUrl);
       es.onmessage = (m) => {
         let e: { type?: string; state?: GateConn; status?: GateStatus };
         try {
@@ -39,7 +39,7 @@ export function useGateStatus(): { status: GateStatus | null; conn: GateConn } {
         if (probing) return;
         probing = true;
         // WHY: EventSource hides the status code; HEAD runs the same auth check without opening a stream.
-        fetch(STREAM_URL, { method: "HEAD", cache: "no-store" })
+        fetch(streamUrl, { method: "HEAD", cache: "no-store" })
           .then((r) => r.status === 401)
           .catch(() => false)
           .then((unauthorized) => {
@@ -67,7 +67,7 @@ export function useGateStatus(): { status: GateStatus | null; conn: GateConn } {
       if (retry) clearTimeout(retry);
       es?.close();
     };
-  }, [redirectToLogin]);
+  }, [gateId, redirectToLogin]);
 
   return { status, conn };
 }

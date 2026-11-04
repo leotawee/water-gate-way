@@ -146,7 +146,7 @@ const TILE =
 
 function LiveDashboard({ gate, role }: Props) {
   const now = useNow();
-  const { status, conn } = useGateStatus();
+  const { status, conn } = useGateStatus(gate.id);
   const stale = now === null || isStale(status, conn, now);
   const live = !stale;
   const received = formatReceived(status?.receivedAt ?? null);
@@ -213,7 +213,7 @@ function LiveDashboard({ gate, role }: Props) {
                   live={live}
                   receivedAt={status?.receivedAt ?? null}
                 />
-                <WaterLevelChart />
+                <WaterLevelChart gateId={gate.id} />
               </div>
             </section>
             <div className={TILE}>
@@ -227,6 +227,7 @@ function LiveDashboard({ gate, role }: Props) {
           {/* Viewer gets the same panel read-only: state is job #1 for every role. */}
           <aside className="min-w-0 lg:sticky lg:top-6">
             <ControlPanel
+              gateId={gate.id}
               devices={status?.devices ?? null}
               mode={status?.mode ?? null}
               stale={stale}
