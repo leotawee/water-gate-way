@@ -12,21 +12,23 @@ export function sampleMs(raw: string | undefined): number {
 }
 
 export function createLevelRecorder(
-  insert: (liquid: number, at: Date) => Promise<unknown>,
+  insert: (gateId: string, liquid: number, at: Date) => Promise<unknown>,
   sampleMs: number,
-): (status: GateStatus) => Promise<void> {
-  // Time of the last recorded sample, in receivedAt ms. Number, not Date: only arithmetic is done.
-  let lastAt: number | null = null;
-  return async (status: GateStatus) => {
+): (status: GateStatus, gateId: string) => Promise<void> {
+  // Time of the last recorded sample per gate, in receivedAt ms. Number, not Date: only arithmetic is done.
+  // WHY per gate: a shared window would let gate-1 samples suppress gate-2's, and a failed gate must not block others.
+  const lastAt = new Map<string, number>();
+  return async (status: GateStatus, gateId: string) => {
     const liquid = status.radar.liquid;
     const at = new Date(status.receivedAt);
     if (typeof liquid !== "number" || !Number.isFinite(liquid)) return;
     if (Number.isNaN(at.getTime())) return;
-    if (lastAt !== null && at.getTime() - lastAt < sampleMs) return;
+    const prev = lastAt.get(gateId);
+    if (prev !== undefined && at.getTime() - prev < sampleMs) return;
     // WHY: claim the window before awaiting, so two statuses arriving while an insert is in flight cannot both insert.
-    lastAt = at.getTime();
+    lastAt.set(gateId, at.getTime());
     try {
-      await insert(liquid, at);
+      await insert(gateId, liquid, at);
     } catch (err) {
       // WHY: never log the payload; keep the window claimed so the retry waits for the next window, no hot loop.
       console.error("[telemetry] level insert failed:", err instanceof Error ? err.message : "unknown");
@@ -34,15 +36,15 @@ export function createLevelRecorder(
   };
 }
 
-const realInsert = (liquid: number, at: Date) =>
+const realInsert = (gateId: string, liquid: number, at: Date) =>
   db.query("insert into water_levels (device_id, water_height, measured_at) values ($1, $2, $3)", [
-    "stm32-radar",
+    gateId,
     liquid,
     at,
   ]);
 
 // WHY TELEMETRY_RECORD=0: the deploy candidate shares the live DB; it must not write duplicate samples.
-export const recordLevel: (status: GateStatus) => Promise<void> =
+export const recordLevel: (status: GateStatus, gateId: string) => Promise<void> =
   process.env.TELEMETRY_RECORD === "0"
     ? async () => {}
     : createLevelRecorder(realInsert, sampleMs(process.env.WATER_LEVEL_SAMPLE_SEC));

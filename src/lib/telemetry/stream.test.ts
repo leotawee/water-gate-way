@@ -117,7 +117,7 @@ describe("broker", () => {
     expect(st).toHaveLength(1);
     expect(st[0].type === "status" && st[0].status.pzem.voltage).toBe(230);
     // the parsed status also goes to the level recorder
-    expect(recordLevel).toHaveBeenCalledExactlyOnceWith(st[0].type === "status" ? st[0].status : null);
+    expect(recordLevel).toHaveBeenCalledExactlyOnceWith(st[0].type === "status" ? st[0].status : null, "gate-1");
   });
 
   it("invalid JSON and non-object payload -> no event, no payload echo in logs", () => {

@@ -2,6 +2,7 @@ import "server-only";
 import { connect, type MqttClient } from "mqtt";
 import { parseStatus, type GateStatus } from "./parseStatus";
 import { recordLevel } from "./recordLevel";
+import { LEGACY_GATE } from "./topics";
 
 export type ConnState = "connected" | "disconnected";
 export type StatusEvent = { type: "status"; status: GateStatus } | { type: "conn"; state: ConnState };
@@ -137,7 +138,7 @@ function start(s: State) {
     if (!status) return warnBadPayload(s, topic);
     status = withPerson(s, status);
     s.last = status;
-    void recordLevel(status);
+    void recordLevel(status, LEGACY_GATE);
     emit(s, { type: "status", status });
   });
 }
