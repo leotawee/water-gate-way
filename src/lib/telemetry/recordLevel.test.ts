@@ -10,7 +10,7 @@ const status = (liquid: number | null, receivedAt: string): GateStatus => ({
   radar: { liquid, airGap: null },
   float: {},
   wireBreak: { red: null, blue: null },
-  devices: { pump: null, alarm: null, light: null, relay1: null, relay2: null },
+  devices: { pump: null, alarm: null, light: null, relay1: null, relay2: null, master1: null },
   personCount: null,
   receivedAt,
 });

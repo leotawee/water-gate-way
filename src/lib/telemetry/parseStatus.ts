@@ -19,6 +19,8 @@ export type GateStatus = {
     light: boolean | null;
     relay1: boolean | null;
     relay2: boolean | null;
+    /** pc3: master relay 1 (read-only; with relay2 = pc2 it is the "master" the controller ties to its mode). */
+    master1: boolean | null;
   };
   personCount: number | null;
   receivedAt: string;
@@ -75,7 +77,7 @@ export function parseStatus(payload: unknown, now: Date): GateStatus | null {
     radar: { liquid: null, airGap: null },
     float: {},
     wireBreak: { red: null, blue: null },
-    devices: { pump: null, alarm: null, light: null, relay1: null, relay2: null },
+    devices: { pump: null, alarm: null, light: null, relay1: null, relay2: null, master1: null },
     personCount: num(payload.person_count),
     receivedAt: now.toISOString(),
   };
@@ -133,6 +135,7 @@ export function parseStatus(payload: unknown, now: Date): GateStatus | null {
       out.devices.pump = bool(payload.pump.pc0);
       out.devices.relay1 = bool(payload.pump.pc1);
       out.devices.relay2 = bool(payload.pump.pc2);
+      out.devices.master1 = bool(payload.pump.pc3);
     } else {
       out.devices.pump = bool(payload.pump);
     }

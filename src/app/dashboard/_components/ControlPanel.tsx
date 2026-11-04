@@ -22,7 +22,7 @@ function errorText(res: Response): string {
   return "ส่งคำสั่งไม่สำเร็จ";
 }
 
-/** Which row a command belongs to: the first letter names the device (P1 → pump … Q1 → relay2); a mode word is "mode". */
+/** Which row a command belongs to: the first letter names the device (P1 → pump … R1 → relay1); a mode word is "mode". */
 function keyOf(cmd: Command): Key {
   if (isModeCommand(cmd)) return "mode";
   switch (cmd[0]) {
@@ -32,10 +32,8 @@ function keyOf(cmd: Command): Key {
       return "alarm";
     case "L":
       return "light";
-    case "R":
-      return "relay1";
     default:
-      return "relay2";
+      return "relay1";
   }
 }
 
@@ -184,22 +182,17 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
     else void sendCommand(cmd);
   };
 
+  // WHY: the pumps sit together and the siren closes the pump group — the alarm belongs to the
+  // pump station, it must not split the two pumps apart in the reading order.
   const rows = [
-    { key: "pump", name: "ปั๊มหลัก", icon: Fan, onCmd: "P1", offCmd: "P0", state: devices?.pump ?? null, tone: "on" },
+    { key: "pump", name: "ปั๊ม 1", icon: Fan, onCmd: "P1", offCmd: "P0", state: devices?.pump ?? null, tone: "on" },
+    { key: "relay1", name: "ปั๊ม 2", icon: Power, onCmd: "R1", offCmd: "R0", state: devices?.relay1 ?? null, tone: "on" },
     { key: "alarm", name: "สัญญาณเตือน", icon: Bell, onCmd: "A1", offCmd: "A0", state: devices?.alarm ?? null, tone: "danger" },
-    { key: "relay1", name: "ปั๊ม IoT 1", icon: Power, onCmd: "R1", offCmd: "R0", state: devices?.relay1 ?? null, tone: "on" },
-    {
-      // WHY: per the 2026-11-03 hardware handoff, cmd_node converts Q1/Q0 to master relay 2 on the STM32,
-      // so this output is remotely controllable; the reported state is pump.pc2 in stm32/status/all.
-      key: "relay2",
-      name: "IoT 2",
-      icon: Power,
-      onCmd: "Q1",
-      offCmd: "Q0",
-      state: devices?.relay2 ?? null,
-      tone: "on",
-    },
   ] as const;
+
+  // WHY: pc2 + pc3 are the master relays; the controller ties them to its mode (ON in AUTO/MANUAL, OFF in OFF) and
+  // ignores a web command for them, so they are shown but never switchable. Unknown until both are reported.
+  const master = devices?.relay2 == null || devices.master1 == null ? null : devices.relay2 && devices.master1;
 
   const statusOf = (key: Key): SwitchStatus | null => {
     const s = sending[key];
@@ -289,6 +282,19 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
             readOnly={readOnly}
           />
         ))}
+        {/* onCmd/offCmd are required by the props but never rendered: readOnly hides the buttons. */}
+        <DeviceSwitch
+          name="Master relay"
+          icon={Power}
+          state={master}
+          stale={stale}
+          onCmd="P1"
+          offCmd="P0"
+          status={null}
+          onSend={guardedSend}
+          readOnly
+          note="ผูกกับโหมดการทำงาน สั่งจากเว็บไม่ได้"
+        />
       </div>
 
       <Modal

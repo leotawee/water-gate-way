@@ -136,9 +136,11 @@ export default function WaterLevelChart() {
         <div
           // WHY role="img": Recharts renders an unlabelled SVG; the trend is non-text content that
           // needs an accessible name (WCAG 1.1.1). The numbers themselves stay in the gauge + CSV.
+          // WHY anim-fade-in: softens the placeholder -> chart handoff (mounts once; the 5-min poll
+          // updates in place and never replays it).
           role="img"
           aria-label={`กราฟประวัติระดับน้ำ 24 ค่าล่าสุด พร้อมเส้นระดับเตือน ${LEVEL_WARN_M} เมตร และระดับอันตราย ${LEVEL_DANGER_M} เมตร`}
-          className="h-60 lg:h-[24rem] w-full"
+          className="anim-fade-in h-60 lg:h-[24rem] w-full"
         >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -161,7 +163,10 @@ export default function WaterLevelChart() {
                 axisLine={false}
                 unit=" ม."
               />
+              {/* WHY: instant tracking — the default 400ms ease transform makes the tooltip trail
+                  the pointer; the Line below already opts out for the same reason. */}
               <Tooltip
+                isAnimationActive={false}
                 formatter={formatTooltip}
                 cursor={{ stroke: CHART.tick, strokeOpacity: 0.4 }}
                 contentStyle={{

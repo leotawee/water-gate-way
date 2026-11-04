@@ -72,12 +72,17 @@ export default function PasswordField({
         </button>
       </div>
       {hint}
-      {caps && (
-        <p role="status" className="anim-fade-in mt-1.5 flex items-center gap-2 text-sm font-bold text-warn">
-          <TriangleAlert className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
-          เปิด Caps Lock อยู่ รหัสผ่านอาจพิมพ์เป็นตัวพิมพ์ใหญ่
-        </p>
-      )}
+      {/* Reserved status line (cf. DeviceSwitch StatusLine): always one fixed height so toggling
+          Caps Lock never shoves the layout. WHY no fade: per-keystroke feedback — the text appearing
+          in place reads faster than a 180 ms fade. */}
+      <p role="status" className="mt-1.5 flex min-h-5 items-center gap-2 text-sm font-bold text-warn">
+        {caps && (
+          <>
+            <TriangleAlert className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            เปิด Caps Lock อยู่ รหัสผ่านอาจพิมพ์เป็นตัวพิมพ์ใหญ่
+          </>
+        )}
+      </p>
     </>
   );
 }

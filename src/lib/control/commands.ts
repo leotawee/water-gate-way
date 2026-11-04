@@ -1,5 +1,6 @@
-// WHY: the device commands are the same set as VALID_COMMANDS in ai-receiver/main.py.
-export const DEVICE_COMMANDS = ["P1", "P0", "A1", "A0", "L1", "L0", "M1", "M0", "R1", "R0", "Q1", "Q0"] as const;
+// WHY: a subset of VALID_COMMANDS in ai-receiver/main.py. Q (master relay 2) and M (master relay 1 on the Pi's
+// cmd_node) are left out on purpose: the masters follow the controller mode and must never be switched off from the web.
+export const DEVICE_COMMANDS = ["P1", "P0", "A1", "A0", "L1", "L0", "R1", "R0"] as const;
 
 // WHY: the Pi's cmd_node (shared/protocol.py parse_mode_command) accepts these bare strings on stm32/cmd
 // and sets the controller mode; the status payload reports the mode back as the same word.

@@ -16,5 +16,11 @@ const WaterGateMap = dynamic(() => import("@/components/WaterGateMap"), {
 });
 
 export default function WaterGateMapLoader({ gates }: { gates: Gate[] }) {
-  return <WaterGateMap gates={gates} />;
+  // WHY anim-fade-in: the spinner -> map swap is a full replacement; a one-shot 180 ms fade
+  // softens the handoff without touching the documented tile fadeAnimation fix.
+  return (
+    <div className="anim-fade-in h-full w-full">
+      <WaterGateMap gates={gates} />
+    </div>
+  );
 }
