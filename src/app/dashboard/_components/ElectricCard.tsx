@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import type { GateStatus } from "@/lib/telemetry/parseStatus";
+import { NO_CURRENT_HOLD_MS, noCurrentWhilePumpOn } from "./noCurrent";
 import Reading from "./Reading";
 
 const ROWS = [
@@ -17,8 +19,30 @@ const PHASE_ROWS = [
 // WHY: a real 0 prints as 0, only a missing value is a dash.
 const fmt = (v: number | null, digits: number) => (v === null ? "—" : v.toFixed(digits));
 
+/**
+ * Says why a 0.00 A reading is suspicious once it has held for NO_CURRENT_HOLD_MS.
+ * WHY mounted only while the condition holds: unmounting resets the hold, and the state is set from the timer
+ * callback, never synchronously inside the effect.
+ */
+function NoCurrentHint() {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShown(true), NO_CURRENT_HOLD_MS);
+    return () => clearTimeout(t);
+  }, []);
+  return shown ? <p className="mt-3 text-sm text-warn">ไม่พบกระแส ทั้งที่ปั๊มทำงาน ตรวจเซ็นเซอร์กระแส</p> : null;
+}
+
 /** Voltage, current, frequency and power from the PZEM meter, as one definition list. */
-export default function ElectricCard({ pzem, live }: { pzem: GateStatus["pzem"] | null; live: boolean }) {
+export default function ElectricCard({
+  pzem,
+  devices,
+  live,
+}: {
+  pzem: GateStatus["pzem"] | null;
+  devices: GateStatus["devices"] | null;
+  live: boolean;
+}) {
   // WHY: stale readings stay visible but muted, so an old value is never mistaken for a live one.
   const c = live ? "text-fg" : "text-muted";
   return (
@@ -65,6 +89,7 @@ export default function ElectricCard({ pzem, live }: { pzem: GateStatus["pzem"] 
           </tbody>
         </table>
       )}
+      {live && noCurrentWhilePumpOn(devices, pzem) && <NoCurrentHint />}
     </section>
   );
 }
