@@ -34,11 +34,16 @@ vi.mock("@/lib/auth/dal", async () => {
   };
 });
 
+vi.mock("@/lib/gatesDb", () => ({ getGate: vi.fn() }));
+
 vi.mock("@/lib/control/forward", () => ({ forwardCommand: vi.fn(async () => "sent") }));
 
 import { POST } from "./route";
 import { forwardCommand } from "@/lib/control/forward";
 import { requireUser } from "@/lib/auth/dal";
+import { getGate } from "@/lib/gatesDb";
+
+const gateRow = (id: string, hasDevice = true) => ({ id, name: id, lat: 0, lng: 0, hasDevice });
 
 const APP = "http://localhost:3000";
 let seq = 0;
@@ -58,6 +63,7 @@ beforeEach(() => {
   // WHY: controlByUser is a module singleton; a fresh user id per test keeps buckets independent.
   h.user = { id: `00000000-0000-0000-0000-${String(++seq).padStart(12, "0")}`, email: "op@x.co", role: "operator" };
   vi.mocked(forwardCommand).mockResolvedValue("sent");
+  vi.mocked(getGate).mockImplementation(async (id) => gateRow(id as string));
 });
 
 describe("POST /api/control", () => {
@@ -82,22 +88,22 @@ describe("POST /api/control", () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "invalid_command" });
     expect(forwardCommand).not.toHaveBeenCalled();
-    expect(audits()).toEqual([[h.user!.id, "ZZ", "rejected", "203.0.113.9"]]);
+    expect(audits()).toEqual([[h.user!.id, "ZZ", "rejected", "203.0.113.9", "gate-1"]]);
   });
 
   it("malformed JSON -> 400 invalid_command + audit rejected", async () => {
     const res = await POST(req("{not json", {}, true) as never);
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "invalid_command" });
-    expect(audits()).toEqual([[h.user!.id, "", "rejected", "203.0.113.9"]]);
+    expect(audits()).toEqual([[h.user!.id, "", "rejected", "203.0.113.9", "gate-1"]]);
   });
 
   it("valid -> 200 + audit sent (normalized command)", async () => {
     const res = await POST(req({ command: " p1 " }) as never);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, command: "P1" });
-    expect(forwardCommand).toHaveBeenCalledWith("P1");
-    expect(audits()).toEqual([[h.user!.id, "P1", "sent", "203.0.113.9"]]);
+    expect(forwardCommand).toHaveBeenCalledWith("gate-1", "P1");
+    expect(audits()).toEqual([[h.user!.id, "P1", "sent", "203.0.113.9", "gate-1"]]);
   });
 
   it("x-real-ip fallback, and null ip when no proxy header", async () => {
@@ -109,13 +115,13 @@ describe("POST /api/control", () => {
   it("garbage x-forwarded-for on a valid command -> 200, audit ip null (insert cannot fail on inet)", async () => {
     const res = await POST(req({ command: "P1" }, { "x-forwarded-for": "x" }) as never);
     expect(res.status).toBe(200);
-    expect(audits()).toEqual([[h.user!.id, "P1", "sent", null]]);
+    expect(audits()).toEqual([[h.user!.id, "P1", "sent", null, "gate-1"]]);
   });
 
   it("zone-id x-forwarded-for on a valid command -> 200, audit ip null", async () => {
     const res = await POST(req({ command: "P1" }, { "x-forwarded-for": "fe80::1%eth0" }) as never);
     expect(res.status).toBe(200);
-    expect(audits()).toEqual([[h.user!.id, "P1", "sent", null]]);
+    expect(audits()).toEqual([[h.user!.id, "P1", "sent", null, "gate-1"]]);
   });
 
   it("audit insert failure with an ip retries once with ip null", async () => {
@@ -124,8 +130,8 @@ describe("POST /api/control", () => {
     const res = await POST(req({ command: "P1" }) as never);
     expect(res.status).toBe(200);
     expect(audits()).toEqual([
-      [h.user!.id, "P1", "sent", "203.0.113.9"],
-      [h.user!.id, "P1", "sent", null],
+      [h.user!.id, "P1", "sent", "203.0.113.9", "gate-1"],
+      [h.user!.id, "P1", "sent", null, "gate-1"],
     ]);
     expect(spy).toHaveBeenCalledTimes(1);
     spy.mockRestore();
@@ -143,7 +149,7 @@ describe("POST /api/control", () => {
       expect(await res.json()).toEqual({ error: "rate_limited" });
       expect(res.headers.get("retry-after")).toBe("1");
       expect(forwardCommand).toHaveBeenCalledTimes(1);
-      expect(audits().at(-1)).toEqual([h.user!.id, "P1", "rate_limited", "203.0.113.9"]);
+      expect(audits().at(-1)).toEqual([h.user!.id, "P1", "rate_limited", "203.0.113.9", "gate-1"]);
     } finally {
       vi.useRealTimers();
     }
@@ -174,7 +180,7 @@ describe("POST /api/control", () => {
     const res = await POST(req({ command: "P1" }) as never);
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "device_unavailable" });
-    expect(audits()).toEqual([[h.user!.id, "P1", "failed", "203.0.113.9"]]);
+    expect(audits()).toEqual([[h.user!.id, "P1", "failed", "203.0.113.9", "gate-1"]]);
   });
 
   it("audit insert failure does not turn a sent command into an error", async () => {
@@ -184,6 +190,85 @@ describe("POST /api/control", () => {
     expect(res.status).toBe(200);
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  describe("per-gate addressing", () => {
+    it("gate-2 -> forwardCommand('gate-2', cmd) and the audit row carries gate-2", async () => {
+      const res = await POST(req({ command: "P1", gate: "gate-2" }) as never);
+      expect(res.status).toBe(200);
+      expect(forwardCommand).toHaveBeenCalledExactlyOnceWith("gate-2", "P1");
+      expect(getGate).toHaveBeenCalledWith("gate-2");
+      expect(audits()).toEqual([[h.user!.id, "P1", "sent", "203.0.113.9", "gate-2"]]);
+    });
+
+    it("gate omitted -> gate-1", async () => {
+      await POST(req({ command: "P1" }) as never);
+      expect(forwardCommand).toHaveBeenCalledExactlyOnceWith("gate-1", "P1");
+    });
+
+    it.each(["x", "gate-", "gate-12345", "../gate-1", 1, null, ["gate-1"]])(
+      "invalid gate %j -> 400 invalid_gate, audit rejected with null gate, nothing forwarded",
+      async (gate) => {
+        const res = await POST(req({ command: "P1", gate }) as never);
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ error: "invalid_gate" });
+        expect(forwardCommand).not.toHaveBeenCalled();
+        expect(getGate).not.toHaveBeenCalled();
+        expect(audits()).toEqual([[h.user!.id, "P1", "rejected", "203.0.113.9", null]]);
+      },
+    );
+
+    it("unknown or inactive gate -> 404 unknown_gate, audit rejected with the gate id", async () => {
+      vi.mocked(getGate).mockResolvedValue(null);
+      const res = await POST(req({ command: "P1", gate: "gate-9" }) as never);
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: "unknown_gate" });
+      expect(forwardCommand).not.toHaveBeenCalled();
+      expect(audits()).toEqual([[h.user!.id, "P1", "rejected", "203.0.113.9", "gate-9"]]);
+    });
+
+    it("gate without a device -> 409 no_device, audit rejected, nothing forwarded", async () => {
+      vi.mocked(getGate).mockResolvedValue(gateRow("gate-3", false));
+      const res = await POST(req({ command: "P1", gate: "gate-3" }) as never);
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: "no_device" });
+      expect(forwardCommand).not.toHaveBeenCalled();
+      expect(audits()).toEqual([[h.user!.id, "P1", "rejected", "203.0.113.9", "gate-3"]]);
+    });
+
+    it("gate lookup throws -> 503, audit failed, nothing forwarded", async () => {
+      vi.mocked(getGate).mockRejectedValue(new Error("db down"));
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const res = await POST(req({ command: "P1", gate: "gate-2" }) as never);
+      expect(res.status).toBe(503);
+      expect(forwardCommand).not.toHaveBeenCalled();
+      expect(audits()).toEqual([[h.user!.id, "P1", "failed", "203.0.113.9", "gate-2"]]);
+      spy.mockRestore();
+    });
+
+    it("invalid command with a valid gate -> audit rejected carries the gate id", async () => {
+      await POST(req({ command: "ZZ", gate: "gate-2" }) as never);
+      expect(audits()).toEqual([[h.user!.id, "ZZ", "rejected", "203.0.113.9", "gate-2"]]);
+    });
+
+    it("rate-limited command for gate-2 -> 429, audit carries gate-2, nothing forwarded", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        vi.setSystemTime(Date.parse("2026-01-01T00:00:00Z"));
+        await POST(req({ command: "P1", gate: "gate-2" }) as never);
+        const res = await POST(req({ command: "P1", gate: "gate-2" }) as never);
+        expect(res.status).toBe(429);
+        expect(audits().at(-1)).toEqual([h.user!.id, "P1", "rate_limited", "203.0.113.9", "gate-2"]);
+        expect(forwardCommand).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("a gate-2 command is never forwarded for another gate", async () => {
+      await POST(req({ command: "P0", gate: "gate-2" }) as never);
+      for (const [id] of vi.mocked(forwardCommand).mock.calls) expect(id).toBe("gate-2");
+    });
   });
 
   it("foreign Origin -> 403 before auth", async () => {
