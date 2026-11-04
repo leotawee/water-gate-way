@@ -10,6 +10,11 @@ vi.mock("@/lib/gatesDb", () => ({
   getGate: vi.fn(async (id: string) => (id === "gate-9" ? null : { id, name: id, lat: 0, lng: 0, hasDevice: true })),
 }));
 
+vi.mock("./knownGates", () => ({
+  isKnownGate: (id: string) => id === "gate-1" || id === "gate-2",
+  startKnownGatesRefresh: vi.fn(),
+}));
+
 vi.mock("./recordLevel", () => ({ recordLevel: vi.fn(async () => {}) }));
 
 vi.mock("mqtt", () => ({
@@ -41,6 +46,7 @@ vi.mock("@/lib/auth/dal", async () => {
 
 import { subscribeStatus, type StatusEvent } from "./broker";
 import { recordLevel } from "./recordLevel";
+import { startKnownGatesRefresh } from "./knownGates";
 import { GET, HEAD } from "@/app/api/status/stream/route";
 import { requireUser } from "@/lib/auth/dal";
 
@@ -284,6 +290,50 @@ describe("broker", () => {
     expect(got.filter((e) => e.type === "status")).toHaveLength(0);
     expect(recordLevel).not.toHaveBeenCalled();
     expect(vi.mocked(console.warn).mock.calls.length).toBeLessThanOrEqual(1);
+  });
+
+  describe("unregistered gate ids are dropped at ingest", () => {
+    const state = () =>
+      (globalThis as { __wgTelemetry?: { last: Map<string, unknown>; person: Map<string, unknown> } }).__wgTelemetry!;
+
+    it("gate/gate-7777/status emits nothing, never records, and leaves no broker state", () => {
+      const g1: StatusEvent[] = [];
+      const g7: StatusEvent[] = [];
+      subscribeStatus("gate-1", (e) => g1.push(e));
+      subscribeStatus("gate-7777", (e) => g7.push(e));
+      msg(VALID, "gate/gate-7777/status");
+      expect(g1.filter((e) => e.type === "status")).toHaveLength(0);
+      expect(g7.filter((e) => e.type === "status")).toHaveLength(0);
+      expect(recordLevel).not.toHaveBeenCalled();
+      expect(state().last.has("gate-7777")).toBe(false);
+      const late: StatusEvent[] = [];
+      subscribeStatus("gate-7777", (e) => late.push(e));
+      expect(late.map((e) => e.type)).toEqual(["conn"]);
+    });
+
+    it("gate/gate-7777/person leaves no broker state either", () => {
+      subscribeStatus("gate-1", () => {});
+      msg(JSON.stringify({ person_count: 3 }), "gate/gate-7777/person");
+      expect(state().person.has("gate-7777")).toBe(false);
+    });
+
+    it("a flood of unknown ids stores nothing and warns at most once with a fixed label", () => {
+      subscribeStatus("gate-1", () => {});
+      for (let i = 1000; i < 1100; i++) msg(VALID, `gate/gate-${i}/status`);
+      expect(recordLevel).not.toHaveBeenCalled();
+      expect(state().last.size).toBe(0);
+      const warns = vi.mocked(console.warn).mock.calls;
+      expect(warns.length).toBeLessThanOrEqual(1);
+      expect(JSON.stringify(warns)).not.toContain("gate-1000");
+    });
+
+    it("known gates still flow (gate-2) and the broker starts the registry refresh", () => {
+      const g2: StatusEvent[] = [];
+      subscribeStatus("gate-2", (e) => g2.push(e));
+      msg(VALID, "gate/gate-2/status");
+      expect(g2.filter((e) => e.type === "status")).toHaveLength(1);
+      expect(startKnownGatesRefresh).toHaveBeenCalled();
+    });
   });
 
   it("gate/gate-2/person merges only into gate-2's last status", () => {

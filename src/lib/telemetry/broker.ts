@@ -1,5 +1,6 @@
 import "server-only";
 import { connect, type MqttClient } from "mqtt";
+import { isKnownGate, startKnownGatesRefresh } from "./knownGates";
 import { parseStatus, type GateStatus } from "./parseStatus";
 import { recordLevel } from "./recordLevel";
 import { LEGACY_GATE, LEGACY_PERSON_TOPIC, LEGACY_STATUS_TOPIC, PERSON_FILTER, STATUS_FILTER, parseTelemetryTopic, type TopicKind } from "./topics";
@@ -113,6 +114,8 @@ function start(s: State) {
     queueQoSZero: false,
   });
   s.client = client;
+  // WHY: ingest accepts only registered gates; the registry is polled so a new cabinet is picked up without a restart.
+  startKnownGatesRefresh();
 
   const extra = process.env.MQTT_TOPIC_STATUS;
   const topics = [
@@ -145,6 +148,9 @@ function start(s: State) {
     const r = route(topic);
     if (!r) return warnBadPayload(s, null);
     const { gateId } = r;
+    // WHY: while the broker accepts anonymous clients any publisher can invent gate-0000..9999; an unregistered id must
+    // not create state or water_levels rows. Fixed warning label: the topic text is attacker-controlled.
+    if (!isKnownGate(gateId)) return warnBadPayload(s, null);
     if (r.kind === "person") return applyPerson(s, gateId, payload);
     let status: GateStatus | null = null;
     if (payload.length <= MAX_PAYLOAD) {
