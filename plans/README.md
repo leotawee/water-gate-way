@@ -9,10 +9,10 @@ Produced by the `improve-animations` audit of water-gate-way at commit `45ad2c7`
 | # | Plan | Severity | Files | Status |
 |---|------|----------|-------|--------|
 | 001 | [Admin submit pending feedback](001-admin-submit-pending-feedback.md) | MEDIUM | ActionForm.tsx, globals.css | DONE (executed during the impeccable polish pass; CSS uses `opacity: 0.6` only, the `cursor: progress` idea dropped to avoid specificity fights with the btn disabled cursor) |
-| 002 | [Camera overlay transition-driven visibility](002-camera-overlay-transition-visibility.md) | MEDIUM | Go2RTCPlayer.tsx, globals.css | TODO |
-| 003 | [Reserved Caps Lock status line](003-capslock-reserved-status-line.md) | MEDIUM | PasswordField.tsx | TODO |
-| 004 | [Spinner keeps spinning under reduced motion](004-spinner-keeps-spinning-reduced-motion.md) | MEDIUM | DeviceSwitch.tsx | TODO |
-| 005 | [Chart tooltip instant tracking](005-chart-tooltip-instant-tracking.md) | MEDIUM | WaterLevelChart.tsx | TODO |
+| 002 | [Camera overlay transition-driven visibility](002-camera-overlay-transition-visibility.md) | MEDIUM | Go2RTCPlayer.tsx, globals.css | DONE (executed during the impeccable animate pass) |
+| 003 | [Reserved Caps Lock status line](003-capslock-reserved-status-line.md) | MEDIUM | PasswordField.tsx | DONE (executed during the impeccable animate pass) |
+| 004 | [Spinner keeps spinning under reduced motion](004-spinner-keeps-spinning-reduced-motion.md) | MEDIUM | DeviceSwitch.tsx | DONE (executed during the impeccable animate pass) |
+| 005 | [Chart tooltip instant tracking](005-chart-tooltip-instant-tracking.md) | MEDIUM | WaterLevelChart.tsx | DONE (executed during the impeccable animate pass) |
 
 ## Recommended execution order
 

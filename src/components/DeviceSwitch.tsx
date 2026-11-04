@@ -51,16 +51,16 @@ export function StatusLine({ status, label, onRetry }: { status: SwitchStatus | 
   switch (status.phase) {
     case "sending":
       return (
-        <span className="inline-flex items-center gap-2 text-muted">
-          <Loader2 className="size-4 animate-spin motion-reduce:animate-none" strokeWidth={1.75} aria-hidden="true" />
+        <span className="anim-rise-in inline-flex items-center gap-2 text-muted">
+          <Loader2 className="size-4 animate-spin" strokeWidth={1.75} aria-hidden="true" />
           กำลังส่ง: {label}…
         </span>
       );
     case "waiting":
-      return <span className="text-fg">ส่งแล้ว: {label} รออุปกรณ์ยืนยัน</span>;
+      return <span className="anim-rise-in text-fg">ส่งแล้ว: {label} รออุปกรณ์ยืนยัน</span>;
     case "timeout":
       return (
-        <span className="inline-flex flex-wrap items-center gap-x-2 text-danger">
+        <span className="anim-rise-in inline-flex flex-wrap items-center gap-x-2 text-danger">
           <CircleAlert className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
           อุปกรณ์ยังไม่ยืนยัน {label}
           <button
@@ -75,7 +75,7 @@ export function StatusLine({ status, label, onRetry }: { status: SwitchStatus | 
       );
     case "confirmed":
       return (
-        <span className="inline-flex items-center gap-2 text-on">
+        <span className="anim-rise-in inline-flex items-center gap-2 text-on">
           <Check className="size-4" strokeWidth={1.75} aria-hidden="true" />
           อุปกรณ์ยืนยันแล้ว
         </span>
@@ -128,7 +128,7 @@ export default function DeviceSwitch({
         } ${fill}`}
       >
         {sendingThis ? (
-          <Loader2 className="size-4 animate-spin motion-reduce:animate-none" strokeWidth={2} aria-hidden="true" />
+          <Loader2 className="size-4 animate-spin" strokeWidth={2} aria-hidden="true" />
         ) : (
           pressed && <Check className="size-4" strokeWidth={2.25} aria-hidden="true" />
         )}

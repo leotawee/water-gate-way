@@ -239,6 +239,19 @@
 .leaflet-container .leaflet-popup-close-button {
   color: var(--color-muted);
 }
+/* Popup open fade: leaflet.css only animates popups under .leaflet-fade-anim, which
+   fadeAnimation={false} (tile bug fix, WaterGateMap.tsx) removes — opacity + @starting-style
+   restores the open handoff without re-triggering the tile bug; close stays instant
+   (Leaflet removes the element). Opacity only: a transform here would fight Leaflet's own
+   translate3d positioning. Reduced motion: the global cap keeps it at a 120 ms fade. */
+.leaflet-container .leaflet-popup {
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+@starting-style {
+  .leaflet-container .leaflet-popup {
+    opacity: 0;
+  }
+}
 /* WHY: leaflet.css is unlayered, so its `.leaflet-container a { color: #0078A8 }` beats the
    layered btn-primary utility and leaves blue-on-blue text in the popup button. This rule is
    unlayered too and more specific, so it wins back the button's white text in every state. */
@@ -329,4 +342,14 @@ dialog.modal[open]::backdrop {
       transform: none;
     }
   }
+}
+
+/* Camera status overlay (components/Go2RTCPlayer.tsx): visibility is transition-driven because
+   connecting/failed flip constantly (10-min server cut, backoff retries, tab return) and the
+   policy above reserves keyframes for one-shot appearances. 120 ms --ease-out fades; the opacity
+   exit is allowed under prefers-reduced-motion (opacity only, no movement). */
+.cam-overlay {
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
 }

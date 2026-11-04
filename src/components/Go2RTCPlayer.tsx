@@ -249,18 +249,20 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
         <span className="text-xs font-bold text-fg">{displayLabel}</span>
       </div>
 
-      {/* Loading */}
-      {status === "connecting" && (
-        <div className="anim-fade-in absolute inset-0 flex items-center justify-center bg-black/60">
+      {/* WHY one persistent overlay: connecting/failed flip constantly (10-min server cut, backoff,
+          tab return); the motion policy (globals.css) reserves keyframes for one-shot appearances, so
+          visibility is a class toggle on a never-unmounting overlay instead of conditional mounts. */}
+      <div
+        aria-hidden={status === "connected" || undefined}
+        className={`cam-overlay absolute inset-0 flex items-center justify-center ${
+          status === "failed" ? "bg-black/80" : "bg-black/60"
+        } ${status === "connected" ? "pointer-events-none opacity-0" : "opacity-100"}`}
+      >
+        {status === "connecting" && (
           <div className="size-8 rounded-full border-2 border-white/80 border-t-transparent animate-spin" />
-        </div>
-      )}
-
-      {/* Error. WHY: centred with side padding so the heading clears the status chip at 375px;
-          secondary (outline) styling stays readable on black. */}
-      {status === "failed" && (
-        <div className="anim-fade-in absolute inset-0 flex items-center justify-center bg-black/80 px-4">
-          <div className="flex max-w-full flex-col items-center gap-3 text-center">
+        )}
+        {status === "failed" && (
+          <div className="flex max-w-full flex-col items-center gap-3 px-4 text-center">
             <p className="text-sm font-bold text-white">เชื่อมต่อกล้องไม่สำเร็จ</p>
             <button
               onClick={retry}
@@ -269,8 +271,8 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
               ลองอีกครั้ง
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
