@@ -180,7 +180,7 @@ function LiveDashboard({ gate, role }: Props) {
           </h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className={TILE}>
-              <ElectricCard pzem={status?.pzem ?? null} live={live} />
+              <ElectricCard pzem={status?.pzem ?? null} devices={status?.devices ?? null} live={live} />
             </div>
             <div className={TILE}>
               <FloatSwitchCard float={status?.float ?? null} live={live} />

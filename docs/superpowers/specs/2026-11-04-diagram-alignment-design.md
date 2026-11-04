@@ -22,7 +22,7 @@ Success looks like:
 | Master relays follow the mode, not the web | `Q0` reached the UART (`aa550301000103`) but `pc2` stayed set; `P0`/`R0` cleared `pc0`/`pc1`. In mode OFF all four `pc0..pc3` go false. |
 | `R1` in mode OFF is not accepted | Frame `aa550308000209` reached the UART; `pc1` did not change; UI timed out with "device not confirmed". `R1` in MANUAL is **untested**. |
 | Pump 2 is `pc1` / `R1,R0` | `shared/protocol.py` `DASH_COMMANDS` and the local Pi dashboard ("Pump 2" = `pc1`). `pc2` is MASTER2 and `pc3` is MASTER1. |
-| The public broker accepts anonymous clients | A credential-less MQTT CONNECT to `178.128.49.254:1883` from the owner's Mac returned CONNACK 0. Ports 1883, 9001, 8883 are reachable. |
+| The public broker accepts anonymous clients | A credential-less MQTT CONNECT to `<DROPLET_PUBLIC_IP>:1883` from the owner's Mac returned CONNACK 0. Ports 1883, 9001, 8883 are reachable. |
 | Only one process owns the UART | `serial_bridge` (pid 996) holds `/dev/ttyAMA0`. `cmd_node` and `dashboard_tx_node` both publish `stm32/cmd/raw`. |
 | The AI person detector is not running anywhere | No `wgw-detect` unit, no detector process on the Pi; no `ai-receiver` process on the droplet. `water/gate/person` is never published. |
 
@@ -61,7 +61,7 @@ Kept as the existing read-only "Master relay" row (pc2 AND pc3). It is not in th
 ### O1. Ops runbook (`docs/ops/pi-droplet-alignment.md`)
 A document, not automation. Ordered steps, each with the exact command, the expected result, and a rollback; the owner runs everything that needs `sudo`:
 1. Record the current state (broker conf, `passwd`, `acl`, unit files) as a backup.
-2. Move `webrtc_bridge` off the public IP `178.128.49.254:9001` onto the tailnet address with credentials.
+2. Move `webrtc_bridge` off the public IP `<DROPLET_PUBLIC_IP>:9001` onto the tailnet address with credentials.
 3. Read `/etc/mosquitto/acl` and confirm the accounts: `nextjs` (publish `stm32/cmd`, read `stm32/status/all`, `water/gate/person`) and the Pi nodes; fix the ACL before enabling it.
 4. Apply `secure.conf.staged` (listeners bound to loopback and the tailnet address, `allow_anonymous false`, password file, ACL).
 5. Rotate the `nextjs` password in `/etc/mosquitto/passwd`, `app.env` and the Pi units' `MQTT_PASS`.
@@ -75,7 +75,7 @@ Ordering constraint (from `docs/IDEA.md`): never close the broker ports before t
 ## Testing
 
 - W2: unit test the "pump rows disabled" predicate (mode OFF + fresh → disabled; OFF + stale → enabled; MANUAL/AUTO/null → enabled).
-- W3: unit tests for `noCurrentWhilePumpOn` (pump on + 0 → true; pump on + 1.2 → false; pump off + 0 → false; current null → false) and for the 10 s hold.
+- W3: unit tests for `noCurrentWhilePumpOn` (pump on + 0 → true; pump on + 1.2 → false; pump off + 0 → false; current null → false). The 10 s hold is a timer inside a component and the repo's vitest runs in a node environment with no DOM, so it is checked by hand after deploy, not by a unit test.
 - `bun run typecheck`, `bun run lint`, `bun run test` (vitest) stay green.
 - Hardware acceptance, by the owner with someone at the site: in MANUAL, `R1` then `R0` from the dashboard changes `pc1` and the pump physically responds. This is the one thing the evidence cannot settle.
 
