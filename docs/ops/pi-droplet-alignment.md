@@ -18,10 +18,17 @@
 ## Steps
 
 ### 1. Back up [U]
+On the droplet:
 ```bash
 sudo mkdir -p /root/mosquitto-backup && sudo cp -a /etc/mosquitto /root/mosquitto-backup/$(date +%F)
+cp -a <WGW_ROOT>/app.env <WGW_ROOT>/app.env.bak-$(date +%F)
 ```
-Expected: the directory exists. Rollback for steps 4-6 is copying it back and `sudo systemctl restart mosquitto`.
+On the Pi:
+```bash
+sudo cp -a /etc/systemd/system/webrtc-bridge.service /etc/systemd/system/webrtc-bridge.service.bak-$(date +%F)
+cp -a ~/stm32_bridge/webrtc_bridge.py ~/stm32_bridge/webrtc_bridge.py.bak-$(date +%F)
+```
+Expected: all four copies exist. The rollback at the end of this document uses them.
 
 ### 2. Read the ACL and the user list [U]
 `/etc/mosquitto/acl` and `/etc/mosquitto/passwd` are root-only (an unprivileged read gave "Permission denied"):
@@ -38,8 +45,8 @@ Confirm these accounts and topics exist, and add what is missing before step 5:
 
 ### 3. Give `webrtc-bridge` credentials [U]
 `webrtc_bridge.py` has no username or password support (no `username_pw_set`, no `MQTT_USER` or `MQTT_PASS` read). It also supports a plain TCP URL: `parse_broker` treats `mqtt://host:port` as TCP and `ws://`, `wss://` as WebSocket. Before step 5:
-1. Add the account from step 2: `sudo mosquitto_passwd /etc/mosquitto/passwd pi_webrtc` (prompts for a password).
-2. Patch the script on the Pi so the client calls `username_pw_set(os.environ["MQTT_USER"], os.environ["MQTT_PASS"])` before `connect`.
+1. Add the account from step 2: `sudo mosquitto_passwd /etc/mosquitto/passwd pi_webrtc` (prompts for a password), then `sudo systemctl reload mosquitto`. Mosquitto reads the password file only at start or reload. While `default.conf` still has `allow_anonymous true` and no `password_file`, the account is not enforced yet; it must exist before step 6.
+2. Patch the script on the Pi so that, when `MQTT_USER` is set in the environment, the client calls `username_pw_set(os.environ["MQTT_USER"], os.environ.get("MQTT_PASS", ""))` before `connect`. Read it with `os.environ.get` and skip the call when unset, so an old unit file without the variables still starts (rollback below relies on that).
 3. In the unit, replace `MQTT_BROKER=ws://<DROPLET_PUBLIC_IP>:9001` with `MQTT_BROKER=mqtt://<DROPLET_TAILNET_IP>:1883` and add `MQTT_USER` and `MQTT_PASS` (use an `EnvironmentFile` with mode 600, not the unit text). The script's own default is `wss://hyxc.io/mqtt`; that needs a Cloudflare tunnel route to the broker's WebSocket listener and still needs the same credentials, so the tailnet TCP address is simpler.
 4. `sudo systemctl daemon-reload && sudo systemctl restart webrtc-bridge`.
 
@@ -52,6 +59,7 @@ Expected: `ss -tn | grep 1883` on the Pi shows its connection to the tailnet add
 The `nextjs` password was written in plain text in the 2026-11-03 handoff document. Set a new one and put it in the same two places:
 ```bash
 sudo mosquitto_passwd /etc/mosquitto/passwd nextjs
+sudo systemctl reload mosquitto
 ```
 Then update `MQTT_PASSWORD` in the droplet's `app.env` (mode 600). Do not run `docker run --env-file` against `app.env`: the quoted `PGOPTIONS` value keeps its quotes that way and breaks the database connection. Recreate the container with `docker compose` as `deploy/pull-deploy.sh` does.
 
@@ -80,5 +88,19 @@ The meter reads 0 A, 0 W and 0 kWh in every one of 7,202 retained frames, includ
 - Clamp reads current, PZEM reads 0 → the meter's current sensor is not on that circuit, or the controller does not read the current registers.
 - Clamp reads 0 too → the pump does not run (relay open, breaker off): the relay bit is not proof of a running pump.
 
-## Rollback summary
-Steps 3-6: copy `/root/mosquitto-backup/<date>` back to `/etc/mosquitto`, restore the previous unit file, `sudo systemctl restart mosquitto webrtc-bridge`.
+## Rollback (steps 3-6)
+Run each host's part with its own backups from step 1. Restore the unit file and the script together; the patched script also works with the old unit (it skips credentials when `MQTT_USER` is unset).
+
+**Droplet**
+```bash
+sudo rm -rf /etc/mosquitto && sudo cp -a /root/mosquitto-backup/<date> /etc/mosquitto && sudo systemctl restart mosquitto
+cp -a <WGW_ROOT>/app.env.bak-<date> <WGW_ROOT>/app.env
+```
+Then recreate the web container with `docker compose` (as `deploy/pull-deploy.sh` does) so it reads the restored `app.env`. Do not use `docker run --env-file`.
+
+**Pi**
+```bash
+sudo cp -a /etc/systemd/system/webrtc-bridge.service.bak-<date> /etc/systemd/system/webrtc-bridge.service
+cp -a ~/stm32_bridge/webrtc_bridge.py.bak-<date> ~/stm32_bridge/webrtc_bridge.py
+sudo systemctl daemon-reload && sudo systemctl restart webrtc-bridge
+```
