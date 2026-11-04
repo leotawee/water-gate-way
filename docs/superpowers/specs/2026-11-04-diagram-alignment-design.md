@@ -75,7 +75,7 @@ Ordering constraint (from `docs/IDEA.md`): never close the broker ports before t
 ## Testing
 
 - W2: unit test the "pump rows disabled" predicate (mode OFF + fresh → disabled; OFF + stale → enabled; MANUAL/AUTO/null → enabled).
-- W3: unit tests for `noCurrentWhilePumpOn` (pump on + 0 → true; pump on + 1.2 → false; pump off + 0 → false; current null → false) and for the 10 s hold.
+- W3: unit tests for `noCurrentWhilePumpOn` (pump on + 0 → true; pump on + 1.2 → false; pump off + 0 → false; current null → false). The 10 s hold is a timer inside a component and the repo's vitest runs in a node environment with no DOM, so it is checked by hand after deploy, not by a unit test.
 - `bun run typecheck`, `bun run lint`, `bun run test` (vitest) stay green.
 - Hardware acceptance, by the owner with someone at the site: in MANUAL, `R1` then `R0` from the dashboard changes `pc1` and the pump physically responds. This is the one thing the evidence cannot settle.
 
