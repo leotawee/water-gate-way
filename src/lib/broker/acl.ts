@@ -17,7 +17,11 @@ function checkUser(label: string, v: string): string {
  */
 export function renderAcl(gateIds: string[], serverUser = "nextjs", legacyDeviceUser?: string): string {
   checkUser("server user", serverUser);
-  if (legacyDeviceUser !== undefined) checkUser("legacy device user", legacyDeviceUser);
+  if (legacyDeviceUser !== undefined) {
+    checkUser("legacy device user", legacyDeviceUser);
+    // WHY: Mosquitto merges repeated `user` blocks; the server would gain write on the legacy status topics.
+    if (legacyDeviceUser === serverUser) throw new Error("legacy device user must differ from the server user");
+  }
   for (const id of gateIds) if (!isGateId(id)) throw new Error(`invalid gate id: ${JSON.stringify(id)}`);
 
   const out: string[] = [

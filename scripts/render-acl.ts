@@ -22,6 +22,9 @@ for (let i = 0; i < args.length; i++) {
   else ids.push(a);
 }
 
+// WHY: a server-only ACL applied to the broker would lock out every device.
+if (ids.length === 0) die("give at least one gate id, for example: gate-1");
+
 try {
   process.stdout.write(renderAcl(ids, serverUser, legacyUser));
 } catch (e) {

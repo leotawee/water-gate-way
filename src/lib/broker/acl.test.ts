@@ -76,6 +76,16 @@ describe("renderAcl", () => {
     expect(() => renderAcl(["gate-12345"])).toThrow();
   });
 
+  it("emits one block for a duplicated gate id", () => {
+    const d = blocks(renderAcl(["gate-1", "gate-1"]));
+    expect([...d.keys()]).toEqual(["nextjs", "gate-1"]);
+  });
+
+  it("throws when the legacy user equals the server user (blocks would merge)", () => {
+    expect(() => renderAcl(["gate-1"], "nextjs", "nextjs")).toThrow();
+    expect(() => renderAcl(["gate-1"], "web", "web")).toThrow();
+  });
+
   describe("legacy device block", () => {
     it("is absent unless requested", () => {
       expect(b.size).toBe(3);
