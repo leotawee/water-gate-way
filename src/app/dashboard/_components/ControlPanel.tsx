@@ -182,10 +182,12 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
     else void sendCommand(cmd);
   };
 
+  // WHY: the pumps sit together and the siren closes the pump group — the alarm belongs to the
+  // pump station, it must not split the two pumps apart in the reading order.
   const rows = [
     { key: "pump", name: "ปั๊ม 1", icon: Fan, onCmd: "P1", offCmd: "P0", state: devices?.pump ?? null, tone: "on" },
-    { key: "alarm", name: "สัญญาณเตือน", icon: Bell, onCmd: "A1", offCmd: "A0", state: devices?.alarm ?? null, tone: "danger" },
     { key: "relay1", name: "ปั๊ม 2", icon: Power, onCmd: "R1", offCmd: "R0", state: devices?.relay1 ?? null, tone: "on" },
+    { key: "alarm", name: "สัญญาณเตือน", icon: Bell, onCmd: "A1", offCmd: "A0", state: devices?.alarm ?? null, tone: "danger" },
   ] as const;
 
   // WHY: pc2 + pc3 are the master relays; the controller ties them to its mode (ON in AUTO/MANUAL, OFF in OFF) and
