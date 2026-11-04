@@ -2,9 +2,9 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, LogOut } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import AppHeader, { BrandMark } from "@/components/AppHeader";
-import { signOut } from "@/app/login/actions";
+import LogoutButton from "@/components/LogoutButton";
 import { useGateStatus } from "@/hooks/useGateStatus";
 import { isStale } from "@/lib/telemetry/stale";
 import type { Gate } from "@/lib/gates";
@@ -110,17 +110,11 @@ function DashboardHeader({
               ผู้ดูแลระบบ
             </Link>
           )}
-          <form action={signOut}>
-            <button type="submit" className={`${link} cursor-pointer`}>
-              <LogOut
-                className="size-4"
-                strokeWidth={1.75}
-                aria-hidden="true"
-              />
-              {/* WHY: icon-only on a phone so pill, clock and both links fit one row; the word stays for screen readers. */}
-              <span className="sr-only sm:not-sr-only">ออกจากระบบ</span>
-            </button>
-          </form>
+          <LogoutButton
+            className={`${link} cursor-pointer`}
+            /* WHY: icon-only on a phone so pill, clock and both links fit one row; the word stays for screen readers. */
+            labelClassName="sr-only sm:not-sr-only"
+          />
         </div>
       </div>
     </header>
@@ -167,7 +161,7 @@ function LiveDashboard({ gate, role }: Props) {
       />
       <main
         id="main"
-        className="mx-auto w-full max-w-[1376px] flex-1 space-y-6 px-4 pt-6 pb-12 sm:px-6 lg:px-8"
+        className="stagger mx-auto w-full max-w-[1376px] flex-1 space-y-6 px-4 pt-6 pb-12 sm:px-6 lg:px-8"
       >
         {/* WHY: the time is the telemetry's own receivedAt, never the wall clock, so a dead feed cannot look fresh. */}
         <p className="text-sm text-muted tabular-nums">

@@ -151,6 +151,14 @@
 /* WHY: menus/popovers grow from their trigger: set `--origin` (e.g. top left) per call site. */
 .anim-pop-in { animation: anim-pop-in var(--dur-fast) var(--ease-out) both; transform-origin: var(--origin, center); }
 .anim-shake { animation: anim-shake 320ms ease-out both; }
+/* Dashboard tiles after login: one rise, 60 ms apart (occasional tier — a login, not a per-frame one). */
+.stagger > * {
+  animation: anim-rise-in var(--dur-base) var(--ease-out) both;
+}
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
 /* WHY: `backwards`, not `both` — a retained transform would make this wrapper a containing block for fixed descendants. */
 .page-enter { animation: page-enter var(--dur-base) var(--ease-out) backwards; }
 
@@ -256,6 +264,10 @@
   .anim-rise-in,
   .anim-pop-in {
     animation: anim-fade-in var(--dur-fast) var(--ease-out) both;
+  }
+  .stagger > * {
+    animation: anim-fade-in var(--dur-fast) var(--ease-out) both;
+    animation-delay: 0ms !important;
   }
   *,
   *::before,

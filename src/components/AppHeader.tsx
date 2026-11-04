@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { LogOut } from "lucide-react";
-import { signOut } from "@/app/login/actions";
+import LogoutButton from "@/components/LogoutButton";
 
 interface AppHeaderProps {
   /** Which top-level section is open; that nav item is marked. Null on a gate's dashboard. */
@@ -51,16 +50,9 @@ export default function AppHeader({ active, isAdmin }: AppHeaderProps) {
           )}
         </nav>
 
-        <form action={signOut}>
-          {/* WHY: the word stays visible at every width; a phone user must find sign-out without guessing. */}
-          <button
-            type="submit"
-            className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-sm text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
-          >
-            <LogOut className="size-4" strokeWidth={1.75} aria-hidden="true" />
-            ออกจากระบบ
-          </button>
-        </form>
+        {/* WHY: the word stays visible at every width; a phone user must find sign-out without guessing.
+            Signing out ends the session for the whole device, so it asks once behind a modal (LogoutButton). */}
+        <LogoutButton className="inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-sm text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg" />
       </div>
     </header>
   );

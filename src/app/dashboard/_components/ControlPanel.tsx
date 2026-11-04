@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, Cpu, Fan, Hand, Lightbulb, Power, PowerOff } from "lucide-react";
+import { Bell, Cpu, Fan, Hand, Power, PowerOff } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRedirectToLogin } from "@/hooks/useRedirectToLogin";
 import type { Command, ModeCommand } from "@/lib/control/commands";
@@ -84,6 +84,7 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
   const [askOff, setAskOff] = useState(false);
   // A device command was tapped while the controller is in AUTO: ask before switching to MANUAL.
   const [askManual, setAskManual] = useState(false);
+  const [askAlarm, setAskAlarm] = useState(false);
   const redirectToLogin = useRedirectToLogin();
   // Commands go out one at a time, SEND_GAP_MS apart. WHY: tapping two devices quickly used to fail the
   // second with "too many commands"; now it waits its turn and its row shows the spinner meanwhile.
@@ -178,26 +179,25 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
   // Say so and offer the switch; an unknown mode (stale/missing) is not blocked, the server stays authoritative.
   const guardedSend = (cmd: Command) => {
     if (!isModeCommand(cmd) && !stale && mode === "AUTO") setAskManual(true);
+    // WHY: the siren is the loudest possible failure mode; a mis-tap must not fire it. A0 stays one tap.
+    else if (cmd === "A1") setAskAlarm(true);
     else void sendCommand(cmd);
   };
 
   const rows = [
     { key: "pump", name: "ปั๊มหลัก", icon: Fan, onCmd: "P1", offCmd: "P0", state: devices?.pump ?? null, tone: "on" },
     { key: "alarm", name: "สัญญาณเตือน", icon: Bell, onCmd: "A1", offCmd: "A0", state: devices?.alarm ?? null, tone: "danger" },
-    { key: "light", name: "ไฟส่องสว่าง", icon: Lightbulb, onCmd: "L1", offCmd: "L0", state: devices?.light ?? null, tone: "warn" },
     { key: "relay1", name: "ปั๊ม IoT 1", icon: Power, onCmd: "R1", offCmd: "R0", state: devices?.relay1 ?? null, tone: "on" },
     {
+      // WHY: per the 2026-11-03 hardware handoff, cmd_node converts Q1/Q0 to master relay 2 on the STM32,
+      // so this output is remotely controllable; the reported state is pump.pc2 in stm32/status/all.
       key: "relay2",
-      // WHY: the project diagram shows only two pumps, so Q is not a third pump. The Pi traces show M1 and M2
-      // always switch together and stay on in every mode except OFF, so a Q0 (binary or ASCII) never takes effect.
-      // What M1/M2 drive is unconfirmed (master contactor or AI-linked), hence the neutral name.
-      name: "รีเลย์ M2",
+      name: "IoT 2",
       icon: Power,
       onCmd: "Q1",
       offCmd: "Q0",
       state: devices?.relay2 ?? null,
       tone: "on",
-      locked: "เฟิร์มแวร์ควบคุมเอง สั่งจากเว็บไม่ได้ จะปิดเฉพาะในโหมด OFF",
     },
   ] as const;
 
@@ -286,8 +286,7 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
             status={readOnly ? null : statusOf(row.key)}
             onSend={guardedSend}
             tone={row.tone}
-            readOnly={readOnly || "locked" in row}
-            note={"locked" in row ? row.locked : undefined}
+            readOnly={readOnly}
           />
         ))}
       </div>
@@ -306,6 +305,22 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
         }}
       >
         ระบบควบคุมอุปกรณ์เองอยู่ จึงสั่งปั๊มหรืออุปกรณ์จากหน้านี้ไม่ได้ สลับเป็นโหมดควบคุมเองหรือไม่? เมื่อสลับแล้วให้กดสั่งอุปกรณ์อีกครั้ง
+      </Modal>
+
+      <Modal
+        open={askAlarm}
+        tone="danger"
+        title="เปิดสัญญาณเตือน?"
+        onClose={() => setAskAlarm(false)}
+        confirm={{
+          label: "เปิดสัญญาณ",
+          onConfirm: () => {
+            setAskAlarm(false);
+            void sendCommand("A1");
+          },
+        }}
+      >
+        ไซเรนจะดังทันทีที่หน้างาน ยืนยันเปิดหรือไม่?
       </Modal>
 
       <Modal
