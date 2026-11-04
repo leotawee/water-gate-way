@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { GATE_ID_RE } from "@/lib/gates";
 import { requireUser } from "@/lib/auth/dal";
 import { hashPassword } from "@/lib/auth/password";
 import { clientIp } from "@/lib/http/clientIp";
@@ -12,7 +13,6 @@ export type AdminState = { error?: string } | undefined;
 
 const ROLES = ["viewer", "operator", "admin"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const GATE_ID = /^gate-[0-9]{1,4}$/;
 // WHY: same shape as scripts/create-user.ts; the 254 cap is the email length limit.
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_MIN = 8;
@@ -133,7 +133,7 @@ export async function createGate(_prev: AdminState, form: FormData): Promise<Adm
   const actor = await requireUser("admin");
   const id = field(form, "id", 16) ?? "";
   const gate = parseGate(form);
-  if (!GATE_ID.test(id) || !gate) return { error: "ตรวจสอบรหัส ชื่อ ที่ตั้ง และพิกัดของประตูน้ำ" };
+  if (!GATE_ID_RE.test(id) || !gate) return { error: "ตรวจสอบรหัส ชื่อ ที่ตั้ง และพิกัดของประตูน้ำ" };
 
   try {
     await db.query(
@@ -154,7 +154,7 @@ export async function updateGate(_prev: AdminState, form: FormData): Promise<Adm
   const actor = await requireUser("admin");
   const id = field(form, "id", 16) ?? "";
   const gate = parseGate(form);
-  if (!GATE_ID.test(id) || !gate) return { error: "ตรวจสอบชื่อ ที่ตั้ง และพิกัดของประตูน้ำ" };
+  if (!GATE_ID_RE.test(id) || !gate) return { error: "ตรวจสอบชื่อ ที่ตั้ง และพิกัดของประตูน้ำ" };
 
   const { rowCount } = await db.query(
     "update gates set name = $1, location = $2, lat = $3, lng = $4, has_device = $5, updated_at = now() where id = $6",
@@ -171,7 +171,7 @@ export async function setGateActive(_prev: AdminState, form: FormData): Promise<
   const actor = await requireUser("admin");
   const id = field(form, "id", 16) ?? "";
   const flag = field(form, "active", 5);
-  if (!GATE_ID.test(id) || (flag !== "true" && flag !== "false")) return { error: "คำขอไม่ถูกต้อง" };
+  if (!GATE_ID_RE.test(id) || (flag !== "true" && flag !== "false")) return { error: "คำขอไม่ถูกต้อง" };
 
   const { rowCount } = await db.query("update gates set active = $1, updated_at = now() where id = $2", [flag === "true", id]);
   if (!rowCount) return { error: "ไม่พบประตูน้ำ" };

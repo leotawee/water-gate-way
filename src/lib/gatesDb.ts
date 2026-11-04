@@ -1,9 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { Gate } from "@/lib/gates";
-
-// WHY: the id is a URL segment and a DB key; reject anything else before it reaches a query.
-const GATE_ID = /^gate-[0-9]{1,4}$/;
+import { GATE_ID_RE, type Gate } from "@/lib/gates";
 
 // Admin pages need the extra fields; the map and dashboard only read the Gate subset.
 export type GateRecord = Gate & { location: string; active: boolean };
@@ -38,7 +35,7 @@ export async function listGates({ includeInactive = false }: { includeInactive?:
 
 /** Active gate by id, or null (missing, inactive or malformed id). */
 export async function getGate(id: string | undefined): Promise<Gate | null> {
-  if (typeof id !== "string" || !GATE_ID.test(id)) return null;
+  if (typeof id !== "string" || !GATE_ID_RE.test(id)) return null;
   const { rows } = await db.query("select id, name, lat, lng, has_device from gates where id = $1 and active", [id]);
   const r = rows[0] as Pick<GateRow, "id" | "name" | "lat" | "lng" | "has_device"> | undefined;
   return r ? { id: r.id, name: r.name, lat: r.lat, lng: r.lng, hasDevice: r.has_device } : null;
