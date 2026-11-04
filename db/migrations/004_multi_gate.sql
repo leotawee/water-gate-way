@@ -1,5 +1,7 @@
 -- 004: multi-gate support. Additive and idempotent: only adds columns and an index.
 --
+-- Apply with: PGOPTIONS='-c search_path=wgw,public' psql -1 -v ON_ERROR_STOP=1 -f db/migrations/004_multi_gate.sql
+--
 -- Deploy order (the owner applies this; it is not applied by any script):
 --   1. Apply this migration.
 --   2. Deploy the new code (it reads control_audit.gate_id and the new gates columns).
@@ -16,5 +18,10 @@ alter table gates add column if not exists last_seen_at timestamptz;
 
 alter table control_audit add column if not exists gate_id text;
 
--- WHY: water_levels predates the migrations in this repo; only the index is added here.
-create index if not exists water_levels_device_time_idx on water_levels (device_id, measured_at);
+-- WHY: water_levels predates the migrations in this repo (old public schema); guard so a database
+-- bootstrapped from 001-004 alone does not fail here.
+do $$ begin
+  if to_regclass('public.water_levels') is not null then
+    create index if not exists water_levels_device_time_idx on water_levels (device_id, measured_at);
+  end if;
+end $$;

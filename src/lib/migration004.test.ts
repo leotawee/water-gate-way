@@ -33,9 +33,16 @@ describe("004_multi_gate.sql", () => {
     );
   });
 
+  it("guards the index on water_levels existing", () => {
+    const guard = body.indexOf("to_regclass('public.water_levels')");
+    const idx = body.indexOf("create index if not exists water_levels_device_time_idx");
+    expect(guard).toBeGreaterThanOrEqual(0);
+    expect(idx).toBeGreaterThan(guard);
+  });
+
   it("keeps the backfill inside a comment only", () => {
     const stmt = "update water_levels set device_id = 'gate-1' where device_id = 'stm32-radar'";
-    expect(body).not.toContain("update ");
+    expect(body).not.toMatch(/\bupdate\b/);
     const hits = lines.filter((l) => l.includes(stmt));
     expect(hits.length).toBeGreaterThan(0);
     for (const l of hits) expect(l.trim().startsWith("--")).toBe(true);
