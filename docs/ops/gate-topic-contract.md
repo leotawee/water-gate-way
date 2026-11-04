@@ -24,6 +24,8 @@ Legacy topics, used by the first cabinet until it moves (they map to `gate-1`):
 | `water/gate/person` | `gate/gate-1/person` |
 | `stm32/cmd` | `gate/gate-1/cmd` |
 
+The legacy topics belong to `gate-1` only: a cabinet must never publish on them, and once the per-gate ACL is enforced only the legacy account can write them (the web app additionally writes `stm32/cmd`).
+
 ## `TOPIC_PREFIX`
 
 Every Pi service that touches these topics must read the environment variable `TOPIC_PREFIX` and build its topics from it, for example `TOPIC_PREFIX=gate/gate-2` gives `gate/gate-2/status`, `gate/gate-2/person`, `gate/gate-2/cmd`. One Pi process per cabinet, one prefix each. Never hard-code a gate id.
@@ -35,7 +37,11 @@ The first cabinet already works on the legacy topics. Do not break it. The gener
 1. The hardware team keeps the existing legacy connection (existing account, legacy topics) unchanged.
 2. The hardware team adds a **second** connection authenticated as user `gate-1`. It publishes `gate/gate-1/status` and `gate/gate-1/person` and subscribes to `gate/gate-1/cmd`. Both connections run side by side.
 3. The web app keeps sending gate-1 commands to `stm32/cmd` while `WGW_LEGACY_TOPICS` is unset (default). Gate-2 and later always use `gate/<id>/cmd`.
-4. Switch the web app only after **both** are verified: (a) traffic is seen on `gate/gate-1/status`, and (b) a test command sent from the dashboard reaches the Pi on `gate/gate-1/cmd`. Then set `WGW_LEGACY_TOPICS=0` on the web app and recreate its container. Gate-1 commands now go to `gate/gate-1/cmd`.
+4. Switch the web app only after **both** are verified: (a) traffic is seen on `gate/gate-1/status`, and (b) a command published on `gate/gate-1/cmd` reaches the Pi. Before `WGW_LEGACY_TOPICS=0` the dashboard sends gate-1 commands to `stm32/cmd`, so a dashboard test cannot prove (b). Check (b) in one of two ways:
+   - **Direct publish (no web change):** publish a safe test command as the server account straight to `gate/gate-1/cmd`, for example `mosquitto_pub -h <broker host> -u <server account> -P <server password> -t gate/gate-1/cmd -m <current mode word>`. A safe command is a read-only one or the current mode word re-sent (`AUTO`, `MANUAL` or `OFF`, whichever is active). Confirm the Pi acts on it, for example its log shows the command and the next status on `gate/gate-1/status` is unchanged.
+   - **Flip and roll back:** set `WGW_LEGACY_TOPICS=0`, recreate the container, and test from the dashboard. If the command does not arrive, unset `WGW_LEGACY_TOPICS` and recreate the container again. Rollback is safe because the Pi still listens on `stm32/cmd`.
+
+   When (a) and (b) hold, keep `WGW_LEGACY_TOPICS=0` on the web app and recreate its container. Gate-1 commands now go to `gate/gate-1/cmd`.
 5. Removing the legacy account block: regenerate the ACL **without** `--legacy-user` only after the hardware team confirms that no service uses the legacy account any more. That block also grants the Pi's internal topics `tank/#`, `pump/cmd`, `relay/cmd` and `mode/cmd`. This contract defines no `gate/<id>/…` replacement for them, so those services must be migrated, or given their own ACL rules, first. Removing the block does **not** remove the legacy topics from the broker: the server block always keeps `stm32/status/all`, `water/gate/person` (read) and `stm32/cmd` (write).
 
 ## Generate the ACL
