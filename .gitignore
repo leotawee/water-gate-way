@@ -63,3 +63,7 @@ env/
 
 # design inspector screenshots
 /.taste-skill/
+
+# Impeccable design tooling: per-machine overrides and live-mode working files
+/.impeccable/config.local.json
+/.impeccable/live/

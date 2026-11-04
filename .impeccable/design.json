@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-04T09:46:48Z",
+  "title": "Design System: Water Gate Way",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Water Blue", "canonical": "#3860b0", "purpose": "Water data (gauge fill, chart line) and the focus ring — never chrome." },
+      "brand": { "role": "secondary", "displayName": "Chiang Mai Maker Navy", "canonical": "#202068", "purpose": "Dashboard header and control-panel header bar only." },
+      "on": { "role": "state", "displayName": "Running Green", "canonical": "#136b35", "purpose": "Device running; darkened from #157f3c for 4.5:1 on on-soft." },
+      "off": { "role": "state", "displayName": "Stopped Slate", "canonical": "#3f4b57", "purpose": "Device stopped." },
+      "warn": { "role": "state", "displayName": "Warning Amber", "canonical": "#a35207", "purpose": "Warnings and the light device tone." },
+      "danger": { "role": "state", "displayName": "Alarm Red", "canonical": "#b4231b", "purpose": "Alarm, errors, destructive actions." },
+      "unknown": { "role": "state", "displayName": "Unknown Grey", "canonical": "#7b858e", "purpose": "Stale or missing telemetry; dashed outline, never a fill." },
+      "video-black": { "role": "neutral", "displayName": "Camera Black", "canonical": "#000000", "purpose": "Camera tile surface and video scrims only." }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The gate name on a dashboard." },
+      "body": { "displayName": "Body", "purpose": "Readings and copy; every number is tabular-nums." },
+      "small": { "displayName": "Small", "purpose": "Pills and chips at 12px bold." }
+    },
+    "shadows": [
+      { "name": "map-popup", "value": "0 4px 16px rgb(20 32 41 / 0.08)", "purpose": "The one resting shadow: the Leaflet popup, the only static surface that floats." },
+      { "name": "modal", "value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)", "purpose": "Tailwind shadow-xl on the top-layer <dialog>." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.23, 1, 0.32, 1)", "purpose": "Entrances; the only curve for appearing motion." },
+      { "name": "ease-in-out", "value": "cubic-bezier(0.77, 0, 0.175, 1)", "purpose": "On-screen movement, if any is ever added." },
+      { "name": "dur-fast", "value": "120ms", "purpose": "Small feedback: overlays, colour snaps under reduced motion." },
+      { "name": "dur-base", "value": "180ms", "purpose": "Default for colour/background transitions and one-shot entrances." },
+      { "name": "dur-slow", "value": "260ms", "purpose": "The ceiling; nothing runs longer." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "btn-primary",
+      "description": "Near-black ink; the one primary action per screen.",
+      "html": "<button class=\"ds-btn-primary\">บันทึก</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border: none; border-radius: 6px; background: var(--color-fg, #142029); color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 180ms; } .ds-btn-primary:hover { background: rgb(20 32 41 / 0.85); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-accent, #3860b0); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "btn-secondary",
+      "description": "White surface with a control border for every non-primary action.",
+      "html": "<button class=\"ds-btn-secondary\">ยกเลิก</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 6px; background: var(--color-surface, #ffffff); color: var(--color-fg, #142029); font-family: inherit; font-size: 14px; font-weight: 700; border: 1px solid var(--color-control, #c9cec6); cursor: pointer; transition: background 180ms; } .ds-btn-secondary:hover { background: var(--color-surface-2, #eceee9); } .ds-btn-secondary:active { transform: translateY(1px); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--color-accent, #3860b0); outline-offset: 2px; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "White field with a control border; focus is the global accent ring.",
+      "html": "<input class=\"ds-input\" placeholder=\"อีเมล\">",
+      "css": ".ds-input { min-height: 44px; padding: 8px 12px; border-radius: 6px; background: var(--color-surface, #ffffff); color: var(--color-fg, #142029); font-family: inherit; font-size: 14px; border: 1px solid var(--color-control, #c9cec6); transition: background 180ms; } .ds-input::placeholder { color: var(--color-muted, #55606a); } .ds-input:focus-visible { outline: 2px solid var(--color-accent, #3860b0); outline-offset: 2px; }"
+    },
+    {
+      "name": "State Pill (on)",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Dot + word in the state colour; colour never carries the meaning alone.",
+      "html": "<span class=\"ds-pill-on\"><span class=\"ds-pill-dot\"></span>ทำงาน</span>",
+      "css": ".ds-pill-on { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; padding: 2px 10px; border-radius: 9999px; background: var(--color-on-soft, #e3f3e8); color: var(--color-on, #136b35); font-size: 12px; font-weight: 700; } .ds-pill-dot { width: 8px; height: 8px; border-radius: 9999px; background: var(--color-on, #136b35); }"
+    },
+    {
+      "name": "Device Segment (on)",
+      "kind": "custom",
+      "refersTo": "device-switch",
+      "description": "The filled half of the [ ปิด | เปิด ] switch; carries aria-pressed and the check icon.",
+      "html": "<button class=\"ds-segment-on\">เปิด</button>",
+      "css": ".ds-segment-on { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 80px; min-height: 44px; padding: 0 16px; border: none; border-radius: 0; background: var(--color-on, #136b35); color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 180ms; } .ds-segment-on:active { transform: translateY(1px); } .ds-segment-on:focus-visible { outline: 2px solid var(--color-accent, #3860b0); outline-offset: -2px; }"
+    },
+    {
+      "name": "Feature Tile",
+      "kind": "card",
+      "refersTo": "tile",
+      "description": "The dashboard content panel: flat white, 1px edge, 16px radius — no shadow.",
+      "html": "<div class=\"ds-tile\"><h3 class=\"ds-tile-title\">ระดับน้ำ</h3></div>",
+      "css": ".ds-tile { min-width: 0; background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e1e4df); border-radius: 16px; padding: 20px; } .ds-tile-title { margin: 0 0 16px; font-size: 16px; font-weight: 700; color: var(--color-fg, #142029); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "A field engineering instrument panel",
+    "overview": "Calm, light, legible in sunlight, trustworthy like a well-made government utility tool. Not a sci-fi console, not a SaaS template. Flat panels with 1px edges; nothing floats except the map popup and the modal. Colour is rationed: chrome carries ink and navy only; state colours are the loudest thing on screen. Motion is a crisp utility: short fades and colour transitions, one entrance per arrival, nothing over 260 ms.",
+    "keyCharacteristics": [
+      "Flat panels with 1px edges; nothing floats except the map popup and the modal.",
+      "Colour is rationed: chrome carries ink and navy only; state colours are the loudest thing on screen.",
+      "Every number is tabular; every state is a word plus a dot, never colour alone.",
+      "Motion is a crisp utility: short fades and colour transitions, one entrance per arrival, nothing over 260 ms."
+    ],
+    "rules": [
+      { "name": "The Colour-Never-Alone Rule", "body": "Every state is a word plus a dot plus an icon; colour may never carry the meaning by itself.", "section": "colors" },
+      { "name": "The Accent-Rationing Rule", "body": "Accent is water data and the focus ring — chrome never wears it.", "section": "colors" },
+      { "name": "The Tabular Rule", "body": "Every number renders font-variant-numeric: tabular-nums. No monospace font anywhere.", "section": "typography" },
+      { "name": "The Flat-Panel Rule", "body": "Cards and panels never carry a shadow — the 1px border is the whole edge. If a surface does not float above the page, it gets no shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep every state as word + dot + icon; colour never works alone.",
+      "Do keep a stale reading visually muted AND worded (UNKNOWN pill, muted readings) — stale must never look live.",
+      "Do use the motion tokens (--dur-fast/--dur-base/--dur-slow, --ease-out) for every transition; entrances are rare-tier one-shots only (route change, login, overlay appears).",
+      "Do reserve shadows for the map popup and the modal."
+    ],
+    "donts": [
+      "Don't put a shadow on a card, panel or tile (The Flat-Panel Rule).",
+      "Don't animate per-telemetry-tick updates — colour transitions only, never keyframes.",
+      "Don't wear accent on chrome — brand navy and ink are the only chrome colours.",
+      "Don't let any motion run longer than 260 ms, and always honour prefers-reduced-motion (transform entrances fall back to a short fade; spinners keep spinning)."
+    ]
+  }
+}

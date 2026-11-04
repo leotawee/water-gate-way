@@ -69,6 +69,12 @@
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
+
+  /* In-flight submit feedback (auth forms set aria-busy directly; admin ActionForm syncs it onto
+     its server-rendered buttons): the same 60% dim the btn utility uses for disabled. */
+  button[aria-busy="true"] {
+    opacity: 0.6;
+  }
 }
 
 /* Shared component classes. One definition each, so every page uses the same look.

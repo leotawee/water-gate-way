@@ -214,7 +214,7 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
   const modeLabel = (cmd: Command) => MODES.find((m) => m.cmd === cmd)?.label ?? cmd;
 
   return (
-    <section aria-labelledby="controls-heading" className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+    <section aria-labelledby="controls-heading" className="overflow-hidden rounded-2xl border border-border bg-surface">
       <header className="flex items-baseline justify-between gap-3 bg-brand px-5 py-3.5 text-white">
         <h2 id="controls-heading" className="text-base font-bold">
           {readOnly ? "สถานะอุปกรณ์" : "แผงควบคุม"}

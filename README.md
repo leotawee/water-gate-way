@@ -4,12 +4,18 @@ Web dashboard for the Water Gate Way system, built with [Next.js](https://nextjs
 
 ## Repository layout
 
-- `src/`: Next.js app (`app/`, `components/`, `hooks/`)
+- `src/`: Next.js app (`app/`, `components/`, `hooks/`, `lib/`)
 - `public/`: static assets
 - `mqtt_bridge.js`: Node.js MQTT bridge (`npm run bridge`)
 - `python_detection_sender.py`, `ai-receiver/`: Python scripts
 - `esp32-s3/`: PlatformIO project for the ESP32-S3 HMI
-- `go2rtc.yaml`, `start-pi-webrtc.sh`: video streaming config and startup script
+- `go2rtc.example.yaml`, `mqtt-bridge.service.example`, `start-pi-webrtc.sh`: video streaming config examples and the Pi startup script
+- `db/migrations/`: SQL schema
+- `scripts/`: admin utilities (`create-user.ts`) and dev tools
+- `tests/`: deployment tests, `deploy/`: deployment helpers, `demo/`: local test fixtures
+- `docs/`: all documentation (see [Documentation](#documentation))
+- `plans/`: improvement plans written by the animation audit
+- `PRODUCT.md`, `DESIGN.md`: product brief and design contract — kept at the root because design tooling reads them from there
 
 ## Architecture
 
@@ -75,10 +81,17 @@ ai-receiver/.venv/bin/python -m pytest ai-receiver/test_auth.py
 
 ## Documentation
 
-- [PI_WEBRTC_RTSP_SETUP_GUIDE.md](PI_WEBRTC_RTSP_SETUP_GUIDE.md): Raspberry Pi 4 pulls the Tapo C310 RTSP stream and serves it over WebRTC using pi-webrtc.
-- [RASPBERRYPI_SETUP_GUIDE.md](RASPBERRYPI_SETUP_GUIDE.md): Raspberry Pi 4 setup with TzuHuanTai/RaspberryPi-WebRTC for low-latency video from a CSI or USB camera.
-- [MQTT_BRIDGE_SETUP_GUIDE.md](MQTT_BRIDGE_SETUP_GUIDE.md): Video from the Pi reaches the dashboard as Base64 JPEG frames over MQTT.
-- [WEBRTC_INTEGRATION_GUIDE.md](WEBRTC_INTEGRATION_GUIDE.md): `<WebRTCPlayer />` component props, usage, and the signaling backend it requires.
-- [TAPO_C310_SETUP_GUIDE.md](TAPO_C310_SETUP_GUIDE.md): Tapo C310 RTSP to WebRTC using an FFmpeg transcoder.
+All documentation lives in `docs/`:
+
+- Setup and integration guides in [`docs/setup/`](docs/setup):
+  - [PI_WEBRTC_RTSP_SETUP_GUIDE.md](docs/setup/PI_WEBRTC_RTSP_SETUP_GUIDE.md): Raspberry Pi 4 pulls the Tapo C310 RTSP stream and serves it over WebRTC using pi-webrtc.
+  - [RASPBERRYPI_SETUP_GUIDE.md](docs/setup/RASPBERRYPI_SETUP_GUIDE.md): Raspberry Pi 4 setup with TzuHuanTai/RaspberryPi-WebRTC for low-latency video from a CSI or USB camera.
+  - [MQTT_BRIDGE_SETUP_GUIDE.md](docs/setup/MQTT_BRIDGE_SETUP_GUIDE.md): Video from the Pi reaches the dashboard as Base64 JPEG frames over MQTT.
+  - [WEBRTC_INTEGRATION_GUIDE.md](docs/setup/WEBRTC_INTEGRATION_GUIDE.md): `<WebRTCPlayer />` component props, usage, and the signaling backend it requires.
+  - [TAPO_C310_SETUP_GUIDE.md](docs/setup/TAPO_C310_SETUP_GUIDE.md): Tapo C310 RTSP to WebRTC using an FFmpeg transcoder.
+- [docs/IDEA.md](docs/IDEA.md): the original product idea and constraints.
+- [docs/diagram/](docs/diagram): system flow diagrams (draw.io sources + PDF).
+- `docs/agent-log/`, `docs/audits/`, `docs/superpowers/plans/`: dated working logs, audits, and operational plans (the broker lockdown referenced in the deploy checklist lives there).
 - [AGENTS.md](AGENTS.md): Instructions for AI coding agents. This Next.js version has breaking changes, so read the bundled docs in `node_modules/next/dist/docs/` first.
 - [CLAUDE.md](CLAUDE.md): Claude Code entry point that imports `AGENTS.md`.
+- [PRODUCT.md](PRODUCT.md) and [DESIGN.md](DESIGN.md) at the repo root: the product brief and the design contract (light-only instrument-panel world, tokens, motion rules). They stay at the root because design tooling reads them from there.

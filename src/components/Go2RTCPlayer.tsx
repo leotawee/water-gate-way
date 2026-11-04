@@ -215,6 +215,7 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
           key={attempt}
           muted
           playsInline
+          aria-label={displayLabel}
           className="h-full w-full object-cover"
           onPlaying={() => {
             lastProgress.current = Date.now();

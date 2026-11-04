@@ -109,7 +109,7 @@ export default function WaterLevelChart() {
           id="download-graph-data"
           href="/api/water-level/download"
           download="water_levels_report.csv"
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-sm text-muted transition-colors duration-(--dur-base) hover:bg-surface-2 hover:text-fg"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm text-muted transition-colors duration-(--dur-base) hover:bg-surface-2 hover:text-fg"
         >
           <Download className="size-4" strokeWidth={1.75} aria-hidden="true" />
           ดาวน์โหลด CSV
@@ -118,7 +118,7 @@ export default function WaterLevelChart() {
 
       {/* WHY: every state keeps the plot's height, so nothing below jumps when the data lands. */}
       {data.length === 0 ? (
-        <div className="flex h-60 lg:h-[24rem] w-full items-center justify-center rounded-md border border-dashed border-border">
+        <div role="status" className="flex h-60 lg:h-[24rem] w-full items-center justify-center rounded-md border border-dashed border-border">
           <span className={`text-sm ${error ? "text-danger" : "text-muted"}`}>
             {loading ? "กำลังโหลดข้อมูล…" : (error ?? "ยังไม่มีข้อมูลระดับน้ำที่บันทึกไว้")}
           </span>
@@ -133,7 +133,13 @@ export default function WaterLevelChart() {
           )}
         </div>
       ) : (
-        <div className="h-60 lg:h-[24rem] w-full">
+        <div
+          // WHY role="img": Recharts renders an unlabelled SVG; the trend is non-text content that
+          // needs an accessible name (WCAG 1.1.1). The numbers themselves stay in the gauge + CSV.
+          role="img"
+          aria-label={`กราฟประวัติระดับน้ำ 24 ค่าล่าสุด พร้อมเส้นระดับเตือน ${LEVEL_WARN_M} เมตร และระดับอันตราย ${LEVEL_DANGER_M} เมตร`}
+          className="h-60 lg:h-[24rem] w-full"
+        >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke={CHART.grid} />

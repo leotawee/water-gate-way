@@ -34,7 +34,7 @@ function Panel({
         <h2 className="text-base font-bold text-fg">{title}</h2>
         <Link
           href={href}
-          className="group inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-sm font-bold text-fg transition-colors duration-150 hover:bg-surface-2"
+          className="group inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-sm font-bold text-fg transition-colors duration-150 hover:bg-surface-2"
         >
           {action}
           <ChevronRight

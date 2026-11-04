@@ -66,7 +66,7 @@ export default function LevelGauge({
           <g key={m}>
             <rect x="26" y={y(m) - 0.5} width={m % 1 === 0 ? 10 : 5} height="1" className="fill-fg" />
             {m % 1 === 0 && (
-              <text x="20" y={y(m) + 4} textAnchor="end" className="fill-muted text-[11px]">
+              <text x="20" y={y(m) + 4} textAnchor="end" className="fill-muted text-xs">
                 {m}
               </text>
             )}

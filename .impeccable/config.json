@@ -1,0 +1,21 @@
+{
+  "hook": {
+    "enabled": true,
+    "limits": {
+      "maxFindings": 5,
+      "maxChars": 8000
+    }
+  },
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-radius",
+        "value": "4px",
+        "createdAt": "2026-11-04T09:48:23.067Z",
+        "reason": "Agent: webkit scrollbar thumb is 8px wide — 4px is the full-round value (half the width); browser chrome, not a component"
+      }
+    ]
+  }
+}

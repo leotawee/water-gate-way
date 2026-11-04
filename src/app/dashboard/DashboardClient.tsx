@@ -57,7 +57,7 @@ function DashboardHeader({
   const link =
     "inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-white transition-colors duration-(--dur-base) hover:bg-white/15";
   return (
-    <header className="bg-brand text-white shadow-sm">
+    <header className="bg-brand text-white">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[1100] focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-md focus:bg-surface focus:px-3 focus:text-sm focus:font-bold focus:text-fg"
@@ -142,7 +142,7 @@ function Shell({
 }
 
 const TILE =
-  "min-w-0 rounded-2xl border border-border bg-surface p-5 shadow-sm";
+  "min-w-0 rounded-2xl border border-border bg-surface p-5";
 
 function LiveDashboard({ gate, role }: Props) {
   const now = useNow();
@@ -251,7 +251,7 @@ function NoDevice({ gate, role }: { gate: Gate; role: SessionUser["role"] }) {
           </span>
         </p>
       </div>
-      <section className="max-w-2xl rounded-2xl border border-border bg-surface p-5 shadow-sm">
+      <section className="max-w-2xl rounded-2xl border border-border bg-surface p-5">
         <h2 className="text-base font-bold text-fg">
           ประตูนี้ยังไม่มีเซนเซอร์หรือกล้อง
         </h2>

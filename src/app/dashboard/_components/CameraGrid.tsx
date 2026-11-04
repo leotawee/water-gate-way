@@ -17,7 +17,7 @@ export default function CameraGrid() {
       >
         {/* WHY: labelled by position (กล้อง 1…), never by the raw stream id. */}
         {CAMERAS.map((src, i) => (
-          <div key={src} id={`camera-stream-${src}`} className="aspect-video basis-[88%] shrink-0 snap-center overflow-hidden rounded-2xl bg-black shadow-sm sm:basis-auto">
+          <div key={src} id={`camera-stream-${src}`} className="aspect-video basis-[88%] shrink-0 snap-center overflow-hidden rounded-2xl bg-black sm:basis-auto">
             <Go2RTCPlayer streamName={src} label={`กล้อง ${i + 1}`} />
           </div>
         ))}

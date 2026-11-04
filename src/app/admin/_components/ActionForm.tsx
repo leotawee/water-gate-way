@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import Modal from "@/components/Modal";
 import type { AdminState } from "../actions";
 
@@ -19,13 +19,25 @@ export default function ActionForm({
   children: ReactNode;
   confirm?: string;
 }) {
-  const [state, formAction] = useActionState(action, undefined);
+  const [state, formAction, pending] = useActionState(action, undefined);
   const formRef = useRef<HTMLFormElement>(null);
   // WHY: set right before requestSubmit() so the onSubmit below lets exactly that one submit through.
   const confirmed = useRef(false);
   const [asking, setAsking] = useState(false);
   // WHY: keyed to the state object, not the text, so the same error again after a dismiss reopens the modal.
   const [dismissed, setDismissed] = useState<unknown>(null);
+  // WHY: the submit buttons are server-rendered children, so pending cannot be passed as a prop.
+  // Syncing it onto the buttons keeps the auth-form contract (disabled + aria-busy, cf. LoginForm)
+  // without restructuring the admin pages: after a confirm modal closes, the page no longer sits dead.
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) return;
+    for (const button of form.querySelectorAll<HTMLButtonElement>('button[type="submit"]')) {
+      button.disabled = pending;
+      if (pending) button.setAttribute("aria-busy", "true");
+      else button.removeAttribute("aria-busy");
+    }
+  }, [pending]);
 
   return (
     <>
