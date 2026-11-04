@@ -4,7 +4,10 @@
 --
 -- Deploy order (the owner applies this; it is not applied by any script):
 --   1. Apply this migration.
---   2. Deploy the new code (it reads control_audit.gate_id and the new gates columns).
+--   2. Deploy the new code. It writes control_audit.gate_id and water_levels.device_id (= gate id).
+--      It reads none of gates.media_base_url, cameras, enrolled_at or last_seen_at yet; those are
+--      for later phases. Until this migration is applied, control_audit rows are still written
+--      (without gate_id) and the app logs one error line saying to apply it.
 --   3. Run the backfill below once, then run it again after the old image has
 --      stopped writing 'stm32-radar'.
 --

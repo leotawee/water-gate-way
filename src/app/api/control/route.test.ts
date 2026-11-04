@@ -137,6 +137,47 @@ describe("POST /api/control", () => {
     spy.mockRestore();
   });
 
+  describe("control_audit.gate_id missing (migration 004 not applied)", () => {
+    const sqls = () => h.query.mock.calls.filter(([sql]) => /insert into control_audit/i.test(sql as string));
+
+    it("42703 -> retries once with the legacy 4-column insert, response stays 200, one log line per process", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        vi.setSystemTime(Date.parse("2026-01-01T00:00:00Z"));
+        h.query.mockRejectedValueOnce(Object.assign(new Error('column "gate_id" does not exist'), { code: "42703" }));
+        const res = await POST(req({ command: "P1" }) as never);
+        expect(res.status).toBe(200);
+        const [first, second] = sqls();
+        expect(first[0]).toContain("gate_id");
+        expect(second[0]).not.toContain("gate_id");
+        expect(second[1]).toEqual([h.user!.id, "P1", "sent", "203.0.113.9"]);
+        expect(sqls()).toHaveLength(2);
+
+        vi.setSystemTime(Date.parse("2026-01-01T00:00:05Z"));
+        h.query.mockRejectedValueOnce(Object.assign(new Error("x"), { code: "42703" }));
+        expect((await POST(req({ command: "P0" }) as never)).status).toBe(200);
+        expect(sqls()).toHaveLength(4);
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy.mock.calls[0][0]).toContain("apply migration 004");
+      } finally {
+        vi.useRealTimers();
+        spy.mockRestore();
+      }
+    });
+
+    it("a non-42703 error does not take the legacy path", async () => {
+      h.query.mockRejectedValueOnce(Object.assign(new Error("db down"), { code: "57P01" }));
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const res = await POST(req({ command: "P1" }) as never);
+      expect(res.status).toBe(200);
+      // the ip-less retry keeps gate_id; no legacy statement
+      expect(sqls().every(([sql]) => (sql as string).includes("gate_id"))).toBe(true);
+      expect(audits()[1]).toEqual([h.user!.id, "P1", "sent", null, "gate-1"]);
+      spy.mockRestore();
+    });
+  });
+
   it("second command within the same second is 429, Retry-After 1, audit rate_limited", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     try {

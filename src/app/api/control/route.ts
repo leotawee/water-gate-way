@@ -16,16 +16,35 @@ type AuditStatus = "sent" | "rejected" | "failed" | "rate_limited";
 // "rejected" so no migration is needed. The error code in the response tells them apart.
 const AUDIT_SQL = "insert into control_audit (user_id, command, status, ip, gate_id) values ($1, $2, $3, $4, $5)";
 
-async function audit(userId: string, command: string, status: AuditStatus, ip: string | null, gateId: string | null) {
+// WHY: until migration 004 is applied control_audit has no gate_id column; the legacy statement keeps audit rows flowing.
+const LEGACY_AUDIT_SQL = "insert into control_audit (user_id, command, status, ip) values ($1, $2, $3, $4)";
+let warnedMissingGateId = false;
+
+const isUndefinedColumn = (e: unknown) => typeof e === "object" && e !== null && (e as { code?: unknown }).code === "42703";
+
+async function insertAudit(userId: string, command: string, status: AuditStatus, ip: string | null, gateId: string | null) {
   try {
     await db.query(AUDIT_SQL, [userId, command, status, ip, gateId]);
+  } catch (e) {
+    if (!isUndefinedColumn(e)) throw e;
+    if (!warnedMissingGateId) {
+      warnedMissingGateId = true;
+      console.error("[API /control] control_audit.gate_id is missing: apply migration 004");
+    }
+    await db.query(LEGACY_AUDIT_SQL, [userId, command, status, ip]);
+  }
+}
+
+async function audit(userId: string, command: string, status: AuditStatus, ip: string | null, gateId: string | null) {
+  try {
+    await insertAudit(userId, command, status, ip, gateId);
   } catch (e) {
     // WHY: a lost audit row must not report a command that reached the pumps as an error.
     console.error("[API /control] audit insert failed:", e);
     if (ip === null) return;
     // WHY: defence in depth: an ip the inet column rejects must not drop the row; retry without it.
     try {
-      await db.query(AUDIT_SQL, [userId, command, status, null, gateId]);
+      await insertAudit(userId, command, status, null, gateId);
     } catch (e2) {
       console.error("[API /control] audit retry without ip failed:", e2);
     }
