@@ -6,6 +6,10 @@ const h = vi.hoisted(() => ({
   clients: [] as Array<import("node:events").EventEmitter & { subscribe: ReturnType<typeof vi.fn>; url: string; opts: Record<string, unknown> }>,
 }));
 
+vi.mock("@/lib/gatesDb", () => ({
+  getGate: vi.fn(async (id: string) => (id === "gate-9" ? null : { id, name: id, lat: 0, lng: 0, hasDevice: true })),
+}));
+
 vi.mock("./recordLevel", () => ({ recordLevel: vi.fn(async () => {}) }));
 
 vi.mock("mqtt", () => ({
@@ -42,12 +46,17 @@ import { requireUser } from "@/lib/auth/dal";
 
 const VALID = JSON.stringify({ pzem: { v: 230 }, pump: 1 });
 const client = () => h.clients.at(-1)!;
-const listeners = () => (globalThis as { __wgTelemetry?: { listeners: Set<unknown> } }).__wgTelemetry!.listeners.size;
+const listeners = () =>
+  [...(globalThis as { __wgTelemetry?: { listeners: Map<string, Set<unknown>> } }).__wgTelemetry!.listeners.values()].reduce(
+    (n, set) => n + set.size,
+    0,
+  );
 const msg = (payload: string, topic = "stm32/status/all") => client().emit("message", topic, Buffer.from(payload));
 
 beforeEach(() => {
   delete (globalThis as { __wgTelemetry?: unknown }).__wgTelemetry;
   h.clients.length = 0;
+  vi.mocked(recordLevel).mockClear();
   h.user = { id: "u1", email: "v@x.co", role: "viewer" };
   vi.stubEnv("MQTT_URL", "mqtt://127.0.0.1:1883");
   vi.stubEnv("MQTT_USERNAME", "nextjs");
@@ -63,27 +72,32 @@ afterEach(() => {
 });
 
 describe("broker", () => {
-  it("one client per process, credentials from env, both topics", () => {
-    subscribeStatus(() => {});
-    subscribeStatus(() => {});
+  it("one client per process, credentials from env, legacy + per-gate topics", () => {
+    subscribeStatus("gate-1", () => {});
+    subscribeStatus("gate-1", () => {});
     client().emit("connect");
     expect(h.clients).toHaveLength(1);
     expect(client().url).toBe("mqtt://127.0.0.1:1883");
     expect(client().opts).toMatchObject({ username: "nextjs", password: "pw-not-logged" });
     expect(client().subscribe).toHaveBeenCalledWith(
-      ["stm32/status/all", "water/gate/person", "water/gate/status"], expect.anything());
+      ["stm32/status/all", "water/gate/person", "gate/+/status", "gate/+/person", "water/gate/status"],
+      expect.anything(),
+    );
   });
 
   it("does not subscribe MQTT_TOPIC_STATUS twice when equal to the default", () => {
     vi.stubEnv("MQTT_TOPIC_STATUS", "stm32/status/all");
-    subscribeStatus(() => {});
+    subscribeStatus("gate-1", () => {});
     client().emit("connect");
-    expect(client().subscribe).toHaveBeenCalledWith(["stm32/status/all", "water/gate/person"], expect.anything());
+    expect(client().subscribe).toHaveBeenCalledWith(
+      ["stm32/status/all", "water/gate/person", "gate/+/status", "gate/+/person"],
+      expect.anything(),
+    );
   });
 
   it('stream emits {type:"conn", state:"disconnected"} when the client emits offline', () => {
     const got: StatusEvent[] = [];
-    subscribeStatus((e) => got.push(e));
+    subscribeStatus("gate-1", (e) => got.push(e));
     client().emit("connect");
     client().emit("offline");
     expect(got).toEqual([
@@ -95,7 +109,7 @@ describe("broker", () => {
 
   it("close and error map to disconnected", () => {
     const got: StatusEvent[] = [];
-    subscribeStatus((e) => got.push(e));
+    subscribeStatus("gate-1", (e) => got.push(e));
     client().emit("connect");
     client().emit("error", new Error("boom"));
     client().emit("connect");
@@ -111,7 +125,7 @@ describe("broker", () => {
 
   it("valid payload -> one status event", () => {
     const got: StatusEvent[] = [];
-    subscribeStatus((e) => got.push(e));
+    subscribeStatus("gate-1", (e) => got.push(e));
     msg(VALID);
     const st = got.filter((e) => e.type === "status");
     expect(st).toHaveLength(1);
@@ -122,7 +136,7 @@ describe("broker", () => {
 
   it("invalid JSON and non-object payload -> no event, no payload echo in logs", () => {
     const got: StatusEvent[] = [];
-    subscribeStatus((e) => got.push(e));
+    subscribeStatus("gate-1", (e) => got.push(e));
     msg("{not json SECRETISH");
     msg("[1,2]");
     expect(got.filter((e) => e.type === "status")).toHaveLength(0);
@@ -132,18 +146,18 @@ describe("broker", () => {
   });
 
   it("new listener immediately receives last conn and last status", () => {
-    subscribeStatus(() => {});
+    subscribeStatus("gate-1", () => {});
     client().emit("connect");
     msg(VALID);
     const got: StatusEvent[] = [];
-    subscribeStatus((e) => got.push(e));
+    subscribeStatus("gate-1", (e) => got.push(e));
     expect(got.map((e) => e.type)).toEqual(["conn", "status"]);
     expect(got[0]).toEqual({ type: "conn", state: "connected" });
   });
 
   it("unsubscribe removes the listener", () => {
     const got: StatusEvent[] = [];
-    const off = subscribeStatus((e) => got.push(e));
+    const off = subscribeStatus("gate-1", (e) => got.push(e));
     off();
     client().emit("connect");
     msg(VALID);
@@ -152,10 +166,10 @@ describe("broker", () => {
 
   it("a throwing listener does not affect others", () => {
     const got: StatusEvent[] = [];
-    subscribeStatus(() => {
+    subscribeStatus("gate-1", () => {
       throw new Error("bad listener");
     });
-    subscribeStatus((e) => got.push(e));
+    subscribeStatus("gate-1", (e) => got.push(e));
     client().emit("connect");
     msg(VALID);
     expect(got.map((e) => e.type)).toEqual(["conn", "conn", "status"]);
@@ -163,7 +177,7 @@ describe("broker", () => {
 
   it("person message merges into the last real status, not replacing it", () => {
     const got: StatusEvent[] = [];
-    subscribeStatus((e) => got.push(e));
+    subscribeStatus("gate-1", (e) => got.push(e));
     msg(VALID);
     vi.mocked(recordLevel).mockClear();
     msg(JSON.stringify({ person_count: 2, stable: true, source: "pi_yolo" }), "water/gate/person");
@@ -182,7 +196,7 @@ describe("broker", () => {
     vi.useFakeTimers();
     try {
       const got: StatusEvent[] = [];
-      subscribeStatus((e) => got.push(e));
+      subscribeStatus("gate-1", (e) => got.push(e));
       msg(VALID);
       const first = got.filter((e) => e.type === "status")[0];
       const at0 = first.type === "status" ? first.status.receivedAt : "";
@@ -198,7 +212,7 @@ describe("broker", () => {
   it("person message with no prior status emits nothing; the count joins the first real status", () => {
     vi.mocked(recordLevel).mockClear();
     const got: StatusEvent[] = [];
-    subscribeStatus((e) => got.push(e));
+    subscribeStatus("gate-1", (e) => got.push(e));
     msg(JSON.stringify({ person_count: 1 }), "water/gate/person");
     expect(got.filter((e) => e.type === "status")).toHaveLength(0);
     msg(VALID);
@@ -212,7 +226,7 @@ describe("broker", () => {
 
   it("invalid person payloads are ignored", () => {
     const got: StatusEvent[] = [];
-    subscribeStatus((e) => got.push(e));
+    subscribeStatus("gate-1", (e) => got.push(e));
     msg("{not json", "water/gate/person");
     msg(JSON.stringify({ no_count: 1 }), "water/gate/person");
     msg(JSON.stringify({ person_count: "abc" }), "water/gate/person");
@@ -224,7 +238,7 @@ describe("broker", () => {
     vi.useFakeTimers();
     try {
       const got: StatusEvent[] = [];
-      subscribeStatus((e) => got.push(e));
+      subscribeStatus("gate-1", (e) => got.push(e));
       msg(VALID);
       msg(JSON.stringify({ person_count: 3 }), "water/gate/person");
       vi.advanceTimersByTime(10_000);
@@ -238,11 +252,96 @@ describe("broker", () => {
     }
   });
 
+  it("gate/gate-2/status reaches only the gate-2 listener; recordLevel gets gate-2", () => {
+    const g1: StatusEvent[] = [];
+    const g2: StatusEvent[] = [];
+    subscribeStatus("gate-1", (e) => g1.push(e));
+    subscribeStatus("gate-2", (e) => g2.push(e));
+    msg(VALID, "gate/gate-2/status");
+    expect(g1.filter((e) => e.type === "status")).toHaveLength(0);
+    const st = g2.filter((e) => e.type === "status");
+    expect(st).toHaveLength(1);
+    expect(recordLevel).toHaveBeenCalledExactlyOnceWith(st[0].type === "status" ? st[0].status : null, "gate-2");
+  });
+
+  it("a payload claiming another gate id is ignored; the topic decides", () => {
+    const g1: StatusEvent[] = [];
+    const g2: StatusEvent[] = [];
+    subscribeStatus("gate-1", (e) => g1.push(e));
+    subscribeStatus("gate-2", (e) => g2.push(e));
+    msg(JSON.stringify({ pzem: { v: 230 }, pump: 1, gate: "gate-1" }), "gate/gate-2/status");
+    expect(g1.filter((e) => e.type === "status")).toHaveLength(0);
+    expect(g2.filter((e) => e.type === "status")).toHaveLength(1);
+    expect(recordLevel).toHaveBeenCalledExactlyOnceWith(expect.anything(), "gate-2");
+  });
+
+  it("a topic parseTelemetryTopic rejects emits nothing and warns at most once", () => {
+    const got: StatusEvent[] = [];
+    subscribeStatus("gate-1", (e) => got.push(e));
+    msg(VALID, "gate/not-a-gate/status");
+    msg(VALID, "gate/gate-2/cmd");
+    msg(VALID, "gate/gate-2/status/extra");
+    expect(got.filter((e) => e.type === "status")).toHaveLength(0);
+    expect(recordLevel).not.toHaveBeenCalled();
+    expect(vi.mocked(console.warn).mock.calls.length).toBeLessThanOrEqual(1);
+  });
+
+  it("gate/gate-2/person merges only into gate-2's last status", () => {
+    const g1: StatusEvent[] = [];
+    const g2: StatusEvent[] = [];
+    subscribeStatus("gate-1", (e) => g1.push(e));
+    subscribeStatus("gate-2", (e) => g2.push(e));
+    msg(VALID); // gate-1 via the legacy topic
+    msg(VALID, "gate/gate-2/status");
+    msg(JSON.stringify({ person_count: 4 }), "gate/gate-2/person");
+    const c1 = g1.filter((e) => e.type === "status").map((e) => (e.type === "status" ? e.status.personCount : -1));
+    const c2 = g2.filter((e) => e.type === "status").map((e) => (e.type === "status" ? e.status.personCount : -1));
+    expect(c1).toEqual([null]);
+    expect(c2).toEqual([null, 4]);
+  });
+
+  it("a person count for one gate does not join another gate's first status", () => {
+    const g1: StatusEvent[] = [];
+    subscribeStatus("gate-1", (e) => g1.push(e));
+    msg(JSON.stringify({ person_count: 4 }), "gate/gate-2/person");
+    msg(VALID);
+    const s = g1.find((e) => e.type === "status");
+    expect(s && s.type === "status" && s.status.personCount).toBeNull();
+  });
+
+  it("legacy topics (incl. MQTT_TOPIC_STATUS) feed gate-1", () => {
+    const g1: StatusEvent[] = [];
+    subscribeStatus("gate-1", (e) => g1.push(e));
+    msg(VALID, "stm32/status/all");
+    msg(VALID, "water/gate/status");
+    msg(JSON.stringify({ person_count: 1 }), "water/gate/person");
+    expect(g1.filter((e) => e.type === "status")).toHaveLength(3);
+    expect(recordLevel).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(recordLevel).mock.calls.every(([, id]) => id === "gate-1")).toBe(true);
+  });
+
+  it("connection events go to every gate's listeners; a late subscriber gets only its gate's last status", () => {
+    const g1: StatusEvent[] = [];
+    const g2: StatusEvent[] = [];
+    subscribeStatus("gate-1", (e) => g1.push(e));
+    subscribeStatus("gate-2", (e) => g2.push(e));
+    client().emit("connect");
+    expect(g1).toEqual([{ type: "conn", state: "disconnected" }, { type: "conn", state: "connected" }]);
+    expect(g2).toEqual(g1);
+    msg(VALID, "gate/gate-2/status");
+    const late: StatusEvent[] = [];
+    subscribeStatus("gate-1", (e) => late.push(e));
+    expect(late.map((e) => e.type)).toEqual(["conn"]);
+    const late2: StatusEvent[] = [];
+    subscribeStatus("gate-2", (e) => late2.push(e));
+    expect(late2.map((e) => e.type)).toEqual(["conn", "status"]);
+  });
+
   it("MQTT_URL unset -> disconnected, no client, password never logged", () => {
     vi.stubEnv("MQTT_URL", "");
     const got: StatusEvent[] = [];
-    subscribeStatus((e) => got.push(e));
-    subscribeStatus(() => {});
+    subscribeStatus("gate-1", (e) => got.push(e));
+    subscribeStatus("gate-1", () => {});
     expect(h.clients).toHaveLength(0);
     expect(got).toEqual([{ type: "conn", state: "disconnected" }]);
     const all = JSON.stringify([vi.mocked(console.error).mock.calls, vi.mocked(console.warn).mock.calls]);
@@ -272,7 +371,7 @@ describe("GET /api/status/stream", () => {
   });
 
   it("streams SSE; first chunk is current conn event; abort unsubscribes and closes", async () => {
-    subscribeStatus(() => {});
+    subscribeStatus("gate-1", () => {});
     client().emit("connect");
     const ac = new AbortController();
     const res = await GET(new Request("http://localhost/api/status/stream", { signal: ac.signal }));
@@ -294,10 +393,51 @@ describe("GET /api/status/stream", () => {
     expect(listeners()).toBe(1); // only the test's own subscription remains
   });
 
+  it("no parameter and ?gate=gate-1 stream gate-1; ?gate=gate-2 streams gate-2 only", async () => {
+    subscribeStatus("gate-1", () => {});
+    client().emit("connect");
+    msg(VALID); // gate-1
+    for (const q of ["", "?gate=gate-1"]) {
+      const res = await GET(new Request(`http://localhost/api/status/stream${q}`));
+      expect(res.status).toBe(200);
+      const r = res.body!.getReader();
+      await r.read(); // conn
+      expect(new TextDecoder().decode((await r.read()).value)).toContain('"type":"status"');
+      await r.cancel();
+    }
+    const res2 = await GET(new Request("http://localhost/api/status/stream?gate=gate-2"));
+    const r2 = res2.body!.getReader();
+    await r2.read();
+    msg(VALID, "gate/gate-2/status");
+    expect(new TextDecoder().decode((await r2.read()).value)).toContain('"type":"status"');
+    await r2.cancel();
+  });
+
+  it("invalid gate -> 400 invalid_gate, no client created", async () => {
+    for (const q of ["x", "gate-", "gate-12345", "../x", ""]) {
+      const res = await GET(new Request(`http://localhost/api/status/stream?gate=${encodeURIComponent(q)}`));
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "invalid_gate" });
+    }
+    expect(h.clients).toHaveLength(0);
+  });
+
+  it("valid id with no active gate -> 404 unknown_gate", async () => {
+    const res = await GET(new Request("http://localhost/api/status/stream?gate=gate-9"));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "unknown_gate" });
+    expect(h.clients).toHaveLength(0);
+  });
+
+  it("auth is checked before the gate parameter", async () => {
+    h.user = null;
+    expect((await GET(new Request("http://localhost/api/status/stream?gate=x"))).status).toBe(401);
+  });
+
   it("closes the stream after 10 minutes so the client reconnects and re-authenticates", async () => {
     vi.useFakeTimers();
     try {
-      subscribeStatus(() => {});
+      subscribeStatus("gate-1", () => {});
       const res = await GET(new Request("http://localhost/api/status/stream"));
       const { reader } = await readChunk(res);
       expect(listeners()).toBe(2);

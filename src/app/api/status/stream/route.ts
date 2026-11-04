@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireUser, authErrorResponse } from "@/lib/auth/dal";
+import { isGateId } from "@/lib/gates";
+import { getGate } from "@/lib/gatesDb";
 import { subscribeStatus } from "@/lib/telemetry/broker";
+import { LEGACY_GATE } from "@/lib/telemetry/topics";
 
 // WHY: per-user, long-lived response; must never be prerendered or cached.
 export const dynamic = "force-dynamic";
@@ -32,6 +35,12 @@ export async function GET(request: Request): Promise<Response> {
   const deny = await denied();
   if (deny) return deny;
 
+  // WHY: a missing parameter keeps the pre-multi-cabinet client (no ?gate=) working as gate-1.
+  const gateId = new URL(request.url).searchParams.get("gate") ?? LEGACY_GATE;
+  if (!isGateId(gateId)) return NextResponse.json({ error: "invalid_gate" }, { status: 400 });
+  // WHY: getGate returns null for unknown or inactive ids, so no listener is created for them.
+  if (!(await getGate(gateId))) return NextResponse.json({ error: "unknown_gate" }, { status: 404 });
+
   let cleanup = () => {};
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -61,7 +70,7 @@ export async function GET(request: Request): Promise<Response> {
         }
       };
 
-      unsubscribe = subscribeStatus((e) => send(`data: ${JSON.stringify(e)}\n\n`));
+      unsubscribe = subscribeStatus(gateId, (e) => send(`data: ${JSON.stringify(e)}\n\n`));
       ping = setInterval(() => send(": ping\n\n"), PING_MS);
       lifetime = setTimeout(() => cleanup(), MAX_LIFETIME_MS);
       if (request.signal.aborted) cleanup();
