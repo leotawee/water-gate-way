@@ -9,7 +9,7 @@ import { isModeCommand } from "@/lib/control/commands";
 import type { GateMode, GateStatus } from "@/lib/telemetry/parseStatus";
 import DeviceSwitch, { StatusLine, type SwitchStatus } from "@/components/DeviceSwitch";
 import Modal from "@/components/Modal";
-import { modeView } from "./modeView";
+import { modeView, pumpsLocked } from "./modeView";
 
 type Devices = GateStatus["devices"];
 type DeviceKey = keyof Devices;
@@ -194,6 +194,8 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
   // ignores a web command for them, so they are shown but never switchable. Unknown until both are reported.
   const master = devices?.relay2 == null || devices.master1 == null ? null : devices.relay2 && devices.master1;
 
+  const locked = pumpsLocked(mode, stale);
+
   const statusOf = (key: Key): SwitchStatus | null => {
     const s = sending[key];
     if (s) return { phase: "sending", cmd: s };
@@ -279,7 +281,8 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
             status={readOnly ? null : statusOf(row.key)}
             onSend={guardedSend}
             tone={row.tone}
-            readOnly={readOnly}
+            readOnly={readOnly || (locked && row.key !== "alarm")}
+            note={locked && row.key !== "alarm" ? "โหมด OFF: สลับเป็นควบคุมเองก่อนจึงสั่งปั๊มได้" : undefined}
           />
         ))}
         {/* onCmd/offCmd are required by the props but never rendered: readOnly hides the buttons. */}
