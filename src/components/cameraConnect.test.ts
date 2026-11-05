@@ -4,6 +4,7 @@ import {
   ICE_SETTLE_MS,
   MSE_PREFERRED_TTL_MS,
   connectTimeoutMs,
+  forgetMse,
   maxFailures,
   preferredTransport,
   rememberMse,
@@ -12,6 +13,7 @@ import {
 
 class FakePc extends EventTarget {
   iceGatheringState: RTCIceGatheringState = "new";
+  localDescription: { sdp: string } | null = null;
   setState(s: RTCIceGatheringState) {
     this.iceGatheringState = s;
     this.dispatchEvent(new Event("icegatheringstatechange"));
@@ -84,6 +86,33 @@ describe("waitForIceCandidates", () => {
     expect(s.done).toBe(true);
   });
 
+  // The srflx event can fire between setLocalDescription() and our listener; the SDP already has it.
+  it("sees a srflx candidate that is already in the local description", async () => {
+    const pc = new FakePc();
+    pc.localDescription = { sdp: `v=0\r\na=${SRFLX}\r\n` };
+    const s = track(pc);
+    await vi.advanceTimersByTimeAsync(ICE_SETTLE_MS - 1);
+    expect(s.done).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(s.done).toBe(true);
+  });
+
+  it("recognises a srflx line that ends right after the type (no raddr/rport)", async () => {
+    const pc = new FakePc();
+    const s = track(pc);
+    pc.candidate("candidate:3 1 udp 1686052607 203.0.113.9 50002 typ srflx");
+    await vi.advanceTimersByTimeAsync(ICE_SETTLE_MS);
+    expect(s.done).toBe(true);
+  });
+
+  it("does not treat a host candidate that mentions srflx in its address as srflx", async () => {
+    const pc = new FakePc();
+    const s = track(pc);
+    pc.candidate("candidate:4 1 udp 2122260223 192.168.1.5 50003 typ host generation 0");
+    await vi.advanceTimersByTimeAsync(ICE_SETTLE_MS * 2);
+    expect(s.done).toBe(false);
+  });
+
   it("leaves no timers behind", async () => {
     const pc = new FakePc();
     track(pc);
@@ -95,10 +124,14 @@ describe("waitForIceCandidates", () => {
 
 describe("transport policy", () => {
   it("falls back to MSE sooner than the old 3 x 15 s", () => {
-    expect(connectTimeoutMs("webrtc")).toBeLessThanOrEqual(8_000);
-    expect(maxFailures("webrtc") * connectTimeoutMs("webrtc")).toBeLessThanOrEqual(20_000);
+    expect(maxFailures("webrtc") * connectTimeoutMs("webrtc")).toBeLessThan(3 * 15_000);
     expect(connectTimeoutMs("mse")).toBe(15_000);
     expect(maxFailures("mse")).toBe(3);
+  });
+
+  // The attempt clock also covers the ICE wait, the POST through the tunnel and the wait for the first keyframe.
+  it("leaves WebRTC room for the ICE cap, a slow POST and the first keyframe", () => {
+    expect(connectTimeoutMs("webrtc")).toBeGreaterThanOrEqual(ICE_CAP_MS + 8_000);
   });
 });
 
@@ -122,6 +155,14 @@ describe("preferredTransport / rememberMse", () => {
     rememberMse(store, 1_000);
     expect(preferredTransport(store, 1_000 + MSE_PREFERRED_TTL_MS - 1)).toBe("mse");
     expect(preferredTransport(store, 1_000 + MSE_PREFERRED_TTL_MS)).toBe("webrtc");
+  });
+
+  it("forgetMse makes the next load start on WebRTC again", () => {
+    const store = memory();
+    rememberMse(store, 1_000);
+    forgetMse(store);
+    expect(preferredTransport(store, 1_001)).toBe("webrtc");
+    expect(() => forgetMse(null)).not.toThrow();
   });
 
   it("ignores a corrupt value", () => {

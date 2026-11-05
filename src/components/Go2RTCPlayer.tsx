@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRedirectToLogin } from "@/hooks/useRedirectToLogin";
 import {
   connectTimeoutMs,
+  forgetMse,
   maxFailures,
   preferredTransport,
   rememberMse,
@@ -66,6 +67,8 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastProgress = useRef(0);
   const failures = useRef(0);
+  // True between "WebRTC gave up, MSE started" and the first MSE frame: only then is the fallback worth remembering.
+  const fellBack = useRef(false);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearRetry = () => {
@@ -80,6 +83,8 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
   // Manual retry always gives WebRTC another chance (it is the better transport when UDP works).
   const retry = () => {
     failures.current = 0;
+    fellBack.current = false;
+    forgetMse(browserStore());
     setTransport("webrtc");
     reconnect();
   };
@@ -89,13 +94,15 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
     // start its own failure counting fresh, so a blocked-UDP network never lands on "ออฟไลน์".
     if (failures.current >= maxFailures(transport) && transport === "webrtc") {
       failures.current = 0;
-      rememberMse(browserStore(), Date.now());
+      fellBack.current = true; // remembered only once MSE actually plays (a Pi outage fails both transports)
       setTransport("mse");
       clearRetry();
       setStatus("connecting");
       setAttempt((n) => n + 1);
       return;
     }
+    // MSE is failing too (relay caps, Pi down): do not keep new page loads pinned to it.
+    if (failures.current >= maxFailures(transport) && transport === "mse") forgetMse(browserStore());
     setStatus(failures.current >= maxFailures(transport) ? "failed" : "connecting");
     // Backoff 2, 4, 8, 16, 30, 30 … s, so a long outage does not hammer the server or the Pi.
     const delay = Math.min(RETRY_BASE_MS * 2 ** (failures.current - 1), RETRY_MAX_MS);
@@ -164,6 +171,9 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
         // WHY wait for candidates: the relay is non-trickle — an offer without a srflx candidate cannot be
         // reached from a phone off the LAN/tailnet (the Pi has nothing to punch towards).
         await waitForIceCandidates(pc);
+        // WHY: the tile may have been hidden or retried during the wait; an offer posted now would leave an
+        // orphan consumer on the Pi (go2rtc keeps it ~30 s).
+        if (closed) return;
         const res = await fetch(`/api/camera/webrtc?src=${encodeURIComponent(streamName)}`, {
           method: "POST",
           headers: { "Content-Type": "application/sdp" },
@@ -189,6 +199,7 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
 
       return () => {
         closed = true;
+        abort.abort(); // also cancels a POST that is already in flight
         try {
           pc.close();
         } catch {
@@ -316,6 +327,10 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
           onPlaying={() => {
             lastProgress.current = Date.now();
             failures.current = 0;
+            if (transport === "mse" && fellBack.current) {
+              fellBack.current = false;
+              rememberMse(browserStore(), Date.now());
+            }
             setStatus("connected");
           }}
           onTimeUpdate={() => {

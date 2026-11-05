@@ -29,3 +29,12 @@
 1. 📌 GENERAL: a "wait for gathering" handler must check `iceGatheringState === "complete"`; the first state event is `gathering`.
 2. 📌 GENERAL: with non-trickle signalling the offer must contain a srflx candidate or NAT hole punching cannot start from the answerer.
 3. Build a control experiment (a known-good client) before trusting an absence in a log.
+
+## Summary
+
+- Changed: `src/components/cameraConnect.ts` and its test (new), `src/components/Go2RTCPlayer.tsx`, this log.
+- Unchanged: relay routes, go2rtc and Pi configuration, the MSE transport itself.
+- Remaining: real iPhone check; TURN for symmetric NAT / CGNAT; follow-ups from the local review are in `2026-11-05-camera-review-followups.md` (appended after the fact, the entries above are not edited).
+- Key decisions: wait for the first srflx candidate instead of "complete" (which never arrives); WebRTC gets 2 short attempts before MSE; remember the fallback in `localStorage` for 10 minutes.
+- Top 3 lessons: see "Lessons" above.
+- Mistakes & dead ends: see "Mistakes and dead ends" above.
