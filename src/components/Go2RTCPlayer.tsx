@@ -4,6 +4,14 @@
 // /api/camera/stream is the fallback when UDP is blocked. See the stream effect below.
 import { useEffect, useRef, useState } from "react";
 import { useRedirectToLogin } from "@/hooks/useRedirectToLogin";
+import {
+  connectTimeoutMs,
+  maxFailures,
+  preferredTransport,
+  rememberMse,
+  waitForIceCandidates,
+  type Transport,
+} from "./cameraConnect";
 import { liveEdgeAction } from "./liveEdge";
 
 interface Go2RTCPlayerProps {
@@ -12,23 +20,24 @@ interface Go2RTCPlayerProps {
 }
 
 type Status = "connecting" | "connected" | "failed";
-type Transport = "webrtc" | "mse";
 
 // WHY: a frozen picture must not stay labelled LIVE; playback progress is the only reliable signal.
 const STALL_MS = 8_000;
-// WHY: a request that never produces a playing frame (headers then silence, a hung proxy) must fail.
-const CONNECT_TIMEOUT_MS = 15_000;
-// After this many failures in a row the tile says "ออฟไลน์" (with a retry-now button), but it keeps retrying.
-const MAX_FAILURES = 3;
 // WHY: never give up. A dashboard left on a wall must come back by itself after a network drop or a Pi
 // reboot; before, three quick refusals left every camera offline until someone clicked.
 const RETRY_BASE_MS = 2_000;
 const RETRY_MAX_MS = 30_000;
 // Same STUN the proven v1.0 dashboard used; go2rtc.yml carries its own STUN candidate for the Pi side.
 const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
-// Non-trickle relay: the offer must already carry our candidates. STUN bindings usually take < 1 s;
-// the cap just bounds the worst case (blocked UDP) at a bit over the connect timeout.
-const ICE_GATHER_CAP_MS = 4_000;
+
+// localStorage throws in some Safari privacy modes; the policy helpers accept null.
+function browserStore(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 // Safari on iOS 17.1+ exposes MSE only as ManagedMediaSource.
 type MSCtor = typeof MediaSource;
@@ -41,14 +50,17 @@ function mediaSourceCtor(): MSCtor | null {
  * Live camera tile. Transport: WebRTC first — the browser trades SDP offers with go2rtc on the Pi
  * through the one-shot authenticated relay (/api/camera/webrtc), then media flows P2P over UDP and
  * never touches the server or the Cloudflare tunnel (which cuts long streams). When UDP is blocked
- * (MAX_FAILURES in a row), the tile drops to the MSE fMP4 fallback over the HTTP proxy, and the
+ * (maxFailures("webrtc") in a row), the tile drops to the MSE fMP4 fallback over the HTTP proxy, and the
  * manual retry button always tries WebRTC again first.
  */
 export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
   const [status, setStatus] = useState<Status>("connecting");
   // Bumping `attempt` remounts <video> and opens a fresh stream.
   const [attempt, setAttempt] = useState(0);
-  const [transport, setTransport] = useState<Transport>("webrtc");
+  // WHY lazy: a phone that already fell back to MSE should not pay the WebRTC timeouts again on every page load.
+  const [transport, setTransport] = useState<Transport>(() =>
+    typeof window === "undefined" ? "webrtc" : preferredTransport(browserStore(), Date.now()),
+  );
   // WHY: a hidden tab drops the stream so the server closes it and frees the slot.
   const [hidden, setHidden] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -73,17 +85,18 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
   };
   const fail = () => {
     failures.current += 1;
-    // WebRTC failed MAX_FAILURES in a row: UDP is likely blocked — drop to the MSE fallback and
+    // WebRTC failed maxFailures("webrtc") in a row: the peer path is likely blocked — drop to the MSE fallback and
     // start its own failure counting fresh, so a blocked-UDP network never lands on "ออฟไลน์".
-    if (failures.current >= MAX_FAILURES && transport === "webrtc") {
+    if (failures.current >= maxFailures(transport) && transport === "webrtc") {
       failures.current = 0;
+      rememberMse(browserStore(), Date.now());
       setTransport("mse");
       clearRetry();
       setStatus("connecting");
       setAttempt((n) => n + 1);
       return;
     }
-    setStatus(failures.current >= MAX_FAILURES ? "failed" : "connecting");
+    setStatus(failures.current >= maxFailures(transport) ? "failed" : "connecting");
     // Backoff 2, 4, 8, 16, 30, 30 … s, so a long outage does not hammer the server or the Pi.
     const delay = Math.min(RETRY_BASE_MS * 2 ** (failures.current - 1), RETRY_MAX_MS);
     clearRetry();
@@ -148,16 +161,9 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
       const run = async () => {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        // WHY wait for gathering: the relay is non-trickle — the offer must already carry our candidates.
-        await new Promise<void>((resolve) => {
-          if (pc.iceGatheringState === "complete") return resolve();
-          const done = () => {
-            pc.removeEventListener("icegatheringstatechange", done);
-            resolve();
-          };
-          pc.addEventListener("icegatheringstatechange", done);
-          setTimeout(done, ICE_GATHER_CAP_MS);
-        });
+        // WHY wait for candidates: the relay is non-trickle — an offer without a srflx candidate cannot be
+        // reached from a phone off the LAN/tailnet (the Pi has nothing to punch towards).
+        await waitForIceCandidates(pc);
         const res = await fetch(`/api/camera/webrtc?src=${encodeURIComponent(streamName)}`, {
           method: "POST",
           headers: { "Content-Type": "application/sdp" },
@@ -281,9 +287,9 @@ export default function Go2RTCPlayer({ streamName, label }: Go2RTCPlayerProps) {
   // so a background retry that hangs cannot stall the retry loop).
   useEffect(() => {
     if (status === "connected" || hidden) return;
-    const id = setTimeout(() => actions.current.fail(), CONNECT_TIMEOUT_MS);
+    const id = setTimeout(() => actions.current.fail(), connectTimeoutMs(transport));
     return () => clearTimeout(id);
-  }, [status, hidden, attempt]);
+  }, [status, hidden, attempt, transport]);
 
   // Stall watchdog: no playback progress for 8 s while connected means a frozen picture; reconnect.
   useEffect(() => {
