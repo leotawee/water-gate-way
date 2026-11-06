@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const NEW_ID = "00000000-0000-4000-8000-000000000009";
 
@@ -47,8 +47,11 @@ async function redirectOf(p: Promise<unknown>): Promise<string> {
 }
 
 let ipSeq = 0;
+afterEach(() => vi.unstubAllEnvs());
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("ALLOW_SELF_REGISTER", "1");
   // WHY: the limiters are module singletons; a fresh IP per test keeps the per-IP bucket independent.
   h.ip = `198.51.100.${++ipSeq}`;
   h.query.mockImplementation(async (sql: string) =>
@@ -117,5 +120,16 @@ describe("register", () => {
     for (let i = 0; i < 3; i++) await register(undefined, ok({ email: `blocked${i}@x.co` }));
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
+  });
+});
+
+describe("sign-up is closed unless ALLOW_SELF_REGISTER=1", () => {
+  it.each([undefined, "", "0", "true", "yes"])("refuses with ALLOW_SELF_REGISTER=%j and does no work", async (v) => {
+    if (v === undefined) vi.stubEnv("ALLOW_SELF_REGISTER", undefined as unknown as string);
+    else vi.stubEnv("ALLOW_SELF_REGISTER", v);
+    const res = await register(undefined, ok());
+    expect(res).toEqual({ error: "closed" });
+    expect(h.query).not.toHaveBeenCalled();
+    expect(hashPassword).not.toHaveBeenCalled();
   });
 });

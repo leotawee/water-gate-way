@@ -45,6 +45,25 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("POST /api/camera/webrtc rate limit", () => {
+  it("allows 60 offers a minute per user, then 429 with Retry-After, without touching go2rtc", async () => {
+    h.user = { id: "rl-user", role: "viewer" };
+    fetchMock.mockImplementation(async () => new Response(ANSWER, { status: 201 }));
+    for (let i = 0; i < 60; i++) expect((await POST(req("office1", { body: OFFER }))).status).toBe(200);
+    fetchMock.mockClear();
+    const res = await POST(req("office1", { body: OFFER }));
+    expect(res.status).toBe(429);
+    expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not let one user's flood block another user", async () => {
+    h.user = { id: "rl-other", role: "viewer" };
+    fetchMock.mockImplementation(async () => new Response(ANSWER, { status: 201 }));
+    expect((await POST(req("office2", { body: OFFER }))).status).toBe(200);
+  });
+});
+
 describe("POST /api/camera/webrtc", () => {
   it("requires a session", async () => {
     h.user = null;

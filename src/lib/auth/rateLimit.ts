@@ -35,5 +35,8 @@ export const controlByUser = createRateLimiter({ limit: 1, windowMs: 1_000 });
 // memory/CPU even when an attacker rotates IPs, the per-IP one stops a single client filling the users table.
 export const registerByIp = createRateLimiter({ limit: 5, windowMs: 60 * 60_000 });
 export const registerGlobal = createRateLimiter({ limit: 50, windowMs: 60 * 60_000 });
+// WHY: every offer makes go2rtc on the Pi allocate a WebRTC consumer. One dashboard page is 3 offers and a failing
+// tile retries about every 14 s, so 60 a minute leaves room for several tabs but stops a script from loading the Pi.
+export const webrtcByUser = createRateLimiter({ limit: 60, windowMs: 60_000 });
 // WHY: restore redeems a token with no session; bound guessing without breaking a 30-day renewal cadence.
 export const restoreByIp = createRateLimiter({ limit: 30, windowMs: 15 * 60_000 });
