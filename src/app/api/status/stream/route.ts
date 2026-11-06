@@ -9,28 +9,39 @@ const PING_MS = 25_000;
 // WHY: forces the EventSource to reconnect, which re-runs requireUser (revoked sessions stop streaming).
 const MAX_LIFETIME_MS = 10 * 60_000;
 const enc = new TextEncoder();
+// WHY: each open stream is a broker subscriber plus a timer held for up to MAX_LIFETIME_MS; an account that opens
+// them without limit (any viewer, including a self sign-up) would grow memory until the 256 MB container dies.
+const MAX_STREAMS_PER_USER = 6;
+// TECH DEBT: in-process counter; move to Redis when horizontally scaled.
+const openStreams = new Map<string, number>();
 
-/** null when the caller may read telemetry; otherwise the 401/403/503 response. */
-async function denied(): Promise<Response | null> {
+/** The signed-in user id, or the 401/403/503 response when the caller may not read telemetry. */
+async function authenticate(): Promise<{ userId: string } | { deny: Response }> {
   try {
-    await requireUser();
-    return null;
+    return { userId: (await requireUser()).id };
   } catch (e) {
     const res = authErrorResponse(e);
-    if (res) return res;
+    if (res) return { deny: res };
     console.error("[status/stream] auth check failed:", e instanceof Error ? e.message : "unknown");
-    return NextResponse.json({ error: "unavailable" }, { status: 503 });
+    return { deny: NextResponse.json({ error: "unavailable" }, { status: 503 }) };
   }
 }
 
 // WHY: EventSource hides the status code; the client hook probes HEAD to tell 401 from a network drop.
 export async function HEAD(): Promise<Response> {
-  return (await denied()) ?? new Response(null, { status: 200, headers: { "Cache-Control": "no-store" } });
+  const auth = await authenticate();
+  return "deny" in auth ? auth.deny : new Response(null, { status: 200, headers: { "Cache-Control": "no-store" } });
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const deny = await denied();
-  if (deny) return deny;
+  const auth = await authenticate();
+  if ("deny" in auth) return auth.deny;
+  const { userId } = auth;
+  const open = openStreams.get(userId) ?? 0;
+  if (open >= MAX_STREAMS_PER_USER) {
+    return NextResponse.json({ error: "too_many_streams" }, { status: 429, headers: { "Retry-After": "10" } });
+  }
+  openStreams.set(userId, open + 1);
 
   let cleanup = () => {};
   const stream = new ReadableStream<Uint8Array>({
@@ -43,6 +54,10 @@ export async function GET(request: Request): Promise<Response> {
       cleanup = () => {
         if (closed) return;
         closed = true;
+        // WHY inside the `closed` guard: cancel(), abort and the lifetime timer can all fire; the slot is freed once.
+        const left = (openStreams.get(userId) ?? 1) - 1;
+        if (left > 0) openStreams.set(userId, left);
+        else openStreams.delete(userId);
         unsubscribe?.();
         if (ping) clearInterval(ping);
         if (lifetime) clearTimeout(lifetime);

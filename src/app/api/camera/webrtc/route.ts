@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, authErrorResponse } from "@/lib/auth/dal";
+import { webrtcByUser } from "@/lib/auth/rateLimit";
 import { CAMERAS } from "@/lib/gates";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +37,13 @@ export async function POST(request: Request): Promise<Response> {
     return err("unavailable", 503);
   }
   if (request.headers.get("sec-fetch-site") === "cross-site") return err("forbidden", 403);
+  const limit = webrtcByUser.hit(userId);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } },
+    );
+  }
 
   const src = new URL(request.url).searchParams.get("src");
   if (!src || !ALLOWED.has(src)) return err("invalid_src", 400);
