@@ -173,23 +173,26 @@ function LiveDashboard({ gate, role }: Props) {
         {/* Cameras stay as the customer drafted them: three dark tiles across the top. */}
         <CameraGrid />
 
-        {/* WHY: three instrument tiles; the water level (gauge + 24 h chart) and the AI count stack beside the controls. */}
+        {/* WHY: the AI count leads the readings (a person near the gate is the alert), electric takes the tall left
+            tile, floats and wire-break share the row under it. DOM order = phone order: AI, electric, floats, wire. */}
         <section aria-labelledby="readings-heading" id="sensor-grid">
           <h2 id="readings-heading" className="sr-only">
             ค่าที่วัดได้
           </h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className={TILE}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] md:grid-rows-[auto_1fr]">
+            <div className="md:col-start-2 md:row-start-1">
+              <DetectionCard personCount={status?.personCount ?? null} live={live} />
+            </div>
+            <div className={`${TILE} md:col-start-1 md:row-span-2 md:row-start-1`}>
               <ElectricCard pzem={status?.pzem ?? null} devices={status?.devices ?? null} live={live} />
             </div>
-            <div className={TILE}>
-              <FloatSwitchCard float={status?.float ?? null} live={live} />
-            </div>
-            <div className={TILE}>
-              <WireBreakCard
-                wireBreak={status?.wireBreak ?? null}
-                live={live}
-              />
+            <div className="grid grid-cols-1 gap-4 md:col-start-2 md:row-start-2 lg:grid-cols-2">
+              <div className={TILE}>
+                <FloatSwitchCard float={status?.float ?? null} live={live} />
+              </div>
+              <div className={TILE}>
+                <WireBreakCard wireBreak={status?.wireBreak ?? null} live={live} />
+              </div>
             </div>
           </div>
         </section>
@@ -216,12 +219,6 @@ function LiveDashboard({ gate, role }: Props) {
                 <WaterLevelChart />
               </div>
             </section>
-            <div className={TILE}>
-              <DetectionCard
-                personCount={status?.personCount ?? null}
-                live={live}
-              />
-            </div>
           </div>
 
           {/* Viewer gets the same panel read-only: state is job #1 for every role. */}

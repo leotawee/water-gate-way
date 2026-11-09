@@ -1,5 +1,5 @@
 /* Skeleton of the live dashboard's REAL shape (navy header, receivedAt line, camera strip,
-   three instrument tiles, water panel + detection tile, 420px control rail) so the streamed
+   AI count + instrument tiles, water panel, 420px control rail) so the streamed
    content swaps in without a layout jump. Flat static blocks: no shimmer, no animation. */
 const block = "rounded bg-surface-2";
 
@@ -34,13 +34,28 @@ export default function Loading() {
           ))}
         </div>
 
-        {/* Instrument tiles: electric / floats / wire-break loops */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {Array.from({ length: 3 }, (_, i) => (
-            <section key={i} aria-hidden="true" className="rounded-2xl border border-border bg-surface p-5">
+        {/* Readings: AI count, tall electric tile, floats + wire-break (same placement as the live grid) */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] md:grid-rows-[auto_1fr]">
+          <section aria-hidden="true" className="rounded-2xl border border-border bg-surface p-5 md:col-start-2 md:row-start-1">
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-2">
+                <div className={`${block} h-4 w-28`} />
+                <div className={`${block} h-6 w-20 rounded-full`} />
+              </div>
+              <div className={`${block} h-9 w-14`} />
+            </div>
+          </section>
+          {["electric", "floats", "wire"].map((k, i) => (
+            <section
+              key={k}
+              aria-hidden="true"
+              className={`rounded-2xl border border-border bg-surface p-5 ${
+                i === 0 ? "md:col-start-1 md:row-span-2 md:row-start-1" : "hidden md:block md:col-start-2 md:row-start-2"
+              }`}
+            >
               <div className={`${block} h-4 w-24`} />
               <div className="mt-3 space-y-2">
-                {Array.from({ length: 4 }, (_, j) => (
+                {Array.from({ length: i === 0 ? 7 : 3 }, (_, j) => (
                   <div key={j} className="flex items-center justify-between gap-4">
                     <div className={`${block} h-4 w-20`} />
                     <div className={`${block} h-4 w-12`} />
@@ -59,16 +74,6 @@ export default function Loading() {
               <div className="grid grid-cols-1 gap-8 md:grid-cols-[auto_minmax(0,1fr)]">
                 <div className={`${block} h-60 w-[72px]`} />
                 <div className={`${block} h-60 min-w-0`} />
-              </div>
-            </section>
-            <section aria-hidden="true" className="rounded-2xl border border-border bg-surface p-5">
-              <div className="flex items-center justify-between gap-4 py-1.5">
-                <div className={`${block} h-4 w-28`} />
-                <div className={`${block} h-4 w-10`} />
-              </div>
-              <div className="mt-2 flex items-center justify-between gap-4 py-1.5">
-                <div className={`${block} h-4 w-16`} />
-                <div className={`${block} h-4 w-10`} />
               </div>
             </section>
           </div>

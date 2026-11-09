@@ -1,24 +1,23 @@
 import StatePill from "@/components/StatePill";
 
-/** Person detection count; a detection is a warning, so "พบคน" uses the warn tone. */
+/** AI person count from the Pi's detector. It renders its own tile because a person near the gate is the one
+ *  reading that changes the tile's tint: seen = warn surface, otherwise the plain panel. */
 export default function DetectionCard({ personCount, live = true }: { personCount: number | null; live?: boolean }) {
   const unknown = personCount === null || !live;
   const seen = !unknown && personCount > 0;
   return (
-    <section aria-labelledby="detection-heading">
-      <h3 id="detection-heading" className="text-sm font-bold text-fg">
-        การตรวจจับคน
-      </h3>
-      <dl className="mt-2">
-        <div className="flex items-center justify-between gap-4 py-1.5">
-          <dt className="text-sm text-muted">จำนวนที่ตรวจพบ</dt>
-          <dd className={`text-base font-bold tabular-nums ${unknown ? "text-muted" : seen ? "text-warn" : "text-fg"}`}>
-            {unknown ? "—" : personCount}
-          </dd>
-        </div>
-        <div className="flex items-center justify-between gap-4 py-1.5">
-          <dt className="text-sm text-muted">สถานะ</dt>
-          <dd>
+    <section
+      aria-labelledby="detection-heading"
+      className={`min-w-0 rounded-2xl border p-5 transition-colors duration-(--dur-base) ${
+        seen ? "border-warn bg-warn-soft" : "border-border bg-surface"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0 space-y-2">
+          <h3 id="detection-heading" className="text-sm font-bold text-fg">
+            การตรวจจับคน (AI)
+          </h3>
+          <div role="status">
             {unknown ? (
               <StatePill tone="unknown">ไม่ทราบสถานะ</StatePill>
             ) : seen ? (
@@ -26,9 +25,13 @@ export default function DetectionCard({ personCount, live = true }: { personCoun
             ) : (
               <StatePill tone="off">ไม่พบคน</StatePill>
             )}
-          </dd>
+          </div>
         </div>
-      </dl>
+        <p className={`text-4xl leading-none font-bold tabular-nums ${unknown ? "text-muted" : seen ? "text-warn" : "text-fg"}`}>
+          {unknown ? "—" : personCount}
+          <span className="ml-1.5 text-sm font-bold text-muted">คน</span>
+        </p>
+      </div>
     </section>
   );
 }

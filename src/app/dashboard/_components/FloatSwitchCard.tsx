@@ -1,8 +1,8 @@
 import StatePill from "@/components/StatePill";
 
 const ROWS = [
-  { key: "f1", label: "ลูกลอยบน (F1)" },
-  { key: "f2", label: "ลูกลอยล่าง (F2)" },
+  { key: "f1", label: "ลูกลอย F1" },
+  { key: "f2", label: "ลูกลอย F2" },
   { key: "f3", label: "ลูกลอย F3" },
 ] as const;
 
