@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Person Detection Demo (MacBook)</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font-family: system-ui, sans-serif; background: #0e1116; color: #e6e6e6; display: flex; min-height: 100vh; align-items: center; justify-content: center; }
+  main { max-width: 860px; padding: 24px; }
+  h1 { font-size: 1.15rem; margin: 0 0 4px; }
+  p.sub { color: #9aa4b2; margin: 0 0 16px; font-size: .9rem; }
+  .row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+  img { max-width: 640px; width: 100%; border-radius: 10px; background: #161b22; border: 1px solid #2b3240; aspect-ratio: 4/3; object-fit: contain; }
+  .cards { display: grid; gap: 10px; min-width: 200px; }
+  .card { background: #161b22; border: 1px solid #2b3240; border-radius: 10px; padding: 12px 14px; }
+  .card dt { font-size: .8rem; color: #9aa4b2; }
+  .card dd { margin: 4px 0 0; font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #count.warn { color: #ffb020; }
+  #status { font-size: .85rem; color: #9aa4b2; margin-top: 14px; }
+  .stale { outline: 2px solid #ffb020; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Preview บน Pi: ตรวจจับคน YOLO11n ONNX</h1>
+  <p class="sub">ตัวเดียวกับที่จะรันบน Pi — person class เดียว, input 320px · เว็บนี้รันบนเครื่องคุณเท่านั้น (127.0.0.1)<br>ค่าที่ใช้อยู่ตอนนี้: conf ≥ <b id="conf">…</b>, input <b id="size">…</b>px · เปลี่ยนได้ด้วย <code>WGW_CONF=0.70 ./.venv/bin/python server.py</code></p>
+  <div class="row">
+    <img id="stream" alt="live camera with detection boxes" src="/stream.mjpg">
+    <div class="cards">
+      <div class="card"><dt>จำนวนคนที่ตรวจพบ (ดิบ)</dt><dd id="count">—</dd></div>
+      <div class="card"><dt>ยืนยันแล้ว (debounce)</dt><dd id="stable">—</dd></div>
+      <div class="card"><dt>อัตราประมวลผล</dt><dd id="fps">— <small style="font-size:.8rem;color:#9aa4b2">FPS</small></dd></div>
+    </div>
+  </div>
+  <div id="status">กำลังเชื่อมต่อกล้อง… (ถ้า macOS ถามสิทธิ์กล้อง ให้กด Allow)</div>
+  <script>
+    const img = document.getElementById('stream');
+    const count = document.getElementById('count');
+    const fps = document.getElementById('fps');
+    const status = document.getElementById('status');
+    let lastFrame = 0;
+    img.addEventListener('load', () => { lastFrame = Date.now(); img.classList.remove('stale'); });
+    setInterval(async () => {
+      if (Date.now() - lastFrame > 3000) { img.classList.add('stale'); }
+      try {
+        const r = await fetch('/stats');
+        const s = await r.json();
+        if (s.error) { status.textContent = 'ผิดพลาด: ' + s.error; return; }
+        if (!s.running) { status.textContent = 'กำลังเริ่มโมเดล (โหลด YOLO11n ครั้งแรก ~5MB)…'; return; }
+        status.textContent = 'ทำงานปกติ — ยืนหน้ากล้องเพื่อทดสอบ';
+        document.getElementById('conf').textContent = s.conf;
+        document.getElementById('size').textContent = s.size;
+        count.textContent = s.person_count;
+        count.className = s.person_count > 0 ? 'warn' : '';
+        fps.innerHTML = s.fps + ' <small style="font-size:.8rem;color:#9aa4b2">FPS</small>';
+      } catch {}
+    }, 500);
+  </script>
+</main>
+</body>
+</html>
