@@ -4,8 +4,8 @@
 Same settings as the MacBook demo (person-only, conf 0.7, input 320) but:
   - runs YOLO11n ONNX via onnxruntime (NO torch / ultralytics on the Pi)
   - source is the Tapo RTSP stream from WGW_RTSP_URL
-  - a person is reported only after WGW_DEBOUNCE seconds of continuous detection
-    (hysteresis: must also be absent WGW_DEBOUNCE seconds before clearing)
+  - a person is reported after WGW_MIN_HITS detections within WGW_DEBOUNCE seconds (tolerates flicker)
+    and cleared after WGW_DEBOUNCE seconds with none (see latch.py)
 
 Preview mode (default) serves the same test page as the MacBook demo on
 WGW_BIND:WGW_PORT. Serial/STM32 reporting is intentionally NOT implemented yet.
@@ -19,6 +19,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Condition, Thread
 
+from latch import Latch
+
 import cv2
 import numpy as np
 import onnxruntime as ort
@@ -27,7 +29,8 @@ MODEL_PATH = os.getenv("WGW_MODEL", str(Path(__file__).parent / "yolo11n.onnx"))
 RTSP_URL = os.getenv("WGW_RTSP_URL", "")
 CONF = float(os.getenv("WGW_CONF", "0.7"))
 SIZE = int(os.getenv("WGW_SIZE", "320"))
-DEBOUNCE = float(os.getenv("WGW_DEBOUNCE", "3.0"))
+DEBOUNCE = float(os.getenv("WGW_DEBOUNCE", "5.0"))
+MIN_HITS = int(os.getenv("WGW_MIN_HITS", "2"))
 BIND = os.getenv("WGW_BIND", "127.0.0.1")
 PORT = int(os.getenv("WGW_PORT", "8080"))
 # MQTT publish (path 2): the dashboard count comes from here, not from serial/STM32.
@@ -132,10 +135,9 @@ def camera_loop() -> None:
     input_name = session.get_inputs()[0].name
     print("model loaded:", MODEL_PATH, flush=True)
 
-    # debounced latch: on after DEBOUNCE s of presence, off after DEBOUNCE s of absence
+    # latch tolerant of flicker: on after MIN_HITS detections within DEBOUNCE s, off after DEBOUNCE s with none
+    latch = Latch(DEBOUNCE, MIN_HITS)
     stable = False
-    presence_since = None
-    absence_since = None
 
     mqtt_client = None
     if MQTT_HOST:
@@ -191,18 +193,7 @@ def camera_loop() -> None:
                 next_at = time.time() + 1.0 / MAX_FPS
                 frame, count = detect(session, input_name, frame)
                 now = time.time()
-                if count > 0:
-                    if presence_since is None:
-                        presence_since = now
-                    absence_since = None
-                    if not stable and now - presence_since >= DEBOUNCE:
-                        stable = True
-                else:
-                    if absence_since is None:
-                        absence_since = now
-                    presence_since = None
-                    if stable and now - absence_since >= DEBOUNCE:
-                        stable = False
+                stable = latch.update(now, count > 0)
                 inst = 1.0 / max(now - last, 1e-6)
                 last = now
                 fps = 0.9 * fps + 0.1 * inst if fps else inst
