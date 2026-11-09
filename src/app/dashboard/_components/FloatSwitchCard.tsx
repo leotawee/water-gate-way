@@ -1,3 +1,5 @@
+import { Waves } from "lucide-react";
+import CardTitle from "@/components/CardTitle";
 import StatePill from "@/components/StatePill";
 
 const ROWS = [
@@ -10,9 +12,9 @@ const ROWS = [
 export default function FloatSwitchCard({ float, live }: { float: Record<string, boolean> | null; live: boolean }) {
   return (
     <section aria-labelledby="float-heading">
-      <h3 id="float-heading" className="text-sm font-bold text-fg">
+      <CardTitle id="float-heading" icon={Waves}>
         ลูกลอย
-      </h3>
+      </CardTitle>
       <dl className="mt-2">
         {ROWS.map(({ key, label }) => {
           // WHY: a missing key means the payload did not report it; show unknown, not OFF.

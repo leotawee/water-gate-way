@@ -1,3 +1,5 @@
+import { ScanEye } from "lucide-react";
+import CardTitle from "@/components/CardTitle";
 import StatePill from "@/components/StatePill";
 
 /** AI person count from the Pi's detector. It renders its own tile because a person near the gate is the one
@@ -14,9 +16,9 @@ export default function DetectionCard({ personCount, live = true }: { personCoun
     >
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0 space-y-2">
-          <h3 id="detection-heading" className="text-sm font-bold text-fg">
+          <CardTitle id="detection-heading" icon={ScanEye}>
             การตรวจจับคน (AI)
-          </h3>
+          </CardTitle>
           <div role="status">
             {unknown ? (
               <StatePill tone="unknown">ไม่ทราบสถานะ</StatePill>

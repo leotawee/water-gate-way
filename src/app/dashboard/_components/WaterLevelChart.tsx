@@ -12,7 +12,8 @@ import {
   ResponsiveContainer,
   type TooltipValueType,
 } from "recharts";
-import { Download } from "lucide-react";
+import { ChartLine, FileDown } from "lucide-react";
+import CardTitle from "@/components/CardTitle";
 import { useRedirectToLogin } from "@/hooks/useRedirectToLogin";
 import { LEVEL_DANGER_M, LEVEL_MAX_M, LEVEL_WARN_M } from "./levels";
 
@@ -102,23 +103,23 @@ export default function WaterLevelChart() {
   }, [fetchWaterLevels]);
 
   return (
-    <div className="flex min-w-0 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-col">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <h3 className="text-sm font-bold text-fg">ประวัติ 24 ค่าล่าสุด</h3>
+        <CardTitle icon={ChartLine}>ประวัติ 24 ค่าล่าสุด</CardTitle>
         <a
           id="download-graph-data"
           href="/api/water-level/download"
           download="water_levels_report.csv"
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm text-muted transition-colors duration-(--dur-base) hover:bg-surface-2 hover:text-fg"
+          className="inline-flex min-h-11 items-center gap-2 rounded-md border border-control px-3 text-sm font-bold text-fg transition-colors duration-(--dur-base) hover:bg-surface-2"
         >
-          <Download className="size-4" strokeWidth={1.75} aria-hidden="true" />
+          <FileDown className="size-4" strokeWidth={1.75} aria-hidden="true" />
           ดาวน์โหลด CSV
         </a>
       </div>
 
       {/* WHY: every state keeps the plot's height, so nothing below jumps when the data lands. */}
       {data.length === 0 ? (
-        <div role="status" className="flex h-60 lg:h-[24rem] w-full items-center justify-center rounded-md border border-dashed border-border">
+        <div role="status" className="flex h-60 min-h-60 w-full flex-1 items-center justify-center rounded-md border border-dashed border-border">
           <span className={`text-sm ${error ? "text-danger" : "text-muted"}`}>
             {loading ? "กำลังโหลดข้อมูล…" : (error ?? "ยังไม่มีข้อมูลระดับน้ำที่บันทึกไว้")}
           </span>
@@ -140,7 +141,7 @@ export default function WaterLevelChart() {
           // updates in place and never replays it).
           role="img"
           aria-label={`กราฟประวัติระดับน้ำ 24 ค่าล่าสุด พร้อมเส้นระดับเตือน ${LEVEL_WARN_M} เมตร และระดับอันตราย ${LEVEL_DANGER_M} เมตร`}
-          className="anim-fade-in h-60 lg:h-[24rem] w-full"
+          className="anim-fade-in h-60 min-h-60 w-full flex-1"
         >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>

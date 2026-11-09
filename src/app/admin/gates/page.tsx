@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, MapPin } from "lucide-react";
 import { requireAdminPage } from "@/lib/auth/dal";
 import { listGates } from "@/lib/gatesDb";
 import StatePill from "@/components/StatePill";
@@ -46,7 +46,7 @@ export default async function AdminGatesPage() {
   const hidden = gates.filter((g) => !g.active).length;
 
   return (
-    <AdminShell title="ประตูน้ำ" subtitle={`${gates.length} แห่ง · ซ่อนอยู่ ${hidden}`}>
+    <AdminShell icon={MapPin} title="ประตูน้ำ" subtitle={`${gates.length} แห่ง · ซ่อนอยู่ ${hidden}`}>
       <div className="rounded-lg border border-border bg-surface">
         {/* WHY: each gate folds to one row; its edit form opens in place, so the list fits a screen. */}
         <ul className="divide-y divide-rule">

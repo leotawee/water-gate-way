@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { ChevronRight, List } from "lucide-react";
+import { ChevronRight, List, MapPin } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import WaterGateMapLoader from "@/components/WaterGateMapLoader";
 import StatePill from "@/components/StatePill";
@@ -37,7 +37,8 @@ export default async function HomePage() {
           className="order-2 flex min-h-0 shrink-0 scroll-mt-12 flex-col border-t border-border bg-surface lg:order-1 lg:w-[360px] lg:border-t-0 lg:border-r"
         >
           <header className="px-5 pt-5 pb-3">
-            <h1 id="gate-list-heading" className="text-2xl font-bold text-fg">
+            <h1 id="gate-list-heading" className="flex items-center gap-2.5 text-2xl font-bold text-fg">
+              <MapPin className="size-6 shrink-0 text-muted" strokeWidth={1.75} aria-hidden="true" />
               ประตูน้ำ
             </h1>
             <p className="mt-1 text-sm text-muted tabular-nums">

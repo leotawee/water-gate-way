@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Map, ShieldCheck, type LucideIcon } from "lucide-react";
 import LogoutButton from "@/components/LogoutButton";
 
 interface AppHeaderProps {
@@ -40,11 +41,11 @@ export default function AppHeader({ active, isAdmin }: AppHeaderProps) {
 
       <div className="flex shrink-0 items-center gap-1">
         <nav aria-label="เมนูหลัก" className="flex items-center gap-1">
-          <NavItem href="/" current={active === "map"}>
+          <NavItem href="/" icon={Map} current={active === "map"}>
             แผนที่
           </NavItem>
           {isAdmin && (
-            <NavItem href="/admin" current={active === "admin"}>
+            <NavItem href="/admin" icon={ShieldCheck} current={active === "admin"}>
               ผู้ดูแลระบบ
             </NavItem>
           )}
@@ -59,15 +60,16 @@ export default function AppHeader({ active, isAdmin }: AppHeaderProps) {
 }
 
 /** Current section: a neutral grey pill with the label in ink; no brand colour in the chrome. */
-function NavItem({ href, current, children }: { href: string; current: boolean; children: React.ReactNode }) {
+function NavItem({ href, icon: Icon, current, children }: { href: string; icon: LucideIcon; current: boolean; children: React.ReactNode }) {
   return (
     <Link
       href={href}
       aria-current={current ? "page" : undefined}
-      className={`inline-flex h-9 items-center rounded-md px-3 text-sm transition-colors duration-150 ${
+      className={`inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm transition-colors duration-150 ${
         current ? "bg-surface-2 font-bold text-fg" : "text-muted hover:bg-surface-2 hover:text-fg"
       }`}
     >
+      <Icon className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
       {children}
     </Link>
   );

@@ -10,7 +10,7 @@ export default function Loading() {
 
       {/* Navy dashboard header (DashboardHeader's shape, not the white AppHeader) */}
       <header className="bg-brand px-4 py-3 sm:px-6">
-        <div className="mx-auto flex w-full max-w-[1376px] flex-wrap items-center gap-x-4 gap-y-3">
+        <div className="mx-auto flex w-full max-w-[1680px] flex-wrap items-center gap-x-4 gap-y-3">
           <div className={`${block} h-6 w-16 bg-white/15`} />
           <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
             <div className="size-11 shrink-0 rounded-xl bg-white/15" />
@@ -23,7 +23,7 @@ export default function Loading() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1376px] flex-1 space-y-6 px-4 pt-6 pb-12 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-[1680px] flex-1 space-y-6 px-4 pt-6 pb-12 sm:px-6 lg:px-8">
         {/* receivedAt line */}
         <div className={`${block} h-4 w-60`} />
 
@@ -35,8 +35,8 @@ export default function Loading() {
         </div>
 
         {/* Readings: AI count, tall electric tile, floats + wire-break (same placement as the live grid) */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] md:grid-rows-[auto_1fr]">
-          <section aria-hidden="true" className="rounded-2xl border border-border bg-surface p-5 md:col-start-2 md:row-start-1">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,4fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr]">
+          <section aria-hidden="true" className="rounded-2xl border border-border bg-surface p-5 lg:col-start-2 lg:row-start-1">
             <div className="flex items-center justify-between gap-4">
               <div className="space-y-2">
                 <div className={`${block} h-4 w-28`} />
@@ -50,7 +50,7 @@ export default function Loading() {
               key={k}
               aria-hidden="true"
               className={`rounded-2xl border border-border bg-surface p-5 ${
-                i === 0 ? "md:col-start-1 md:row-span-2 md:row-start-1" : "hidden md:block md:col-start-2 md:row-start-2"
+                i === 0 ? "lg:col-start-1 lg:row-span-2 lg:row-start-1" : "hidden md:block lg:col-start-2 lg:row-start-2"
               }`}
             >
               <div className={`${block} h-4 w-24`} />
@@ -67,7 +67,7 @@ export default function Loading() {
         </div>
 
         {/* Water level + detection beside the 420px control rail from lg */}
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
           <div className="min-w-0 space-y-6">
             <section aria-hidden="true" className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
               <div className={`${block} mb-4 h-5 w-20`} />

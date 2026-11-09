@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Zap } from "lucide-react";
+import CardTitle from "@/components/CardTitle";
 import type { GateStatus } from "@/lib/telemetry/parseStatus";
 import { NO_CURRENT_HOLD_MS, noCurrentWhilePumpOn } from "./noCurrent";
 import Reading from "./Reading";
@@ -47,9 +49,9 @@ export default function ElectricCard({
   const c = live ? "text-fg" : "text-muted";
   return (
     <section aria-labelledby="electric-heading">
-      <h3 id="electric-heading" className="text-sm font-bold text-fg">
+      <CardTitle id="electric-heading" icon={Zap}>
         ไฟฟ้า (PZEM)
-      </h3>
+      </CardTitle>
       <dl className="mt-3 space-y-2">
         {ROWS.map((r) => (
           <div key={r.key} className={`flex items-baseline justify-between gap-4 rounded-xl px-3 py-2.5 ${r.tint}`}>
