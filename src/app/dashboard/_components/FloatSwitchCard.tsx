@@ -16,7 +16,7 @@ export default function FloatSwitchCard({ float, live }: { float: Record<string,
   return (
     <section aria-labelledby="float-heading">
       <CardTitle id="float-heading" icon={Waves}>
-        ลูกลอย
+        เซ็นเซอร์วัดระดับน้ำ
       </CardTitle>
       <dl className="mt-2">
         {ROWS.map(({ key, label }) => {

@@ -21,3 +21,5 @@
 - **Lesson:** when the owner overrides a documented mapping, do it, but leave the evidence next to the code so the next reader can check it against the firmware.
 
 - **Correction [19:25]:** the owner then asked to drop "(status)": the rows read "RS485 RADAR", "ALS-MPM RADAR", "ลูกลอย".
+
+- **Correction [19:35]:** the card heading changed from "ลูกลอย" to "เซ็นเซอร์วัดระดับน้ำ" at the owner's request (the row "ลูกลอย" stays).
