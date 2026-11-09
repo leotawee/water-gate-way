@@ -1,0 +1,6 @@
+# model weights are not committed (10 MB); see README
+*.onnx
+.env
+.venv/
+__pycache__/
+*.bak*

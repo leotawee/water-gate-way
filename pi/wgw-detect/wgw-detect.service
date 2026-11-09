@@ -1,0 +1,17 @@
+# Preview หน่วยทดสอบ (ยังไม่ enable — รอผลตรวจก่อน)
+# ติดตั้ง:  sudo cp wgw-detect.service /etc/systemd/system/ && sudo systemctl daemon-reload
+[Unit]
+Description=Water Gate person detector (preview)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pi
+EnvironmentFile=/home/pi/wgw-detect/.env
+WorkingDirectory=/home/pi/wgw-detect
+ExecStart=/home/pi/wgw-detect/.venv/bin/python detector.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
