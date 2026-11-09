@@ -12,3 +12,10 @@
 - Changed: files above. Unchanged: data, API, auth, login form.
 - Remaining: seen-state (warn tint) of the AI tile not viewed with live data; admin pages not rendered (need the database); screen reader pass.
 - 📌 GENERAL: for a layout change, scan the breakpoints in between the two you design for.
+
+## [19:10] Float card row names set by the owner
+
+- **Action:** `FloatSwitchCard.tsx` rows now read "RS485 RADAR (status)" (f1), "ALS-MPM RADAR (status)" (f2), "ลูกลอย" (f3); row layout wraps the state pill under a long label.
+- **Why:** the owner asked for these names after I reported the conflict: `docs/diagram/1.drawio` draws Float1-3, the 46-byte status frame has only `float_state` bits 0-2, no radar status field and no ALS-MPM anywhere (Mac, Pi, repo history searched; STM32 firmware source not available).
+- **Result:** typecheck, lint, 463 tests pass; rendered at 1440, 1024 and 375 px: no overflow (at 1024 px the pill drops under the two long labels). A WHY comment in the file records the diagram mismatch.
+- **Lesson:** when the owner overrides a documented mapping, do it, but leave the evidence next to the code so the next reader can check it against the firmware.
