@@ -19,3 +19,5 @@
 - **Why:** the owner asked for these names after I reported the conflict: `docs/diagram/1.drawio` draws Float1-3, the 46-byte status frame has only `float_state` bits 0-2, no radar status field and no ALS-MPM anywhere (Mac, Pi, repo history searched; STM32 firmware source not available).
 - **Result:** typecheck, lint, 463 tests pass; rendered at 1440, 1024 and 375 px: no overflow (at 1024 px the pill drops under the two long labels). A WHY comment in the file records the diagram mismatch.
 - **Lesson:** when the owner overrides a documented mapping, do it, but leave the evidence next to the code so the next reader can check it against the firmware.
+
+- **Correction [19:25]:** the owner then asked to drop "(status)": the rows read "RS485 RADAR", "ALS-MPM RADAR", "ลูกลอย".

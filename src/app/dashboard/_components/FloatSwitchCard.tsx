@@ -6,8 +6,8 @@ import StatePill from "@/components/StatePill";
 // 46-byte status frame carries them as float_state bits 0-2 only; no radar status field exists in the frame. Confirm with the
 // firmware owner that F1/F2 really report the two radars' status before relying on these names.
 const ROWS = [
-  { key: "f1", label: "RS485 RADAR (status)" },
-  { key: "f2", label: "ALS-MPM RADAR (status)" },
+  { key: "f1", label: "RS485 RADAR" },
+  { key: "f2", label: "ALS-MPM RADAR" },
   { key: "f3", label: "ลูกลอย" },
 ] as const;
 
