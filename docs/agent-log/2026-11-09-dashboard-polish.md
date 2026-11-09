@@ -23,3 +23,5 @@
 - **Correction [19:25]:** the owner then asked to drop "(status)": the rows read "RS485 RADAR", "ALS-MPM RADAR", "ลูกลอย".
 
 - **Correction [19:35]:** the card heading changed from "ลูกลอย" to "เซ็นเซอร์วัดระดับน้ำ" at the owner's request (the row "ลูกลอย" stays).
+
+- **Change [19:50]:** the boss said the STM32 reads RS485 RADAR first, then ALS-MPM RADAR, then the floats, and RS485 is in use now. The card lists the three sources in that order: RS485 "ใช้อยู่", the other two "สำรอง" (unknown when telemetry is stale), then the F1-F3 inputs under a rule with the diagram names. This replaces the rename of f1/f2 to radar names (f1/f2 are float bits, so showing them as radar status was wrong). Limit: the frame has no active-source byte, so a firmware fallback is not visible; asked for a firmware change.
