@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, Cpu, Fan, Hand, Power, PowerOff } from "lucide-react";
+import { Bell, Cpu, Fan, Hand, Power, PowerOff, SlidersHorizontal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRedirectToLogin } from "@/hooks/useRedirectToLogin";
 import type { Command, ModeCommand } from "@/lib/control/commands";
@@ -211,9 +211,10 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
   const modeLabel = (cmd: Command) => MODES.find((m) => m.cmd === cmd)?.label ?? cmd;
 
   return (
-    <section aria-labelledby="controls-heading" className="overflow-hidden rounded-2xl border border-border bg-surface">
-      <header className="flex items-baseline justify-between gap-3 bg-brand px-5 py-3.5 text-white">
-        <h2 id="controls-heading" className="text-base font-bold">
+    <section aria-labelledby="controls-heading" className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-surface">
+      <header className="flex items-center justify-between gap-3 bg-brand px-5 py-3.5 text-white">
+        <h2 id="controls-heading" className="flex items-center gap-2 text-base font-bold">
+          <SlidersHorizontal className="size-4 shrink-0 text-white/85" strokeWidth={1.75} aria-hidden="true" />
           {readOnly ? "สถานะอุปกรณ์" : "แผงควบคุม"}
         </h2>
         {/* WHY: the page header already says the link is down; here one quiet line says what it means for these switches. */}

@@ -1,4 +1,6 @@
 import type { GateStatus } from "@/lib/telemetry/parseStatus";
+import { Cable } from "lucide-react";
+import CardTitle from "@/components/CardTitle";
 import StatePill from "@/components/StatePill";
 
 const WIRES = [
@@ -10,9 +12,9 @@ const WIRES = [
 export default function WireBreakCard({ wireBreak, live }: { wireBreak: GateStatus["wireBreak"] | null; live: boolean }) {
   return (
     <section aria-labelledby="wire-heading">
-      <h3 id="wire-heading" className="text-sm font-bold text-fg">
+      <CardTitle id="wire-heading" icon={Cable}>
         สายขาด
-      </h3>
+      </CardTitle>
       <dl className="mt-2">
         {WIRES.map(({ key, label }) => {
           // WHY: stale telemetry must never look live; an unread loop reads as unknown.

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Droplets, ShieldCheck } from "lucide-react";
 import AppHeader, { BrandMark } from "@/components/AppHeader";
 import LogoutButton from "@/components/LogoutButton";
 import { useGateStatus } from "@/hooks/useGateStatus";
@@ -18,6 +18,7 @@ import DetectionCard from "./_components/DetectionCard";
 import ControlPanel from "./_components/ControlPanel";
 import LevelGauge, { formatReceived } from "./_components/LevelGauge";
 import StatePill from "@/components/StatePill";
+import CardTitle from "@/components/CardTitle";
 
 type Props = { gate: Gate; role: SessionUser["role"] };
 
@@ -64,7 +65,7 @@ function DashboardHeader({
       >
         ข้ามไปยังเนื้อหา
       </a>
-      <div className="mx-auto flex w-full max-w-[1376px] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-[1680px] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
         <Link href="/" className={`${link} bg-white/15`}>
           <ArrowLeft className="size-4" strokeWidth={1.75} aria-hidden="true" />
           แผนที่
@@ -107,6 +108,7 @@ function DashboardHeader({
           </span>
           {isAdmin && (
             <Link href="/admin" className={link}>
+              <ShieldCheck className="size-4" strokeWidth={1.75} aria-hidden="true" />
               ผู้ดูแลระบบ
             </Link>
           )}
@@ -161,7 +163,7 @@ function LiveDashboard({ gate, role }: Props) {
       />
       <main
         id="main"
-        className="stagger mx-auto w-full max-w-[1376px] flex-1 space-y-6 px-4 pt-6 pb-12 sm:px-6 lg:px-8"
+        className="stagger mx-auto w-full max-w-[1680px] flex-1 space-y-6 px-4 pt-6 pb-12 sm:px-6 lg:px-8"
       >
         {/* WHY: the time is the telemetry's own receivedAt, never the wall clock, so a dead feed cannot look fresh. */}
         <p className="text-sm text-muted tabular-nums">
@@ -179,14 +181,14 @@ function LiveDashboard({ gate, role }: Props) {
           <h2 id="readings-heading" className="sr-only">
             ค่าที่วัดได้
           </h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] md:grid-rows-[auto_1fr]">
-            <div className="md:col-start-2 md:row-start-1">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,4fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr]">
+            <div className="lg:col-start-2 lg:row-start-1">
               <DetectionCard personCount={status?.personCount ?? null} live={live} />
             </div>
-            <div className={`${TILE} md:col-start-1 md:row-span-2 md:row-start-1`}>
+            <div className={`${TILE} lg:col-start-1 lg:row-span-2 lg:row-start-1`}>
               <ElectricCard pzem={status?.pzem ?? null} devices={status?.devices ?? null} live={live} />
             </div>
-            <div className="grid grid-cols-1 gap-4 md:col-start-2 md:row-start-2 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:col-start-2 lg:row-start-2">
               <div className={TILE}>
                 <FloatSwitchCard float={status?.float ?? null} live={live} />
               </div>
@@ -197,19 +199,17 @@ function LiveDashboard({ gate, role }: Props) {
           </div>
         </section>
 
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="min-w-0 space-y-6">
+        {/* WHY: both columns stretch to the taller one, so the water panel and the control panel end on the same line. */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="flex min-w-0 flex-col">
             <section
               aria-labelledby="water-level-heading"
-              className={`${TILE} sm:p-6`}
+              className={`${TILE} flex flex-1 flex-col sm:p-6`}
             >
-              <h2
-                id="water-level-heading"
-                className="mb-4 text-base font-bold text-fg"
-              >
+              <CardTitle id="water-level-heading" as="h2" icon={Droplets} className="mb-4 text-base">
                 ระดับน้ำ
-              </h2>
-              <div className="grid grid-cols-1 gap-8 md:grid-cols-[auto_minmax(0,1fr)]">
+              </CardTitle>
+              <div className="grid flex-1 grid-cols-1 gap-8 md:grid-cols-[auto_minmax(0,1fr)]">
                 <LevelGauge
                   liquid={status?.radar.liquid ?? null}
                   airGap={status?.radar.airGap ?? null}
@@ -222,7 +222,7 @@ function LiveDashboard({ gate, role }: Props) {
           </div>
 
           {/* Viewer gets the same panel read-only: state is job #1 for every role. */}
-          <aside className="min-w-0 lg:sticky lg:top-6">
+          <aside className="min-w-0">
             <ControlPanel
               devices={status?.devices ?? null}
               mode={status?.mode ?? null}

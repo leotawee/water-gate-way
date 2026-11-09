@@ -1,3 +1,4 @@
+import { Users } from "lucide-react";
 import { requireAdminPage } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import StatePill from "@/components/StatePill";
@@ -19,7 +20,7 @@ export default async function AdminUsersPage() {
   const disabled = users.filter((u) => u.disabled).length;
 
   return (
-    <AdminShell title="ผู้ใช้" subtitle={`${users.length} บัญชี · ปิดใช้งาน ${disabled}`}>
+    <AdminShell icon={Users} title="ผู้ใช้" subtitle={`${users.length} บัญชี · ปิดใช้งาน ${disabled}`}>
       <section aria-labelledby="create-user-heading" className="rounded-lg border border-border bg-surface p-5">
         <h2 id="create-user-heading" className="text-base font-bold text-fg">
           สร้างผู้ใช้

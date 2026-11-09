@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LayoutDashboard, MapPin, Users } from "lucide-react";
 
 const TABS = [
-  { href: "/admin", label: "ภาพรวม" },
-  { href: "/admin/users", label: "ผู้ใช้" },
-  { href: "/admin/gates", label: "ประตูน้ำ" },
+  { href: "/admin", label: "ภาพรวม", icon: LayoutDashboard },
+  { href: "/admin/users", label: "ผู้ใช้", icon: Users },
+  { href: "/admin/gates", label: "ประตูน้ำ", icon: MapPin },
 ] as const;
 
 /** Admin sub-navigation as tabs. "/admin" matches only exactly; the other tabs match their prefix. */
@@ -24,10 +25,11 @@ export default function AdminNav() {
               <Link
                 href={tab.href}
                 aria-current={current ? "page" : undefined}
-                className={`flex min-h-11 cursor-pointer items-center border-b-2 px-3 text-sm font-bold transition-colors duration-150 ${
+                className={`flex min-h-11 cursor-pointer items-center gap-2 border-b-2 px-3 text-sm font-bold transition-colors duration-150 ${
                   current ? "border-fg text-fg" : "border-transparent text-muted hover:border-control hover:text-fg"
                 }`}
               >
+                <tab.icon className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
                 {tab.label}
               </Link>
             </li>
