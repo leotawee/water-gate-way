@@ -3,15 +3,17 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
 import { Slot } from "radix-ui"
 
-/* The app's one button language (matches the retired btn-* utilities): ink primary, outlined
-   secondary, quiet ghost rows, danger as an outlined soft tone. Focus is the global 2px accent
-   outline from globals.css — no per-component ring. Touch floor: 44px (h-11) on every size. */
+/* The app's one button language (matches the retired btn-* utilities): the default variant is the
+   screen's ONE primary action, in brand blue (accent is the interaction colour; ink stays for
+   text/structure), outlined secondary, quiet ghost rows, danger as an outlined soft tone — destructive
+   stays the danger voice. Focus is the global 2px accent outline from globals.css — no per-component
+   ring. Touch floor: 44px (h-11) on every size. */
 const buttonVariants = cva(
   "group/button inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md text-sm font-semibold whitespace-nowrap transition-colors duration-(--dur-base) select-none active:translate-y-px disabled:pointer-events-none disabled:opacity-60 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/85",
+        default: "bg-accent text-white hover:bg-accent/85",
         outline: "border border-input bg-surface text-fg hover:bg-surface-2",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "text-fg hover:bg-surface-2",

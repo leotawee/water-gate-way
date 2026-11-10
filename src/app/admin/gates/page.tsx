@@ -118,7 +118,7 @@ export default async function AdminGatesPage({ searchParams }: Props) {
                   <ActionForm action={updateGate} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <input type="hidden" name="id" value={g.id} />
                     <GateFields name={g.name} location={g.location} lat={g.lat} lng={g.lng} hasDevice={g.hasDevice} />
-                    <Button type="submit" className="justify-self-start whitespace-nowrap">
+                    <Button type="submit" variant="outline" className="justify-self-start whitespace-nowrap">
                       บันทึกการแก้ไข
                     </Button>
                   </ActionForm>

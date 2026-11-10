@@ -54,6 +54,10 @@ const KINDS = ["คำสั่งอุปกรณ์", "ฝั่งผู้
 
 type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefined }> };
 
+/** Accept only complete 24-hour times ("18:00"); anything else means the filter is off. */
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+const timeParam = (raw: string): string => (TIME.test(raw) ? raw : "");
+
 export default async function AdminLogsPage({ searchParams }: Props) {
   await requireAdminPage("/admin/logs");
   const sp = await searchParams;
@@ -61,12 +65,19 @@ export default async function AdminLogsPage({ searchParams }: Props) {
   const kindParam = firstParam(sp.kind);
   const kind = (KINDS as readonly string[]).includes(kindParam) ? kindParam : "";
   const dir = firstParam(sp.dir) === "asc" ? "asc" : "desc";
-  const filtered = Boolean(q || kind);
+  const from = timeParam(firstParam(sp.from));
+  const to = timeParam(firstParam(sp.to));
+  const filtered = Boolean(q || kind || from || to);
+  // WHY a hint, not an error state: an inverted range (จาก > ถึง) simply matches nothing;
+  // saying so in the scope line is the cheapest recovery.
+  const inverted = Boolean(from && to && from > to);
 
-  // WHY bound $1/$2 and a whitelisted direction string: user input never becomes SQL text,
-  // and the limit lands after the filter, so "100 ล่าสุด" always means "100 ล่าสุดที่ตรงตัวกรอง".
-  const query = `${FEEDS} where ($1::text is null or t.kind = $1) and ($2::text is null or t.email ilike '%' || $2 || '%') order by t.created_at ${dir} limit 100`;
-  const { rows } = await db.query(query, [kind || null, q || null]);
+  // WHY bound parameters and a whitelisted direction string: user input never becomes SQL text.
+  // The time window compares Bangkok wall-clock time, the same clock the เวลา (ไทย) column shows,
+  // so "18:00–19:00" means exactly what the operator reads on the rows. The limit lands after the
+  // filter, so "100 ล่าสุด" always means "100 ล่าสุดที่ตรงตัวกรอง".
+  const query = `${FEEDS} where ($1::text is null or t.kind = $1) and ($2::text is null or t.email ilike '%' || $2 || '%') and ($3::text is null or (t.created_at at time zone 'Asia/Bangkok')::time >= $3::time) and ($4::text is null or (t.created_at at time zone 'Asia/Bangkok')::time <= $4::time) order by t.created_at ${dir} limit 100`;
+  const { rows } = await db.query(query, [kind || null, q || null, from || null, to || null]);
   const logs = rows as LogRow[];
 
   // Chips keep the other filters so switching kind does not erase a search.
@@ -74,21 +85,19 @@ export default async function AdminLogsPage({ searchParams }: Props) {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
     if (dir === "asc") p.set("dir", dir);
+    if (from) p.set("from", from);
+    if (to) p.set("to", to);
     if (k) p.set("kind", k);
     const s = p.toString();
     return s ? `/admin/logs?${s}` : "/admin/logs";
   };
 
+  const scopeLine = inverted
+    ? "ช่วงเวลากลับด้าน — ตั้ง “จาก” ก่อน “ถึง” เพื่อให้ตรงกับรายการ"
+    : `${logs.length} รายการล่าสุดที่ตรงตัวกรอง${kind ? ` · ${kind}` : ""}${q ? ` · "${q}"` : ""}${from || to ? ` · ${from || "00:00"}–${to || "23:59"} น.` : ""}`;
+
   return (
-    <AdminShell
-      icon={ScrollText}
-      title="บันทึกเหตุการณ์"
-      subtitle={
-        filtered
-          ? `${logs.length} รายการล่าสุดที่ตรงตัวกรอง${kind ? ` · ${kind}` : ""}${q ? ` · "${q}"` : ""}`
-          : `100 รายการล่าสุด จากทั้งสามระบบ (คำสั่ง · ฝั่งผู้ดูแล · บัญชี)`
-      }
-    >
+    <AdminShell icon={ScrollText} title="บันทึกเหตุการณ์" subtitle={inverted ? scopeLine : filtered ? scopeLine : `100 รายการล่าสุด จากทั้งสามระบบ (คำสั่ง · ฝั่งผู้ดูแล · บัญชี)`}>
       {/* One surface: kind chips and the search/sort controls share the card's toolbar row. */}
       <div className="rounded-lg border border-border bg-surface">
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-rule px-5 py-4">
@@ -117,6 +126,14 @@ export default async function AdminLogsPage({ searchParams }: Props) {
             <div className="grid min-w-0 flex-1 gap-1.5 sm:max-w-64">
               <span className="text-sm font-bold text-fg">ค้นหาอีเมล</span>
               <Input name="q" type="search" defaultValue={q} placeholder="อีเมล…" className="w-full" />
+            </div>
+            <div className="grid gap-1.5">
+              <span className="text-sm font-bold text-fg">จากเวลา</span>
+              <Input name="from" type="time" step={60} defaultValue={from} className="w-32" />
+            </div>
+            <div className="grid gap-1.5">
+              <span className="text-sm font-bold text-fg">ถึงเวลา</span>
+              <Input name="to" type="time" step={60} defaultValue={to} className="w-32" />
             </div>
             <div className="grid gap-1.5">
               <span className="text-sm font-bold text-fg">เรียงตามเวลา</span>

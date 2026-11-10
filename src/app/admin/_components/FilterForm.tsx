@@ -39,12 +39,19 @@ export default function FilterForm({
         aria-label={ariaLabel}
         className={className}
         onChange={(e) => {
-          // Selects submit themselves through FilterSelect; here only the debounced text fields.
+          // Selects submit themselves through FilterSelect; time pickers submit as soon as a full
+          // time is chosen; here only the debounced text fields.
           const el = e.target;
           if (el instanceof HTMLSelectElement) return;
-          if (el instanceof HTMLInputElement && (el.type === "search" || el.type === "text")) {
-            if (timer.current) clearTimeout(timer.current);
-            timer.current = setTimeout(() => ref.current?.requestSubmit(), 400);
+          if (el instanceof HTMLInputElement) {
+            if (el.type === "time" && el.value) {
+              ref.current?.requestSubmit();
+              return;
+            }
+            if (el.type === "search" || el.type === "text") {
+              if (timer.current) clearTimeout(timer.current);
+              timer.current = setTimeout(() => ref.current?.requestSubmit(), 400);
+            }
           }
         }}
       >
