@@ -1,16 +1,16 @@
 import { ChevronDown, MapPin } from "lucide-react";
 import { requireAdminPage } from "@/lib/auth/dal";
 import { listGates } from "@/lib/gatesDb";
-import StatePill from "@/components/StatePill";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import ActionForm from "../_components/ActionForm";
 import AdminShell from "../_components/AdminShell";
 import CreateGateDialog from "../_components/CreateGateDialog";
-import FilterForm from "../_components/FilterForm";
+import FilterForm, { FilterSelect } from "../_components/FilterForm";
 import GateFields from "../_components/GateFields";
 import { firstParam } from "../_components/shared";
 import { setGateActive, updateGate } from "../actions";
-
-const label = "flex flex-col gap-1.5 text-sm font-bold text-fg";
 
 const SUMMARY =
   "flex cursor-pointer list-none items-center gap-4 rounded-lg px-5 py-3 transition-colors duration-150 hover:bg-surface-2 [&::-webkit-details-marker]:hidden";
@@ -48,32 +48,44 @@ export default async function AdminGatesPage({ searchParams }: Props) {
       subtitle={`${filtered ? `${list.length} จาก ${gates.length} แห่ง` : `${gates.length} แห่ง`} · ซ่อนอยู่ ${hidden}`}
       action={<CreateGateDialog />}
     >
-      <FilterForm
-        ariaLabel="กรองประตูน้ำ"
-        className="mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 rounded-lg border border-border bg-surface px-5 py-4"
-      >
-        <label className="flex min-w-0 flex-1 flex-col gap-1.5 text-sm font-bold text-fg sm:max-w-64">
-          ค้นหา
-          <input name="q" type="search" defaultValue={q} placeholder="ชื่อ รหัส หรือที่ตั้ง…" className="input-field w-full" />
-        </label>
-        <label className={label}>
-          สถานะ
-          <select name="status" defaultValue={status} className="input-field w-40">
-            <option value="">ทั้งหมด</option>
-            <option value="shown">แสดงบนแผนที่</option>
-            <option value="hidden">ซ่อนอยู่</option>
-          </select>
-        </label>
-        <label className={label}>
-          เรียงตาม
-          <select name="sort" defaultValue={sort} className="input-field w-40">
-            <option value="name">ชื่อ</option>
-            <option value="id">รหัส</option>
-          </select>
-        </label>
-      </FilterForm>
-
+      {/* One surface: the filter toolbar sits inside the list card, like the users page. */}
       <div className="rounded-lg border border-border bg-surface">
+        <div className="border-b border-rule px-5 py-4">
+          <FilterForm ariaLabel="กรองประตูน้ำ" className="flex flex-wrap items-end gap-x-4 gap-y-3">
+            <div className="grid min-w-0 flex-1 gap-1.5 sm:max-w-64">
+              <span className="text-sm font-bold text-fg">ค้นหา</span>
+              <Input name="q" type="search" defaultValue={q} placeholder="ชื่อ รหัส หรือที่ตั้ง…" className="w-full" />
+            </div>
+            <div className="grid gap-1.5">
+              <span className="text-sm font-bold text-fg">สถานะ</span>
+              <FilterSelect
+                name="status"
+                value={status}
+                ariaLabel="กรองตามสถานะ"
+                className="w-40"
+                options={[
+                  { value: "", label: "ทั้งหมด" },
+                  { value: "shown", label: "แสดงบนแผนที่" },
+                  { value: "hidden", label: "ซ่อนอยู่" },
+                ]}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <span className="text-sm font-bold text-fg">เรียงตาม</span>
+              <FilterSelect
+                name="sort"
+                value={sort}
+                ariaLabel="เรียงลำดับ"
+                className="w-40"
+                options={[
+                  { value: "name", label: "ชื่อ" },
+                  { value: "id", label: "รหัส" },
+                ]}
+              />
+            </div>
+          </FilterForm>
+        </div>
+
         {/* WHY: each gate folds to one row; its edit form opens in place, so the list fits a screen. */}
         <ul className="divide-y divide-rule">
           {list.map((g) => (
@@ -90,10 +102,10 @@ export default async function AdminGatesPage({ searchParams }: Props) {
                     {g.lat.toFixed(4)}, {g.lng.toFixed(4)}
                   </span>
                   <span className="hidden sm:block">
-                    {g.hasDevice ? <StatePill tone="on">มีอุปกรณ์</StatePill> : <StatePill tone="off">ยังไม่ติดตั้ง</StatePill>}
+                    {g.hasDevice ? <Badge className="bg-on-soft text-on">มีอุปกรณ์</Badge> : <Badge variant="outline">ยังไม่ติดตั้ง</Badge>}
                   </span>
                   {/* WHY: only the exception gets a mark; a visible gate is the normal case. */}
-                  {!g.active && <StatePill tone="off">ซ่อนอยู่</StatePill>}
+                  {!g.active && <Badge variant="outline" className="border-dashed text-muted">ซ่อนอยู่</Badge>}
                   <ChevronDown
                     className="size-4 shrink-0 text-muted transition-transform duration-150 group-open:rotate-180"
                     strokeWidth={1.75}
@@ -106,9 +118,9 @@ export default async function AdminGatesPage({ searchParams }: Props) {
                   <ActionForm action={updateGate} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <input type="hidden" name="id" value={g.id} />
                     <GateFields name={g.name} location={g.location} lat={g.lat} lng={g.lng} hasDevice={g.hasDevice} />
-                    <button type="submit" className="btn-primary justify-self-start whitespace-nowrap">
+                    <Button type="submit" className="justify-self-start whitespace-nowrap">
                       บันทึกการแก้ไข
-                    </button>
+                    </Button>
                   </ActionForm>
                   <ActionForm
                     action={setGateActive}
@@ -121,9 +133,9 @@ export default async function AdminGatesPage({ searchParams }: Props) {
                   >
                     <input type="hidden" name="id" value={g.id} />
                     <input type="hidden" name="active" value={g.active ? "false" : "true"} />
-                    <button type="submit" className={`${g.active ? "btn-danger" : "btn-secondary"} whitespace-nowrap`}>
+                    <Button type="submit" variant={g.active ? "destructive" : "outline"} className="whitespace-nowrap">
                       {g.active ? "ซ่อนประตูน้ำนี้" : "แสดงประตูน้ำนี้"}
-                    </button>
+                    </Button>
                     {/* WHY: the wording must not suggest it closes the physical gate. */}
                     <p className="text-sm text-muted">ซ่อนจากแผนที่และแดชบอร์ด ไม่มีผลกับประตูน้ำจริง</p>
                   </ActionForm>

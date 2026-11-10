@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 /* Design tokens from DESIGN.md (light only), recoloured to the client's Chiang Mai Maker palette. Components use the generated classes
    (bg-surface, text-muted, border-border, bg-on-soft ...).
@@ -51,6 +55,7 @@
   html {
     color-scheme: light;
     scroll-behavior: smooth;
+    @apply font-sans;
   }
 
   body {
@@ -74,6 +79,9 @@
      its server-rendered buttons): the same 60% dim the btn utility uses for disabled. */
   button[aria-busy="true"] {
     opacity: 0.6;
+  }
+  * {
+    @apply border-border outline-ring/50;
   }
 }
 
@@ -138,6 +146,10 @@
   --dur-fast: 120ms;
   --dur-base: 180ms;
   --dur-slow: 260ms;
+  /* shadcn semantic palette resolves in the @theme inline block at the end of this file,
+     pointed straight at the DESIGN.md tokens above — no second source of colour truth.
+     --radius is the one var shadcn components read directly (base 8px = our md tier). */
+  --radius: 0.5rem;
 }
 
 /* One-shot appearances (keyframes only here; rapidly retriggered feedback uses transitions above).
@@ -367,4 +379,26 @@ dialog.modal[open]::backdrop {
   transition:
     opacity var(--dur-fast) var(--ease-out),
     background-color var(--dur-fast) var(--ease-out);
+}
+
+/* shadcn semantic colours → DESIGN.md tokens. Deliberately NO --color-accent / --color-muted /
+   --color-border here: those names already belong to the palette above, and the components in ui/
+   are written against bg-surface-2 / text-muted / border-border directly.
+   Light-only product (field officers in sunlight): no .dark block, dark: variants in ui/ are dead code. */
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-fg);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-fg);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-fg);
+  --color-primary: var(--color-fg);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--color-surface-2);
+  --color-secondary-foreground: var(--color-fg);
+  --color-muted-foreground: var(--color-muted);
+  --color-accent-foreground: var(--color-fg);
+  --color-destructive: var(--color-danger);
+  --color-input: var(--color-control);
+  --color-ring: var(--color-accent);
 }

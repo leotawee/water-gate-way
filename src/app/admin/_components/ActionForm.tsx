@@ -1,14 +1,32 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
-import Modal from "@/components/Modal";
+import { CircleAlert, Info, TriangleAlert } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { AdminState } from "../actions";
 
 type Action = (prev: AdminState, form: FormData) => Promise<AdminState>;
+type Tone = "danger" | "warn" | "info";
 
-/** A form bound to a Server Action that shows the action's { error } in a modal (same pattern as LoginForm).
- *  `confirm` (when set) asks for confirmation in a modal before submitting; cancelling prevents the submit.
- *  `confirmTone` colors that modal — danger for destructive actions (default), info for creations.
+const TONE: Record<Tone, { Icon: typeof CircleAlert; chip: string }> = {
+  danger: { Icon: CircleAlert, chip: "bg-danger-soft text-danger" },
+  warn: { Icon: TriangleAlert, chip: "bg-warn-soft text-warn" },
+  info: { Icon: Info, chip: "bg-tint-blue text-accent" },
+};
+
+/** A form bound to a Server Action that shows the action's { error } in an alert dialog (shadcn/Radix).
+ *  `confirm` (when set) asks for confirmation before submitting; cancelling prevents the submit.
+ *  `confirmTone` colors that dialog — danger for destructive actions (default), info for creations.
  *  `onSuccess` fires once per submit that ended without an error — e.g. to close a dialog around the form.
  *  `resetOnSuccess` clears the fields after a successful submit (create-forms that stay mounted). */
 export default function ActionForm({
@@ -24,7 +42,7 @@ export default function ActionForm({
   className?: string;
   children: ReactNode;
   confirm?: string;
-  confirmTone?: "danger" | "warn" | "info";
+  confirmTone?: Tone;
   onSuccess?: () => void;
   resetOnSuccess?: boolean;
 }) {
@@ -35,7 +53,7 @@ export default function ActionForm({
   // WHY: set right before requestSubmit() so the onSubmit below lets exactly that one submit through.
   const confirmed = useRef(false);
   const [asking, setAsking] = useState(false);
-  // WHY: keyed to the state object, not the text, so the same error again after a dismiss reopens the modal.
+  // WHY: keyed to the state object, not the text, so the same error again after a dismiss reopens the dialog.
   const [dismissed, setDismissed] = useState<unknown>(null);
   // WHY: the success handler arrives as a fresh closure every render; keep the effect on the state alone.
   const successRef = useRef(onSuccess);
@@ -49,7 +67,7 @@ export default function ActionForm({
   }, [state, resetOnSuccess]);
   // WHY: the submit buttons are server-rendered children, so pending cannot be passed as a prop.
   // Syncing it onto the buttons keeps the auth-form contract (disabled + aria-busy, cf. LoginForm)
-  // without restructuring the admin pages: after a confirm modal closes, the page no longer sits dead.
+  // without restructuring the admin pages: after a confirm dialog closes, the page no longer sits dead.
   useEffect(() => {
     const form = formRef.current;
     if (!form) return;
@@ -59,6 +77,8 @@ export default function ActionForm({
       else button.removeAttribute("aria-busy");
     }
   }, [pending]);
+
+  const Confirm = confirm ? TONE[confirmTone] : null;
 
   return (
     <>
@@ -78,30 +98,56 @@ export default function ActionForm({
       >
         {children}
       </form>
-      {confirm && (
-        <Modal
+
+      {confirm && Confirm && (
+        <AlertDialog
           open={asking}
-          onClose={() => setAsking(false)}
-          title={confirm}
-          tone={confirmTone}
-          confirm={{
-            label: "ยืนยัน",
-            onConfirm: () => {
-              confirmed.current = true;
-              formRef.current?.requestSubmit();
-              setAsking(false);
-            },
+          onOpenChange={(open) => {
+            if (!open) setAsking(false);
           }}
-        />
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogMedia className={Confirm.chip}>
+                <Confirm.Icon strokeWidth={1.75} />
+              </AlertDialogMedia>
+              <AlertDialogTitle>{confirm}</AlertDialogTitle>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+              <AlertDialogAction
+                variant={confirmTone === "danger" ? "destructive" : "default"}
+                onClick={() => {
+                  confirmed.current = true;
+                  formRef.current?.requestSubmit();
+                }}
+              >
+                ยืนยัน
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
-      <Modal
+
+      <AlertDialog
         open={!!state?.error && dismissed !== state}
-        onClose={() => setDismissed(state)}
-        title="ดำเนินการไม่สำเร็จ"
-        tone="danger"
+        onOpenChange={(open) => {
+          if (!open) setDismissed(state);
+        }}
       >
-        {state?.error}
-      </Modal>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-danger-soft text-danger">
+              <CircleAlert strokeWidth={1.75} />
+            </AlertDialogMedia>
+            <AlertDialogTitle>ดำเนินการไม่สำเร็จ</AlertDialogTitle>
+            <AlertDialogDescription>{state?.error}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>ตกลง</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

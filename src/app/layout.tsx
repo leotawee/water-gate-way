@@ -35,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th" className={`${lineSeed.variable} antialiased`}>
+    <html lang="th" className={`${lineSeed.variable} antialiased font-sans`}>
       <body className="min-h-dvh bg-bg font-sans text-fg">
         {/* WHY: route changes crossfade instead of cutting — the browser interpolates the swap,
             so shared chrome (headers) stays put and client state is not sacrificed for motion. */}

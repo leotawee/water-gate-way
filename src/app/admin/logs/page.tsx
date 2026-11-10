@@ -2,9 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireAdminPage } from "@/lib/auth/dal";
-import { ScrollText, Search } from "lucide-react";
+import { ScrollText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import AdminShell from "../_components/AdminShell";
-import FilterForm from "../_components/FilterForm";
+import FilterForm, { FilterSelect } from "../_components/FilterForm";
 import { firstParam } from "../_components/shared";
 
 export const metadata: Metadata = { title: "บันทึกเหตุการณ์" };
@@ -44,9 +54,6 @@ const KINDS = ["คำสั่งอุปกรณ์", "ฝั่งผู้
 
 type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefined }> };
 
-const chip = "inline-flex items-center rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors duration-150";
-const chipIdle = `${chip} cursor-pointer bg-surface-2 text-muted hover:bg-surface-2/70`;
-
 export default async function AdminLogsPage({ searchParams }: Props) {
   await requireAdminPage("/admin/logs");
   const sp = await searchParams;
@@ -82,79 +89,82 @@ export default async function AdminLogsPage({ searchParams }: Props) {
           : `100 รายการล่าสุด จากทั้งสามระบบ (คำสั่ง · ฝั่งผู้ดูแล · บัญชี)`
       }
     >
-      <nav aria-label="กรองตามประเภท" className="mb-3 flex flex-wrap items-center gap-2">
-        <Link href={hrefFor("")} className={kind === "" ? `${chip} bg-accent text-white` : chipIdle}>
-          ทั้งหมด
-        </Link>
-        {KINDS.map((k) => (
-          <Link
-            key={k}
-            href={hrefFor(k)}
-            className={kind === k ? `${chip} ${KIND_STYLE[k]} ring-1 ring-accent` : chipIdle}
-          >
-            {k}
-          </Link>
-        ))}
-      </nav>
-
-      <FilterForm
-        ariaLabel="ค้นหาและเรียงบันทึกเหตุการณ์"
-        className="mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 rounded-lg border border-border bg-surface px-5 py-4"
-      >
-        {/* WHY hidden kind: a GET form replaces the query string, so the chip selection must travel with the form. */}
-        <input type="hidden" name="kind" value={kind} />
-        <label className="flex min-w-0 flex-1 flex-col gap-1.5 text-sm font-bold text-fg sm:max-w-64">
-          ค้นหาอีเมล
-          <input name="q" type="search" defaultValue={q} placeholder="อีเมล…" className="input-field w-full" />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-bold text-fg">
-          เรียงตามเวลา
-          <select name="dir" defaultValue={dir} className="input-field w-40">
-            <option value="desc">ใหม่ → เก่า</option>
-            <option value="asc">เก่า → ใหม่</option>
-          </select>
-        </label>
-        <button type="submit" className="btn-secondary inline-flex items-center gap-2 whitespace-nowrap">
-          <Search className="size-4" strokeWidth={1.75} aria-hidden="true" />
-          กรอง
-        </button>
-      </FilterForm>
-
+      {/* One surface: kind chips and the search/sort controls share the card's toolbar row. */}
       <div className="rounded-lg border border-border bg-surface">
-        {/* WHY: the table scrolls inside its own frame on a phone; the page never scrolls sideways. */}
-        <div className="overflow-x-auto">
-          <table className="data-table">
-            <thead className="text-left text-sm text-muted">
-              <tr>
-                <th className="px-5 py-3 font-normal">เวลา (ไทย)</th>
-                <th className="px-5 py-3 font-normal">ผู้ใช้</th>
-                <th className="px-5 py-3 font-normal">ประเภท</th>
-                <th className="px-5 py-3 font-normal">รายละเอียด</th>
-                <th className="px-5 py-3 font-normal">IP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((r, i) => (
-                <tr key={i} className="border-t border-rule align-top">
-                  <td className="whitespace-nowrap px-5 py-3 text-sm tabular-nums text-fg">{THAI_TIME.format(new Date(r.created_at))}</td>
-                  <td className="px-5 py-3 text-sm font-bold text-fg">{r.email ?? "—"}</td>
-                  <td className="px-5 py-3 text-sm">
-                    <span className={`pill ${KIND_STYLE[r.kind] ?? "bg-surface-2 text-fg"}`}>{r.kind}</span>
-                  </td>
-                  <td className="px-5 py-3 text-sm text-fg">{r.detail}</td>
-                  <td className="whitespace-nowrap px-5 py-3 text-sm tabular-nums text-muted">{r.ip ?? "—"}</td>
-                </tr>
-              ))}
-              {logs.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-5 py-6 text-center text-sm text-muted">
-                    {filtered ? "ไม่มีรายการที่ตรงกับตัวกรอง" : "ยังไม่มีรายการ"}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-rule px-5 py-4">
+          <nav aria-label="กรองตามประเภท" className="flex flex-wrap items-center gap-2">
+            <Badge asChild variant={kind === "" ? "default" : "outline"} className="h-8 px-3.5">
+              <Link href={hrefFor("")}>ทั้งหมด</Link>
+            </Badge>
+            {KINDS.map((k) => (
+              <Badge
+                key={k}
+                asChild
+                variant={kind === k ? "default" : "outline"}
+                className="h-8 px-3.5"
+              >
+                <Link href={hrefFor(k)}>{k}</Link>
+              </Badge>
+            ))}
+          </nav>
+
+          <FilterForm
+            ariaLabel="ค้นหาและเรียงบันทึกเหตุการณ์"
+            className="flex flex-wrap items-end gap-x-4 gap-y-3"
+          >
+            {/* WHY hidden kind: a GET form replaces the query string, so the chip selection must travel with the form. */}
+            <input type="hidden" name="kind" value={kind} />
+            <div className="grid min-w-0 flex-1 gap-1.5 sm:max-w-64">
+              <span className="text-sm font-bold text-fg">ค้นหาอีเมล</span>
+              <Input name="q" type="search" defaultValue={q} placeholder="อีเมล…" className="w-full" />
+            </div>
+            <div className="grid gap-1.5">
+              <span className="text-sm font-bold text-fg">เรียงตามเวลา</span>
+              <FilterSelect
+                name="dir"
+                value={dir === "asc" ? "asc" : ""}
+                ariaLabel="เรียงตามเวลา"
+                className="w-40"
+                options={[
+                  { value: "", label: "ใหม่ → เก่า" },
+                  { value: "asc", label: "เก่า → ใหม่" },
+                ]}
+              />
+            </div>
+          </FilterForm>
         </div>
+
+        <Table className="min-w-full text-sm">
+          <TableHeader className="text-left text-sm text-muted">
+            <TableRow className="border-rule hover:bg-transparent">
+              <TableHead className="px-5 py-3 font-normal text-muted">เวลา (ไทย)</TableHead>
+              <TableHead className="px-5 py-3 font-normal text-muted">ผู้ใช้</TableHead>
+              <TableHead className="px-5 py-3 font-normal text-muted">ประเภท</TableHead>
+              <TableHead className="px-5 py-3 font-normal text-muted">รายละเอียด</TableHead>
+              <TableHead className="px-5 py-3 font-normal text-muted">IP</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {logs.map((r, i) => (
+              <TableRow key={i} className="border-rule align-top">
+                <TableCell className="whitespace-nowrap px-5 py-3 text-sm tabular-nums text-fg">{THAI_TIME.format(new Date(r.created_at))}</TableCell>
+                <TableCell className="px-5 py-3 text-sm font-bold text-fg">{r.email ?? "—"}</TableCell>
+                <TableCell className="px-5 py-3 text-sm">
+                  <Badge className={KIND_STYLE[r.kind] ?? "bg-surface-2 text-fg"}>{r.kind}</Badge>
+                </TableCell>
+                <TableCell className="px-5 py-3 text-sm text-fg">{r.detail}</TableCell>
+                <TableCell className="whitespace-nowrap px-5 py-3 text-sm tabular-nums text-muted">{r.ip ?? "—"}</TableCell>
+              </TableRow>
+            ))}
+            {logs.length === 0 && (
+              <TableRow className="border-rule hover:bg-transparent">
+                <TableCell colSpan={5} className="px-5 py-6 text-center text-sm text-muted">
+                  {filtered ? "ไม่มีรายการที่ตรงกับตัวกรอง" : "ยังไม่มีรายการ"}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
     </AdminShell>
   );
