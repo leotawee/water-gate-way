@@ -130,6 +130,7 @@ export default async function AdminGatesPage({ searchParams }: Props) {
                         ? `ซ่อน “${g.name || g.id}” จากแผนที่และแดชบอร์ด?`
                         : `แสดง “${g.name || g.id}” บนแผนที่อีกครั้ง?`
                     }
+                    confirmTone={g.active ? "danger" : "info"}
                   >
                     <input type="hidden" name="id" value={g.id} />
                     <input type="hidden" name="active" value={g.active ? "false" : "true"} />
@@ -145,7 +146,7 @@ export default async function AdminGatesPage({ searchParams }: Props) {
           ))}
           {list.length === 0 && (
             <li className="px-5 py-4 text-sm text-muted">
-              {filtered ? "ไม่มีประตูน้ำที่ตรงกับตัวกรอง" : "ยังไม่มีประตูน้ำ เพิ่มประตูแรกด้านล่าง"}
+              {filtered ? "ไม่มีประตูน้ำที่ตรงกับตัวกรอง" : "ยังไม่มีประตูน้ำ กดปุ่มรูปเพิ่มด้านบนขวาเพื่อเริ่ม"}
             </li>
           )}
         </ul>

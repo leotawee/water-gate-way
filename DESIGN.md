@@ -123,7 +123,7 @@ Scale ratio ~1.2: 12 / 14 / 16 / 18 / 22 / 28.
 ## Layout
 
 - App bar 48px (`AppHeader`, one component everywhere): staff-gauge mark + "Water Gate Way" (mark only on a phone), nav as a neutral grey pill for the current section (แผนที่, ผู้ดูแลระบบ for admin), ออกจากระบบ. The product name is not an h1; each page has one h1.
-- Primary button is near-black ink (`btn-primary`), one per screen. Chrome carries no brand colour.
+- Primary button is brand blue (accent, the default shadcn Button variant), one primary action per screen or per form; row-level and secondary submits are outlined. Chrome carries no brand colour outside that primary.
 - Dashboard: header row (gate name h1, link state, the device's own `receivedAt`), then cameras (3 across from 640px), three instrument tiles across from md — electric (tinted dl), float switches, wire-break loops — then the water level panel (staff gauge + 24-row history chart + CSV) with the person-detection tile beneath it, and the 420px sticky control rail beside them from lg. Phone (single column = DOM order): header → receivedAt → cameras → instrument tiles → water level + detection → controls.
 - Water thresholds (warn 3 m, danger 5 m, scale 8 m) live in `src/app/dashboard/_components/levels.ts`; gauge and chart both read them.
 - Readings keep each type's own grammar instead of a shared card template: electric uses tinted rows, floats and wire-break loops use plain definition-list rows. The loading skeleton (`dashboard/loading.tsx`) mirrors this exact shape so the streamed swap never jumps.
@@ -152,7 +152,7 @@ One row per device: icon + Thai name, a large state readout, and a two-segment s
 Dot + word (`pill` utility): soft background, bold 12px word, 8px dot in the state colour. UNKNOWN: dashed outline, hollow dot, muted word — never a fill.
 
 ### Buttons
-- **Primary:** near-black ink (`btn-primary`, fg background, white text), one per screen.
+- **Primary:** brand blue (accent background, white text — 6.05:1), the default shadcn Button variant, one per screen/form.
 - **Secondary:** white surface + `control` border.
 - **Danger:** white surface + `danger` border + `danger` text.
 - Press feedback is a 1px drop (`active:translate-y-px`), instant by design.

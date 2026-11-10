@@ -102,17 +102,21 @@ export default async function AdminLogsPage({ searchParams }: Props) {
       <div className="rounded-lg border border-border bg-surface">
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-rule px-5 py-4">
           <nav aria-label="กรองตามประเภท" className="flex flex-wrap items-center gap-2">
-            <Badge asChild variant={kind === "" ? "default" : "outline"} className="h-8 px-3.5">
-              <Link href={hrefFor("")}>ทั้งหมด</Link>
+            <Badge asChild variant={kind === "" ? "default" : "outline"} className="min-h-11 px-3.5">
+              <Link href={hrefFor("")} aria-current={kind === "" ? "true" : undefined}>
+                ทั้งหมด
+              </Link>
             </Badge>
             {KINDS.map((k) => (
               <Badge
                 key={k}
                 asChild
                 variant={kind === k ? "default" : "outline"}
-                className="h-8 px-3.5"
+                className="min-h-11 px-3.5"
               >
-                <Link href={hrefFor(k)}>{k}</Link>
+                <Link href={hrefFor(k)} aria-current={kind === k ? "true" : undefined}>
+                  {k}
+                </Link>
               </Badge>
             ))}
           </nav>
@@ -128,7 +132,7 @@ export default async function AdminLogsPage({ searchParams }: Props) {
               <Input name="q" type="search" defaultValue={q} placeholder="อีเมล…" className="w-full" />
             </div>
             <div className="grid gap-1.5">
-              <span className="text-sm font-bold text-fg">จากเวลา</span>
+              <span className="text-sm font-bold text-fg">จากเวลา (ทุกวัน)</span>
               <Input name="from" type="time" step={60} defaultValue={from} className="w-32" />
             </div>
             <div className="grid gap-1.5">
@@ -176,7 +180,16 @@ export default async function AdminLogsPage({ searchParams }: Props) {
             {logs.length === 0 && (
               <TableRow className="border-rule hover:bg-transparent">
                 <TableCell colSpan={5} className="px-5 py-6 text-center text-sm text-muted">
-                  {filtered ? "ไม่มีรายการที่ตรงกับตัวกรอง" : "ยังไม่มีรายการ"}
+                  {filtered ? (
+                    <>
+                      ไม่มีรายการที่ตรงกับตัวกรอง —{" "}
+                      <Link href="/admin/logs" className="font-bold text-accent underline underline-offset-2">
+                        ล้างตัวกรองทั้งหมด
+                      </Link>
+                    </>
+                  ) : (
+                    "ยังไม่มีรายการ"
+                  )}
                 </TableCell>
               </TableRow>
             )}

@@ -27,7 +27,10 @@ type DeviceKey = keyof Devices;
 type Key = DeviceKey | "mode";
 
 function errorText(res: Response): string {
-  if (res.status === 429) return `ส่งคำสั่งบ่อยเกินไป รอ ${res.headers.get("Retry-After") ?? "สักครู่"} วินาที`;
+  if (res.status === 429) {
+    const wait = res.headers.get("Retry-After");
+    return `ส่งคำสั่งบ่อยเกินไป${wait ? ` — รอ ${wait} วินาทีแล้วลองใหม่` : " — รอสักครู่แล้วลองใหม่"}`;
+  }
   if (res.status === 502) return "อุปกรณ์ไม่พร้อมใช้งาน";
   if (res.status === 403) return "ไม่ได้รับอนุญาต";
   return "ส่งคำสั่งไม่สำเร็จ";

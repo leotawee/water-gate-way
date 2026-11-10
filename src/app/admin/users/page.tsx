@@ -1,4 +1,5 @@
 import { Users } from "lucide-react";
+import Link from "next/link";
 import { requireAdminPage } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
@@ -156,7 +157,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                           className="w-36"
                           options={ROLES.map((r) => ({ value: r, label: ROLE_THAI[r] }))}
                         />
-                        <Button type="submit" variant="outline" size="sm">
+                        <Button type="submit" variant="outline" size="sm" className="min-h-11">
                           บันทึก
                         </Button>
                       </ActionForm>
@@ -198,7 +199,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                             placeholder="อย่างน้อย 8 ตัวอักษร"
                             className="w-48"
                           />
-                          <Button type="submit" variant="outline" size="sm">
+                          <Button type="submit" variant="outline" size="sm" className="min-h-11">
                             บันทึกรหัสผ่าน
                           </Button>
                         </ActionForm>
@@ -207,6 +208,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                         <ActionForm
                           action={setUserDisabled}
                           confirm={u.disabled ? `เปิดใช้งานบัญชี ${u.email} อีกครั้ง?` : `ปิดใช้งานบัญชี ${u.email}?`}
+                          confirmTone={u.disabled ? "info" : "danger"}
                         >
                           <input type="hidden" name="id" value={u.id} />
                           <input type="hidden" name="disabled" value={u.disabled ? "false" : "true"} />
@@ -229,7 +231,16 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         </Table>
         {users.length === 0 && (
           <p className="px-5 py-6 text-center text-sm text-muted">
-            {filtered ? "ไม่มีบัญชีที่ตรงกับตัวกรอง" : "ยังไม่มีบัญชีผู้ใช้"}
+            {filtered ? (
+              <>
+                ไม่มีบัญชีที่ตรงกับตัวกรอง —{" "}
+                <Link href="/admin/users" className="font-bold text-accent underline underline-offset-2">
+                  ล้างตัวกรองทั้งหมด
+                </Link>
+              </>
+            ) : (
+              "ยังไม่มีบัญชีผู้ใช้"
+            )}
           </p>
         )}
       </section>
