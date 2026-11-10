@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { Wordmark } from "@/components/AppHeader";
 import { getUser } from "@/lib/auth/dal";
 import RegisterForm from "./RegisterForm";

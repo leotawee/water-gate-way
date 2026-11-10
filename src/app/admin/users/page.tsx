@@ -4,68 +4,100 @@ import { db } from "@/lib/db";
 import StatePill from "@/components/StatePill";
 import ActionForm from "../_components/ActionForm";
 import AdminShell from "../_components/AdminShell";
-import { createUser, resetUserPassword, setUserDisabled, setUserRole } from "../actions";
+import CreateUserDialog from "../_components/CreateUserDialog";
+import FilterForm from "../_components/FilterForm";
+import { ROLES, ROLE_THAI, firstParam } from "../_components/shared";
+import { resetUserPassword, setUserDisabled, setUserRole } from "../actions";
 
-const ROLES = ["viewer", "operator", "admin"] as const;
-const ROLE_THAI: Record<string, string> = { viewer: "ผู้ชม", operator: "ผู้ควบคุม", admin: "ผู้ดูแลระบบ" };
-const label = "flex flex-col gap-1.5 text-sm font-bold text-fg";
+const ROLE_LABEL = "flex min-w-0 flex-1 flex-col gap-1.5 text-sm font-bold text-fg sm:max-w-44";
+const SORTS: Record<string, string> = {
+  created_desc: "ใหม่ → เก่า",
+  created_asc: "เก่า → ใหม่",
+  email: "อีเมล a–z",
+};
 
 type UserRow = { id: string; email: string; role: string; disabled: boolean; created_at: Date };
 
-export default async function AdminUsersPage() {
+type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefined }> };
+
+export default async function AdminUsersPage({ searchParams }: Props) {
   const me = await requireAdminPage("/admin/users");
-  // WHY: explicit column list, so password_hash is never selected and can never reach the client.
+  const sp = await searchParams;
+  const q = firstParam(sp.q).trim().slice(0, 100);
+  const roleParam = firstParam(sp.role);
+  const role = (ROLES as readonly string[]).includes(roleParam) ? roleParam : "";
+  const statusParam = firstParam(sp.status);
+  const status = statusParam === "active" || statusParam === "disabled" ? statusParam : "";
+  const sortParam = firstParam(sp.sort);
+  const sort = sortParam in SORTS ? sortParam : "created_asc";
+  const filtered = Boolean(q || role || status);
+
+  // WHY in memory: this is a hand-sized admin list; one query, then filters here read clearer than SQL plumbing.
+  // Explicit column list, so password_hash is never selected and can never reach the client.
   const { rows } = await db.query("select id, email, role, disabled, created_at from users order by created_at, email");
-  const users = rows as UserRow[];
+  const all = rows as UserRow[];
+  let users = all;
+  if (q) {
+    const needle = q.toLowerCase();
+    users = users.filter((u) => u.email.toLowerCase().includes(needle));
+  }
+  if (role) users = users.filter((u) => u.role === role);
+  if (status) users = users.filter((u) => (status === "disabled") === u.disabled);
+  if (sort === "created_desc") users = [...users].reverse();
+  else if (sort === "email") users = [...users].sort((a, b) => a.email.localeCompare(b.email));
   const disabled = users.filter((u) => u.disabled).length;
 
   return (
-    <AdminShell icon={Users} title="ผู้ใช้" subtitle={`${users.length} บัญชี · ปิดใช้งาน ${disabled}`}>
-      <section aria-labelledby="create-user-heading" className="rounded-lg border border-border bg-surface p-5">
-        <h2 id="create-user-heading" className="text-base font-bold text-fg">
-          สร้างผู้ใช้
-        </h2>
-        <ActionForm
-          action={createUser}
-          className="mt-4 grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)_auto]"
-        >
-          <label className={label}>
-            อีเมล
-            <input name="email" type="email" required maxLength={254} className="input-field w-full" />
-          </label>
-          <label className={label}>
-            บทบาท
-            <select name="role" defaultValue="viewer" className="input-field w-full">
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {ROLE_THAI[r]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={label}>
-            รหัสผ่าน
-            <input
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              maxLength={1024}
-              autoComplete="new-password"
-              aria-describedby="create-password-rule"
-              className="input-field w-full"
-            />
-          </label>
-          <button type="submit" className="btn-primary whitespace-nowrap">
-            สร้างผู้ใช้
-          </button>
-          <p id="create-password-rule" className="col-span-full -mt-2 text-sm text-muted">
-            รหัสผ่านอย่างน้อย 8 ตัวอักษร
-          </p>
-        </ActionForm>
-      </section>
+    <AdminShell
+      icon={Users}
+      title="ผู้ใช้"
+      subtitle={
+        filtered
+          ? `${users.length} จาก ${all.length} บัญชี · ปิดใช้งาน ${disabled}`
+          : `${users.length} บัญชี · ปิดใช้งาน ${disabled}`
+      }
+      action={<CreateUserDialog />}
+    >
+      <FilterForm
+        ariaLabel="กรองรายชื่อผู้ใช้"
+        className="mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 rounded-lg border border-border bg-surface px-5 py-4"
+      >
+        <label className={ROLE_LABEL}>
+          ค้นหาอีเมล
+          <input name="q" type="search" defaultValue={q} placeholder="อีเมล…" className="input-field w-full" />
+        </label>
+        <label className={ROLE_LABEL}>
+          บทบาท
+          <select name="role" defaultValue={role} className="input-field w-full">
+            <option value="">ทุกบทบาท</option>
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_THAI[r]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={ROLE_LABEL}>
+          สถานะ
+          <select name="status" defaultValue={status} className="input-field w-full">
+            <option value="">ทุกสถานะ</option>
+            <option value="active">ใช้งาน</option>
+            <option value="disabled">ปิดใช้งาน</option>
+          </select>
+        </label>
+        <label className={ROLE_LABEL}>
+          เรียงตาม
+          <select name="sort" defaultValue={sort} className="input-field w-full">
+            {Object.entries(SORTS).map(([value, text]) => (
+              <option key={value} value={value}>
+                {text}
+              </option>
+            ))}
+          </select>
+        </label>
+      </FilterForm>
 
-      <section aria-labelledby="user-list-heading" className="mt-6 rounded-lg border border-border bg-surface">
+      <section aria-labelledby="user-list-heading" className="rounded-lg border border-border bg-surface">
         <h2 id="user-list-heading" className="sr-only">
           รายชื่อผู้ใช้
         </h2>
@@ -185,6 +217,11 @@ export default async function AdminUsersPage() {
             </tbody>
           </table>
         </div>
+        {users.length === 0 && (
+          <p className="px-5 py-6 text-center text-sm text-muted">
+            {filtered ? "ไม่มีบัญชีที่ตรงกับตัวกรอง" : "ยังไม่มีบัญชีผู้ใช้"}
+          </p>
+        )}
       </section>
     </AdminShell>
   );

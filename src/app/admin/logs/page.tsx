@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireAdminPage } from "@/lib/auth/dal";
-import { ScrollText } from "lucide-react";
+import { ScrollText, Search } from "lucide-react";
 import AdminShell from "../_components/AdminShell";
+import FilterForm from "../_components/FilterForm";
+import { firstParam } from "../_components/shared";
 
 export const metadata: Metadata = { title: "บันทึกเหตุการณ์" };
 
@@ -15,8 +18,8 @@ const THAI_TIME = new Intl.DateTimeFormat("th-TH", {
 
 type LogRow = { created_at: string; email: string | null; kind: string; detail: string; ip: string | null };
 
-/** The three audit feeds, newest first: control commands, admin operations, account actions. */
-const QUERY = `select created_at, email, kind, detail, ip from (
+/** The three audit feeds: control commands, admin operations, account actions. */
+const FEEDS = `select created_at, email, kind, detail, ip from (
   select ca.created_at, u.email::text as email, 'คำสั่งอุปกรณ์' as kind,
          ca.command || ' · ' || ca.status as detail, ca.ip::text as ip
   from control_audit ca left join users u on u.id = ca.user_id
@@ -29,7 +32,7 @@ const QUERY = `select created_at, email, kind, detail, ip from (
   select a.created_at, u.email::text, 'บัญชี',
          a.action || case when a.detail = '' then '' else ' · ' || a.detail end, a.ip::text
   from action_audit a left join users u on u.id = a.user_id
-) t order by created_at desc limit 100`;
+) t`;
 
 const KIND_STYLE: Record<string, string> = {
   คำสั่งอุปกรณ์: "bg-tint-blue text-accent",
@@ -37,13 +40,86 @@ const KIND_STYLE: Record<string, string> = {
   บัญชี: "bg-surface-2 text-fg",
 };
 
-export default async function AdminLogsPage() {
+const KINDS = ["คำสั่งอุปกรณ์", "ฝั่งผู้ดูแล", "บัญชี"] as const;
+
+type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefined }> };
+
+const chip = "inline-flex items-center rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors duration-150";
+const chipIdle = `${chip} cursor-pointer bg-surface-2 text-muted hover:bg-surface-2/70`;
+
+export default async function AdminLogsPage({ searchParams }: Props) {
   await requireAdminPage("/admin/logs");
-  const { rows } = await db.query(QUERY);
+  const sp = await searchParams;
+  const q = firstParam(sp.q).trim().slice(0, 100);
+  const kindParam = firstParam(sp.kind);
+  const kind = (KINDS as readonly string[]).includes(kindParam) ? kindParam : "";
+  const dir = firstParam(sp.dir) === "asc" ? "asc" : "desc";
+  const filtered = Boolean(q || kind);
+
+  // WHY bound $1/$2 and a whitelisted direction string: user input never becomes SQL text,
+  // and the limit lands after the filter, so "100 ล่าสุด" always means "100 ล่าสุดที่ตรงตัวกรอง".
+  const query = `${FEEDS} where ($1::text is null or t.kind = $1) and ($2::text is null or t.email ilike '%' || $2 || '%') order by t.created_at ${dir} limit 100`;
+  const { rows } = await db.query(query, [kind || null, q || null]);
   const logs = rows as LogRow[];
 
+  // Chips keep the other filters so switching kind does not erase a search.
+  const hrefFor = (k: string) => {
+    const p = new URLSearchParams();
+    if (q) p.set("q", q);
+    if (dir === "asc") p.set("dir", dir);
+    if (k) p.set("kind", k);
+    const s = p.toString();
+    return s ? `/admin/logs?${s}` : "/admin/logs";
+  };
+
   return (
-    <AdminShell icon={ScrollText} title="บันทึกเหตุการณ์" subtitle={`100 รายการล่าสุด จากทั้งสามระบบ (คำสั่ง · ฝั่งผู้ดูแล · บัญชี)`}>
+    <AdminShell
+      icon={ScrollText}
+      title="บันทึกเหตุการณ์"
+      subtitle={
+        filtered
+          ? `${logs.length} รายการล่าสุดที่ตรงตัวกรอง${kind ? ` · ${kind}` : ""}${q ? ` · "${q}"` : ""}`
+          : `100 รายการล่าสุด จากทั้งสามระบบ (คำสั่ง · ฝั่งผู้ดูแล · บัญชี)`
+      }
+    >
+      <nav aria-label="กรองตามประเภท" className="mb-3 flex flex-wrap items-center gap-2">
+        <Link href={hrefFor("")} className={kind === "" ? `${chip} bg-accent text-white` : chipIdle}>
+          ทั้งหมด
+        </Link>
+        {KINDS.map((k) => (
+          <Link
+            key={k}
+            href={hrefFor(k)}
+            className={kind === k ? `${chip} ${KIND_STYLE[k]} ring-1 ring-accent` : chipIdle}
+          >
+            {k}
+          </Link>
+        ))}
+      </nav>
+
+      <FilterForm
+        ariaLabel="ค้นหาและเรียงบันทึกเหตุการณ์"
+        className="mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 rounded-lg border border-border bg-surface px-5 py-4"
+      >
+        {/* WHY hidden kind: a GET form replaces the query string, so the chip selection must travel with the form. */}
+        <input type="hidden" name="kind" value={kind} />
+        <label className="flex min-w-0 flex-1 flex-col gap-1.5 text-sm font-bold text-fg sm:max-w-64">
+          ค้นหาอีเมล
+          <input name="q" type="search" defaultValue={q} placeholder="อีเมล…" className="input-field w-full" />
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm font-bold text-fg">
+          เรียงตามเวลา
+          <select name="dir" defaultValue={dir} className="input-field w-40">
+            <option value="desc">ใหม่ → เก่า</option>
+            <option value="asc">เก่า → ใหม่</option>
+          </select>
+        </label>
+        <button type="submit" className="btn-secondary inline-flex items-center gap-2 whitespace-nowrap">
+          <Search className="size-4" strokeWidth={1.75} aria-hidden="true" />
+          กรอง
+        </button>
+      </FilterForm>
+
       <div className="rounded-lg border border-border bg-surface">
         {/* WHY: the table scrolls inside its own frame on a phone; the page never scrolls sideways. */}
         <div className="overflow-x-auto">
@@ -72,7 +148,7 @@ export default async function AdminLogsPage() {
               {logs.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-5 py-6 text-center text-sm text-muted">
-                    ยังไม่มีรายการ
+                    {filtered ? "ไม่มีรายการที่ตรงกับตัวกรอง" : "ยังไม่มีรายการ"}
                   </td>
                 </tr>
               )}
