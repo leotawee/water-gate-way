@@ -80,7 +80,7 @@
 /* Shared component classes. One definition each, so every page uses the same look.
    (Deliberately no card class: panels are styled where they are used.) */
 @utility btn {
-  @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md px-4 text-sm font-bold transition-colors duration-(--dur-base) disabled:cursor-not-allowed disabled:opacity-60;
+  @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors duration-(--dur-base) disabled:cursor-not-allowed disabled:opacity-60;
 }
 
 /* Primary is near-black ink: one per screen. Press feedback is a 1px drop, transform only. */
@@ -94,6 +94,21 @@
 
 @utility btn-danger {
   @apply btn border border-danger bg-surface text-danger hover:bg-danger-soft active:translate-y-px;
+}
+
+/* Quiet text button for row-level actions: no frame, it reads on hover only. */
+@utility btn-ghost {
+  @apply inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-sm font-semibold text-fg transition-colors duration-(--dur-base) hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+/* The destructive ghost: same quietness, danger voice. */
+@utility btn-ghost-danger {
+  @apply inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-sm font-semibold text-danger transition-colors duration-(--dur-base) hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+/* Square header-action button: the secondary frame locked to one 44px square. */
+@utility btn-icon {
+  @apply btn w-11 border border-control bg-surface px-0 text-fg hover:bg-surface-2 active:translate-y-px;
 }
 
 @utility input-field {
