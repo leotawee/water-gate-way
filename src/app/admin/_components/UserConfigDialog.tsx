@@ -35,16 +35,21 @@ export default function UserConfigDialog({ user, isSelf }: { user: ConfigUser; i
       </DialogTrigger>
       <DialogContent className="w-[min(26rem,calc(100vw-2rem))] sm:max-w-[26rem]">
         <DialogHeader>
-          <div className="min-w-0">
-            <DialogTitle className="truncate">{user.email}</DialogTitle>
-            <p className="mt-1.5 flex items-center gap-2 text-sm text-muted">
-              {isSelf && <span className="font-bold text-fg">(คุณ)</span>}
-              {user.disabled ? (
-                <Badge className="bg-danger-soft text-danger">ปิดใช้งาน</Badge>
-              ) : (
-                <Badge className="bg-on-soft text-on">ใช้งาน</Badge>
-              )}
-            </p>
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-tint-blue text-accent">
+              <Settings2 className="size-5" strokeWidth={1.75} aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <DialogTitle className="truncate">{user.email}</DialogTitle>
+              <p className="mt-1.5 flex items-center gap-2 text-sm text-muted">
+                {isSelf && <span className="font-bold text-fg">(คุณ)</span>}
+                {user.disabled ? (
+                  <Badge className="bg-danger-soft text-danger">ปิดใช้งาน</Badge>
+                ) : (
+                  <Badge className="bg-on-soft text-on">ใช้งาน</Badge>
+                )}
+              </p>
+            </div>
           </div>
         </DialogHeader>
 
