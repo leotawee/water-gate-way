@@ -144,7 +144,9 @@ jobs:
       # Pinned release; no sudo needed (installs into $HOME).
       - name: Install Trivy
         env:
-          TRIVY_VERSION: "0.65.0"
+          # WHY not "latest": v0.65.0 has a git tag but no published release/assets — pin a version
+          # whose release is verified to carry the Linux-64bit tarball.
+          TRIVY_VERSION: "0.76.2"
         run: |
           mkdir -p "$HOME/.local/bin"
           curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" -o /tmp/trivy.tgz
