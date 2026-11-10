@@ -2,17 +2,20 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ReferenceLine,
+  ReferenceArea,
+  ReferenceDot,
   ResponsiveContainer,
   type TooltipValueType,
 } from "recharts";
 import { ChartLine, FileDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import CardTitle from "@/components/CardTitle";
 import { useRedirectToLogin } from "@/hooks/useRedirectToLogin";
 import { LEVEL_DANGER_M, LEVEL_MAX_M, LEVEL_WARN_M } from "./levels";
@@ -58,7 +61,9 @@ const formatTooltip = (value: TooltipValueType | undefined): [string, string] =>
   return [`${num.toFixed(2)} ม.`, "ระดับน้ำ"];
 };
 
-/* Thresholds in Thai words, so colour never carries the meaning alone. */
+/* Threshold boundary lines in Thai words, so colour never carries the meaning alone.
+   The zones behind them (ReferenceArea below) are tinted at ~5% — visible as regions,
+   quiet enough that the blue water body stays the loudest thing on the plot. */
 const REFS = [
   { y: LEVEL_WARN_M, color: CHART.warn, label: `ระดับเตือน ${LEVEL_WARN_M} ม.` },
   { y: LEVEL_DANGER_M, color: CHART.danger, label: `ระดับอันตราย ${LEVEL_DANGER_M} ม.` },
@@ -102,19 +107,18 @@ export default function WaterLevelChart() {
     return () => clearInterval(id);
   }, [fetchWaterLevels]);
 
+  const last = data.length > 0 ? data[data.length - 1] : null;
+
   return (
     <div className="flex min-h-0 min-w-0 flex-col">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <CardTitle icon={ChartLine}>ประวัติ 24 ค่าล่าสุด</CardTitle>
-        <a
-          id="download-graph-data"
-          href="/api/water-level/download"
-          download="water_levels_report.csv"
-          className="inline-flex min-h-11 items-center gap-2 rounded-md border border-control px-3 text-sm font-bold text-fg transition-colors duration-(--dur-base) hover:bg-surface-2"
-        >
-          <FileDown className="size-4" strokeWidth={1.75} aria-hidden="true" />
-          ดาวน์โหลด CSV
-        </a>
+        <Button variant="outline" size="sm" className="min-h-11" asChild>
+          <a id="download-graph-data" href="/api/water-level/download" download="water_levels_report.csv">
+            <FileDown className="size-4" strokeWidth={1.75} aria-hidden="true" />
+            ดาวน์โหลด CSV
+          </a>
+        </Button>
       </div>
 
       {/* WHY: every state keeps the plot's height, so nothing below jumps when the data lands. */}
@@ -140,11 +144,24 @@ export default function WaterLevelChart() {
           // WHY anim-fade-in: softens the placeholder -> chart handoff (mounts once; the 5-min poll
           // updates in place and never replays it).
           role="img"
-          aria-label={`กราฟประวัติระดับน้ำ 24 ค่าล่าสุด พร้อมเส้นระดับเตือน ${LEVEL_WARN_M} เมตร และระดับอันตราย ${LEVEL_DANGER_M} เมตร`}
+          aria-label={`กราฟประวัติระดับน้ำ 24 ค่าล่าสุด พร้อมโซนระดับเตือนเกิน ${LEVEL_WARN_M} เมตร และโซนระดับอันตรายเกิน ${LEVEL_DANGER_M} เมตร`}
           className="anim-fade-in h-60 min-h-60 w-full flex-1"
         >
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 18, right: 18, left: 0, bottom: 0 }}>
+              <defs>
+                {/* The water body: the fill under the line is the level's mass, not decoration. */}
+                <linearGradient id="water-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={CHART.accent} stopOpacity={0.22} />
+                  <stop offset="100%" stopColor={CHART.accent} stopOpacity={0.03} />
+                </linearGradient>
+              </defs>
+
+              {/* Zones first (behind everything): above danger, above warn — ~5% tints so the
+                  operator reads "which region am I in" before reading any number. */}
+              <ReferenceArea y1={LEVEL_DANGER_M} y2={LEVEL_MAX_M} fill={CHART.danger} fillOpacity={0.05} stroke="none" />
+              <ReferenceArea y1={LEVEL_WARN_M} y2={LEVEL_DANGER_M} fill={CHART.warn} fillOpacity={0.05} stroke="none" />
+
               <CartesianGrid vertical={false} stroke={CHART.grid} />
               <XAxis
                 dataKey="time"
@@ -165,7 +182,7 @@ export default function WaterLevelChart() {
                 unit=" ม."
               />
               {/* WHY: instant tracking — the default 400ms ease transform makes the tooltip trail
-                  the pointer; the Line below already opts out for the same reason. */}
+                  the pointer; the Area below already opts out for the same reason. */}
               <Tooltip
                 isAnimationActive={false}
                 formatter={formatTooltip}
@@ -173,12 +190,14 @@ export default function WaterLevelChart() {
                 contentStyle={{
                   backgroundColor: "#ffffff",
                   border: `1px solid ${CHART.border}`,
-                  borderRadius: 6,
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  boxShadow: "0 2px 8px rgba(20,32,41,0.08)",
                   color: CHART.fg,
                   fontSize: 12,
                 }}
-                labelStyle={{ color: CHART.tick }}
-                itemStyle={{ color: CHART.fg }}
+                labelStyle={{ color: CHART.tick, fontWeight: 700 }}
+                itemStyle={{ color: CHART.fg, fontWeight: 700 }}
               />
               {REFS.map((r) => (
                 <ReferenceLine
@@ -191,17 +210,38 @@ export default function WaterLevelChart() {
                   label={{ value: r.label, position: "insideTopLeft", fill: r.color, fontSize: 12 }}
                 />
               ))}
-              {/* Straight segments: a smoothed curve would invent levels between readings. */}
-              <Line
+              {/* Straight segments: a smoothed curve would invent levels between readings.
+                  Small open dots: each one is a real radar sample, not a synthetic point. */}
+              <Area
                 type="linear"
                 dataKey="level"
                 stroke={CHART.accent}
                 strokeWidth={2}
-                dot={false}
-                isAnimationActive={false}
+                fill="url(#water-fill)"
+                dot={{ r: 2, fill: CHART.accent, strokeWidth: 0 }}
                 activeDot={{ r: 4, fill: CHART.accent, stroke: CHART.bgRing, strokeWidth: 2 }}
+                isAnimationActive={false}
               />
-            </LineChart>
+              {/* The newest reading leads: cut-out dot + its value, so PRODUCT job #1 ("know the
+                  level within one second") is answered without hunting the tooltip. */}
+              {last && (
+                <ReferenceDot
+                  x={last.time}
+                  y={last.level}
+                  r={4.5}
+                  fill={CHART.accent}
+                  stroke={CHART.bgRing}
+                  strokeWidth={2}
+                  label={{
+                    value: `${last.level.toFixed(2)} ม.`,
+                    position: "top",
+                    fill: CHART.fg,
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                />
+              )}
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       )}
