@@ -225,6 +225,7 @@ function LiveDashboard({ gate, role }: Props) {
           <aside className="min-w-0">
             <ControlPanel
               devices={status?.devices ?? null}
+              personCount={status?.personCount ?? null}
               mode={status?.mode ?? null}
               stale={stale}
               readOnly={role === "viewer"}

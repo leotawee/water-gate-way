@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, Cpu, Fan, Hand, Power, PowerOff, SlidersHorizontal } from "lucide-react";
+import { Bell, Cpu, Fan, Hand, PowerOff, SlidersHorizontal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRedirectToLogin } from "@/hooks/useRedirectToLogin";
 import type { Command, ModeCommand } from "@/lib/control/commands";
 import { isModeCommand } from "@/lib/control/commands";
 import type { GateMode, GateStatus } from "@/lib/telemetry/parseStatus";
 import DeviceSwitch, { StatusLine, type SwitchStatus } from "@/components/DeviceSwitch";
+import AiAlarmRow from "./AiAlarmRow";
 import Modal from "@/components/Modal";
 import { modeView, pumpsLocked } from "./modeView";
 
@@ -58,6 +59,7 @@ const MODES: { cmd: ModeCommand; mode: GateMode; label: string; icon: LucideIcon
 
 type Props = {
   devices: Devices | null;
+  personCount: number | null;
   mode: GateMode | null;
   stale: boolean;
   /** Viewer mode: the same panel and state readouts, no command buttons, notes or fetch. */
@@ -75,7 +77,7 @@ function reached(note: Note, devices: Devices | null, mode: GateMode | null): bo
  *  WHY: buttons stay enabled when stale; the server is authoritative and an operator may need to
  *  act during an outage. Each row keeps its OWN note, so a second command never erases the first
  *  row's confirmation or timeout. */
-export default function ControlPanel({ devices, mode, stale, readOnly = false }: Props) {
+export default function ControlPanel({ devices, personCount, mode, stale, readOnly = false }: Props) {
   const [sending, setSending] = useState<Partial<Record<Key, Command>>>({});
   const [notes, setNotes] = useState<Notes>({});
   const [error, setError] = useState<string | null>(null);
@@ -193,8 +195,8 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
   ] as const;
 
   // WHY: pc2 + pc3 are the master relays; the controller ties them to its mode (ON in AUTO/MANUAL, OFF in OFF) and
-  // ignores a web command for them, so they are shown but never switchable. Unknown until both are reported.
-  const master = devices?.relay2 == null || devices.master1 == null ? null : devices.relay2 && devices.master1;
+  // ignores a web command for them, so they are not shown as switches. Their row was replaced by
+  // the AI Alarm demo row (owner request 2026-11-10).
 
   const locked = pumpsLocked(mode, stale);
 
@@ -288,18 +290,13 @@ export default function ControlPanel({ devices, mode, stale, readOnly = false }:
             note={locked && row.key !== "alarm" ? "โหมด OFF: สลับเป็นควบคุมเองก่อนจึงสั่งปั๊มได้" : undefined}
           />
         ))}
-        {/* onCmd/offCmd are required by the props but never rendered: readOnly hides the buttons. */}
-        <DeviceSwitch
-          name="Master relay"
-          icon={Power}
-          state={master}
-          stale={stale}
-          onCmd="P1"
-          offCmd="P0"
-          status={null}
-          onSend={guardedSend}
-          readOnly
-          note="ผูกกับโหมดการทำงาน สั่งจากเว็บไม่ได้"
+        {/* DEMO (owner request 2026-11-10): the AI Alarm demo row replaces the read-only master
+            relay display. See AiAlarmRow.tsx for the behaviour and its production limitation. */}
+        <AiAlarmRow
+          personCount={personCount}
+          alarm={devices?.alarm ?? null}
+          canControl={!readOnly}
+          onCommand={(cmd) => void sendCommand(cmd)}
         />
       </div>
 
