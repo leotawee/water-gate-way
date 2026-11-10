@@ -13,8 +13,6 @@ function message(state: RegisterState): string | null {
       return "รหัสผ่านต้องมี 8 ถึง 1024 ตัวอักษร";
     case "mismatch":
       return "รหัสผ่านทั้งสองช่องไม่ตรงกัน";
-    case "closed":
-      return "ปิดรับสมัครเอง กรุณาติดต่อผู้ดูแลระบบ";
     case "rate_limited":
       return `สมัครบ่อยเกินไป ลองอีกครั้งใน ${Math.ceil((state.retryAfterSec ?? 60) / 60)} นาที`;
     default:

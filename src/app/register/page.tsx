@@ -3,16 +3,13 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Wordmark } from "@/components/AppHeader";
 import { getUser } from "@/lib/auth/dal";
-import { registrationOpen } from "@/lib/auth/registration";
 import RegisterForm from "./RegisterForm";
 
 export const metadata: Metadata = { title: "สมัครใช้งาน" };
-// WHY: ALLOW_SELF_REGISTER is read at request time. Without this the closed check ran first, no cookie was read,
-// and `next build` prerendered the page as a static 404 that setting the variable later could never open.
+// WHY: force-dynamic because the page reads cookies (signed-in users are redirected home).
 export const dynamic = "force-dynamic";
 
 export default async function RegisterPage() {
-  if (!registrationOpen()) notFound();
   // WHY: a signed-in user has nothing to sign up for.
   if (await getUser()) redirect("/");
   return (

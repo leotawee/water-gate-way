@@ -5,11 +5,10 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { registerByIp, registerGlobal } from "@/lib/auth/rateLimit";
-import { registrationOpen } from "@/lib/auth/registration";
 import { clientIp } from "@/lib/http/clientIp";
 
 export type RegisterState =
-  | { error: "email" | "password" | "mismatch" | "rate_limited" | "closed"; retryAfterSec?: number }
+  | { error: "email" | "password" | "mismatch" | "rate_limited"; retryAfterSec?: number }
   | undefined;
 
 // WHY: same shape and limits as the admin createUser action.
@@ -24,8 +23,6 @@ const PASSWORD_MAX = 1024;
  * response does not reveal which emails have accounts (no enumeration); the user then signs in normally.
  */
 export async function register(_prev: RegisterState, form: FormData): Promise<RegisterState> {
-  // WHY: a Server Action is a public POST endpoint, so hiding the page is not enough; refuse before any work.
-  if (!registrationOpen()) return { error: "closed" };
   const rawEmail = form.get("email");
   const password = form.get("password");
   const confirm = form.get("confirm");

@@ -48,6 +48,8 @@ export default function AiAlarmRow({ personCount, alarm, canControl, onCommand }
   const [silencedEpisode, setSilencedEpisode] = useState<number | null>(null);
   // The episode already auto-fired, in a ref: firing must not wait for a re-render.
   const firedEpisode = useRef<number | null>(null);
+  // The episode already auto-stopped (A0 on confirmed zero), same reason.
+  const stoppedEpisode = useRef<number | null>(null);
 
   const person = personCount !== null && personCount > 0;
 
@@ -77,8 +79,23 @@ export default function AiAlarmRow({ personCount, alarm, canControl, onCommand }
     if (!triggered || !canControl || alarm === true) return;
     if (firedEpisode.current === episode) return;
     firedEpisode.current = episode;
+    stoppedEpisode.current = null;
     onCommand("A1");
   }, [triggered, canControl, alarm, episode, onCommand]);
+
+  // The automatic stop (owner request 2026-11-10): when the count returns to a CONFIRMED zero and
+  // this episode auto-fired, stop the siren right away (A0) — the alarm only lasts while someone
+  // is on camera. WHY personCount === 0 strictly: a null count is a stale/dropped feed, and a
+  // dropped feed during a real intrusion must leave the siren on. WHY skip when silenced: the
+  // human already stopped it and the latch must survive until the next episode.
+  useEffect(() => {
+    if (personCount !== 0) return;
+    if (firedEpisode.current !== episode) return;
+    if (silencedEpisode === episode) return;
+    if (stoppedEpisode.current === episode) return;
+    stoppedEpisode.current = episode;
+    onCommand("A0");
+  }, [personCount, episode, silencedEpisode, canControl, onCommand]);
 
   const silence = () => {
     setSilencedEpisode(episode);

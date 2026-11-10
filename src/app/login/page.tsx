@@ -4,7 +4,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Wordmark } from "@/components/AppHeader";
 import { REMEMBER_COOKIE } from "@/lib/auth/remember";
-import { registrationOpen } from "@/lib/auth/registration";
 import { SESSION_COOKIE } from "@/lib/auth/session";
 import LoginForm from "./LoginForm";
 
@@ -41,14 +40,12 @@ export default async function LoginPage({
           )}
           <LoginForm next={typeof next === "string" ? next : ""} />
         </div>
-        {registrationOpen() && (
-          <p className="mt-4 text-sm text-muted">
-            ยังไม่มีบัญชี{" "}
-            <Link href="/register" className="font-bold text-fg underline underline-offset-2 hover:no-underline">
-              สมัครใช้งาน
-            </Link>
-          </p>
-        )}
+        <p className="mt-4 text-sm text-muted">
+          ยังไม่มีบัญชี{" "}
+          <Link href="/register" className="font-bold text-fg underline underline-offset-2 hover:no-underline">
+            สมัครใช้งาน
+          </Link>
+        </p>
       </div>
     </main>
   );

@@ -21,7 +21,8 @@ const QUERY = `select created_at, email, kind, detail, ip from (
          ca.command || ' · ' || ca.status as detail, ca.ip::text as ip
   from control_audit ca left join users u on u.id = ca.user_id
   union all
-  select aa.created_at, u.email::text, 'ฝั่งผู้ดูแล',
+  select aa.created_at, u.email::text,
+         case when aa.action = 'user.register' then 'บัญชี' else 'ฝั่งผู้ดูแล' end,
          aa.action || ' ' || aa.target, aa.ip::text
   from admin_audit aa left join users u on u.id = aa.actor_id
   union all
