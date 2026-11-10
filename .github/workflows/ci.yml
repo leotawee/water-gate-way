@@ -34,10 +34,13 @@ jobs:
       # WHY --ignore-scripts: no dependency needs an install script to build or test here,
       # so a compromised package's postinstall never runs in CI.
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: npx vitest run
+      # WHY build first: `next build` fails fastest on compile-level breakage (a bad import, a type
+      # error in the graph), so a broken commit never waits behind the multi-minute test suite.
+      # The suite runs last as the behavioural gate before anything is published.
+      - run: npm run build
       - run: npx tsc --noEmit
       - run: npm run lint
-      - run: npm run build
+      - run: npx vitest run
 
   audit:
     name: Dependency audit
@@ -89,6 +92,18 @@ jobs:
             sleep 1
           done
           docker logs smoke; exit 1
+      # WHY before push: a HIGH/CRITICAL CVE in the image must fail here, not land in the registry
+      # the droplet pulls. ignore-unfixed: never block on an OS bug with no vendor patch yet.
+      # npm audit (above) covers the JS dependencies; this covers the container they ship in.
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@f9424c10c36e288d5fa79bd3dfd1aeb2d6eae808 # v0.33.0
+        with:
+          image-ref: "${{ env.IMAGE }}:${{ env.TAG }}"
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "HIGH,CRITICAL"
       - name: Push image
         run: |
           docker push "$IMAGE:$TAG"

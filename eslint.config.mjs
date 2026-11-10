@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     languageOptions: { sourceType: "commonjs", globals: { ...globals.node } },
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },
+  // WHY argsIgnorePattern: useActionState fixes a Server Action's first parameter to the previous
+  // state — an unused `_prev` is the convention, not a defect.
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

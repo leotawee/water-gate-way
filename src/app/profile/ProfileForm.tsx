@@ -5,7 +5,7 @@
 // picture is replaced in one update.
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { uploadAvatar, updateProfile, removeAvatar, type ProfileState } from "./actions";
+import { uploadAvatar, updateProfile, removeAvatar } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -18,8 +18,6 @@ type ProfileRow = {
   hasAvatar: boolean;
   avatarVersion: string | null; // pg bigint comes back as a string
 };
-
-const ROLE_THAI: Record<string, string> = { admin: "ผู้ดูแลระบบ", operator: "ผู้ควบคุม", viewer: "ผู้ชม" };
 
 /** Center-crop to a 256px square and encode WebP (quality 0.85) entirely in the browser. */
 async function compressToWebp(file: File): Promise<Blob> {
@@ -76,6 +74,9 @@ function AvatarBlock({ row }: { row: ProfileRow }) {
         // eslint-disable-next-line @next/next/no-img-element -- the preview is a client-side object URL
         <img src={preview} alt="ตัวอย่างรูปใหม่" className="size-20 shrink-0 rounded-2xl object-cover" />
       ) : version ? (
+        // WHY img, not next/image: the avatar is already a client-compressed 256px WebP from an
+        // authenticated endpoint — the optimizer adds a processing hop for zero gain.
+        // eslint-disable-next-line @next/next/no-img-element
         <img src={`/api/users/me/avatar${version}`} alt="" className="size-20 shrink-0 rounded-2xl object-cover" />
       ) : (
         <span
