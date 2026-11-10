@@ -25,6 +25,11 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=3000
 RUN groupadd --gid 10001 nextjs && useradd --uid 10001 --gid nextjs --create-home --shell /usr/sbin/nologin nextjs
+# WHY: the base image snapshot can be months old — apply the Debian security updates so the
+# scanner's fixable OS CVEs (perl-base, pcre2, ...) are patched in the image, not ignored.
+RUN apt-get update \
+ && apt-get -y upgrade --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
 # WHY: the server runs `node server.js` and never invokes npm, but the node base image bundles npm
 # with its own vendored tree (tar, sigstore, ...) — dead code in production and a live CVE surface
 # the image scanner flags. Delete it rather than ignore the findings.
