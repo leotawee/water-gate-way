@@ -19,10 +19,13 @@ env:
   NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
-  verify:
-    name: Build, typecheck, lint, test
+  # One job per gate: each runs on its own runner (green/red box in the Actions UI), and the four
+  # fan out in parallel the moment the build job lands — build still leads, tests never run on a
+  # commit the compiler already rejected.
+  build:
+    name: Build
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,11 +38,55 @@ jobs:
       # so a compromised package's postinstall never runs in CI.
       - run: npm ci --ignore-scripts --no-audit --no-fund
       # WHY build first: `next build` fails fastest on compile-level breakage (a bad import, a type
-      # error in the graph), so a broken commit never waits behind the multi-minute test suite.
-      # The suite runs last as the behavioural gate before anything is published.
+      # error in the graph) — every gate below it waits for this one to pass.
       - run: npm run build
+
+  typecheck:
+    name: Typecheck
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npx tsc --noEmit
+
+  lint:
+    name: Lint
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run lint
+
+  test:
+    name: Test
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npx vitest run
 
   audit:
@@ -58,10 +105,10 @@ jobs:
 
   # CD, build half. The droplet is Tailscale-only (a GitHub-hosted runner cannot reach it) and has ~450 MB RAM,
   # so Actions builds the image and pushes it to GHCR; deploy/pull/pull-deploy.sh on the droplet pulls it.
-  # Only after test, typecheck, lint, build and audit all passed, and only for main.
+  # Only after build, typecheck, lint, test and audit all passed, and only for main.
   release:
     name: Build and push image to GHCR
-    needs: [verify, audit]
+    needs: [build, typecheck, lint, test, audit]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
