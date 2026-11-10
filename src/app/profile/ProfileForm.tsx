@@ -6,6 +6,8 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { uploadAvatar, updateProfile, removeAvatar, type ProfileState } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type ProfileRow = {
   email: string;
@@ -94,20 +96,19 @@ function AvatarBlock({ row }: { row: ProfileRow }) {
             className="sr-only"
             onChange={(e) => void onFile(e.target.files?.[0])}
           />
-          <label
-            htmlFor="avatar-file"
-            className="inline-flex min-h-11 cursor-pointer items-center rounded-md border border-control bg-surface px-3 font-bold text-fg transition-colors duration-(--dur-base) hover:bg-surface-2"
-          >
-            เลือกรูปใหม่…
-          </label>
+          <Button variant="outline" asChild>
+            <label htmlFor="avatar-file" className="cursor-pointer">
+              เลือกรูปใหม่…
+            </label>
+          </Button>
           {file && (
-            <button
+            <Button
               type="submit"
               disabled={pending}
-              className="btn-primary min-h-11 disabled:cursor-not-allowed disabled:opacity-60"
+              className="disabled:cursor-not-allowed disabled:opacity-60"
             >
               {pending ? "กำลังอัปโหลด…" : "อัปโหลดรูปนี้"}
-            </button>
+            </Button>
           )}
         </form>
         <p className="mt-1 text-muted">
@@ -120,9 +121,9 @@ function AvatarBlock({ row }: { row: ProfileRow }) {
         </p>
         {row.hasAvatar && !pending && (
           <form action={removeAction} className="mt-1">
-            <button type="submit" disabled={removing} className="cursor-pointer font-bold underline underline-offset-2 hover:no-underline">
+            <Button type="submit" variant="ghostDanger" size="sm" className="min-h-11 px-2.5" disabled={removing}>
               ลบรูปโปรไฟล์
-            </button>
+            </Button>
             {removeState?.ok && <span className="ml-2 text-on">ลบแล้ว</span>}
           </form>
         )}
@@ -154,43 +155,43 @@ export default function ProfileForm({ row }: { row: ProfileRow }) {
         <form action={formAction} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5 text-sm font-bold text-fg">
             ชื่อที่แสดง
-            <input
+            <Input
               name="display_name"
               defaultValue={row.display_name ?? ""}
               maxLength={60}
               placeholder="เช่น สมชาย ใจดี"
-              className="input-field w-full"
+              className="w-full"
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-bold text-fg">
             เบอร์โทรศัพท์
-            <input
+            <Input
               name="phone"
               defaultValue={row.phone ?? ""}
               inputMode="tel"
               maxLength={20}
               placeholder="08x-xxx-xxxx"
-              className="input-field w-full"
+              className="w-full"
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-bold text-fg">
             LINE ID
-            <input
+            <Input
               name="line_id"
               defaultValue={row.line_id ?? ""}
               maxLength={60}
               placeholder="ป้อนได้เฉพาะ a-z 0-9 . _ -"
-              className="input-field w-full"
+              className="w-full"
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-bold text-fg">
             อีเมล (ใช้เข้าสู่ระบบ — แก้ไม่ได้)
-            <input value={row.email} readOnly className="input-field w-full opacity-60" />
+            <Input value={row.email} readOnly className="w-full opacity-60" />
           </label>
           <div className="flex items-center gap-3 sm:col-span-2">
-            <button type="submit" disabled={pending} className="btn-primary disabled:cursor-not-allowed disabled:opacity-60">
+            <Button type="submit" disabled={pending} className="disabled:cursor-not-allowed disabled:opacity-60">
               {pending ? "กำลังบันทึก…" : "บันทึกข้อมูลติดต่อ"}
-            </button>
+            </Button>
             {state?.ok && <span className="text-sm font-bold text-on">บันทึกแล้ว</span>}
             {state?.error && <span className="text-sm font-bold text-danger">{state.error}</span>}
           </div>

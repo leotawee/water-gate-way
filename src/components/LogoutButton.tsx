@@ -1,9 +1,19 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, CircleAlert } from "lucide-react";
 import { signOut } from "@/app/login/actions";
-import Modal from "@/components/Modal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Props = {
   /** Button look; each header styles its own (ghost on surface, white on the brand bar). */
@@ -15,7 +25,7 @@ type Props = {
 /**
  * Sign-out behind a confirmation modal. WHY: signing out ends the session for the whole device —
  * on the shared site tablet it is one tap away from locking the next operator out — so the
- * destructive action asks once (components/Modal.tsx) and only then submits the server action.
+ * destructive action asks once (AlertDialog) and only then submits the server action.
  */
 export default function LogoutButton({ className, labelClassName }: Props) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -34,21 +44,36 @@ export default function LogoutButton({ className, labelClassName }: Props) {
           <span className={labelClassName}>ออกจากระบบ</span>
         </button>
       </form>
-      <Modal
+      <AlertDialog
         open={ask}
-        tone="danger"
-        title="ออกจากระบบ?"
-        onClose={() => setAsk(false)}
-        confirm={{
-          label: "ยืนยันออกจากระบบ",
-          onConfirm: () => {
-            setAsk(false);
-            formRef.current?.requestSubmit();
-          },
+        onOpenChange={(o) => {
+          if (!o) setAsk(false);
         }}
       >
-        จะต้องเข้าสู่ระบบอีกครั้งเพื่อกลับเข้าหน้าควบคุม
-      </Modal>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-danger-soft text-danger">
+              <CircleAlert strokeWidth={1.75} />
+            </AlertDialogMedia>
+            <AlertDialogTitle>ออกจากระบบ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              จะต้องเข้าสู่ระบบอีกครั้งเพื่อกลับเข้าหน้าควบคุม
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                setAsk(false);
+                formRef.current?.requestSubmit();
+              }}
+            >
+              ยืนยันออกจากระบบ
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

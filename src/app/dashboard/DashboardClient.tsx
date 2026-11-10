@@ -19,6 +19,7 @@ import ControlPanel from "./_components/ControlPanel";
 import LevelGauge, { formatReceived } from "./_components/LevelGauge";
 import StatePill from "@/components/StatePill";
 import CardTitle from "@/components/CardTitle";
+import { Button } from "@/components/ui/button";
 
 type Props = { gate: Gate; role: SessionUser["role"] };
 
@@ -259,13 +260,13 @@ function NoDevice({ gate, role }: { gate: Gate; role: SessionUser["role"] }) {
           ปุ่มควบคุม และกล้องสด
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
-          <Link href="/" className="btn-secondary">
-            กลับไปแผนที่
-          </Link>
+          <Button variant="outline" asChild>
+            <Link href="/">กลับไปแผนที่</Link>
+          </Button>
           {role === "admin" && (
-            <Link href="/admin/gates" className="btn-secondary">
-              จัดการประตูน้ำ
-            </Link>
+            <Button variant="outline" asChild>
+              <Link href="/admin/gates">จัดการประตูน้ำ</Link>
+            </Button>
           )}
         </div>
       </section>

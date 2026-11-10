@@ -2,8 +2,22 @@
 
 import { useActionState, useState } from "react";
 import { register, type RegisterState } from "./actions";
+import { CircleAlert } from "lucide-react";
 import PasswordField from "@/components/PasswordField";
-import Modal from "@/components/Modal";
+import RequiredMark from "@/app/admin/_components/RequiredMark";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function message(state: RegisterState): string | null {
   switch (state?.error) {
@@ -31,10 +45,10 @@ export default function RegisterForm() {
   return (
     <form action={action} className="space-y-5">
       <div className="space-y-1.5">
-        <label htmlFor="email" className="block text-sm font-bold text-fg">
-          อีเมล
-        </label>
-        <input
+        <Label htmlFor="email">
+          อีเมล <RequiredMark />
+        </Label>
+        <Input
           id="email"
           name="email"
           type="email"
@@ -47,7 +61,7 @@ export default function RegisterForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           aria-invalid={state?.error === "email" || undefined}
-          className="input-field w-full"
+          className="w-full"
         />
       </div>
       <div className="space-y-1.5">
@@ -80,17 +94,28 @@ export default function RegisterForm() {
           invalid={state?.error === "mismatch"}
         />
       </div>
-      <button type="submit" disabled={pending} aria-busy={pending} className="btn-primary w-full">
+      <Button type="submit" disabled={pending} aria-busy={pending} className="w-full">
         {pending ? "กำลังสมัคร…" : "สมัครใช้งาน"}
-      </button>
-      <Modal
+      </Button>
+      <AlertDialog
         open={!!error && dismissed !== state}
-        onClose={() => setDismissed(state)}
-        title="สมัครใช้งานไม่สำเร็จ"
-        tone="danger"
+        onOpenChange={(o) => {
+          if (!o) setDismissed(state);
+        }}
       >
-        {error}
-      </Modal>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-danger-soft text-danger">
+              <CircleAlert strokeWidth={1.75} />
+            </AlertDialogMedia>
+            <AlertDialogTitle>สมัครใช้งานไม่สำเร็จ</AlertDialogTitle>
+            <AlertDialogDescription>{error}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>ตกลง</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }

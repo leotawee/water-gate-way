@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, Cpu, Fan, Hand, PowerOff, SlidersHorizontal } from "lucide-react";
+import { Bell, CircleAlert, Cpu, Fan, Hand, PowerOff, SlidersHorizontal, TriangleAlert } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRedirectToLogin } from "@/hooks/useRedirectToLogin";
 import type { Command, ModeCommand } from "@/lib/control/commands";
@@ -9,7 +9,17 @@ import { isModeCommand } from "@/lib/control/commands";
 import type { GateMode, GateStatus } from "@/lib/telemetry/parseStatus";
 import DeviceSwitch, { StatusLine, type SwitchStatus } from "@/components/DeviceSwitch";
 import AiAlarmRow from "./AiAlarmRow";
-import Modal from "@/components/Modal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { modeView, pumpsLocked } from "./modeView";
 
 type Devices = GateStatus["devices"];
@@ -300,57 +310,97 @@ export default function ControlPanel({ devices, personCount, mode, stale, readOn
         />
       </div>
 
-      <Modal
-        open={askManual}
-        tone="warn"
-        title="ตอนนี้อยู่โหมดอัตโนมัติ"
-        onClose={() => setAskManual(false)}
-        confirm={{
-          label: "สลับเป็นควบคุมเอง",
-          onConfirm: () => {
-            setAskManual(false);
-            void sendCommand("MANUAL");
-          },
-        }}
-      >
-        ระบบควบคุมอุปกรณ์เองอยู่ จึงสั่งปั๊มหรืออุปกรณ์จากหน้านี้ไม่ได้ สลับเป็นโหมดควบคุมเองหรือไม่? เมื่อสลับแล้วให้กดสั่งอุปกรณ์อีกครั้ง
-      </Modal>
+      <AlertDialog open={askManual} onOpenChange={(o) => { if (!o) setAskManual(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-warn-soft text-warn">
+              <TriangleAlert strokeWidth={1.75} />
+            </AlertDialogMedia>
+            <AlertDialogTitle>ตอนนี้อยู่โหมดอัตโนมัติ</AlertDialogTitle>
+            <AlertDialogDescription>
+              ระบบควบคุมอุปกรณ์เองอยู่ จึงสั่งปั๊มหรืออุปกรณ์จากหน้านี้ไม่ได้ สลับเป็นโหมดควบคุมเองหรือไม่? เมื่อสลับแล้วให้กดสั่งอุปกรณ์อีกครั้ง
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setAskManual(false);
+                void sendCommand("MANUAL");
+              }}
+            >
+              สลับเป็นควบคุมเอง
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      <Modal
-        open={askAlarm}
-        tone="danger"
-        title="เปิดสัญญาณเตือน?"
-        onClose={() => setAskAlarm(false)}
-        confirm={{
-          label: "เปิดสัญญาณ",
-          onConfirm: () => {
-            setAskAlarm(false);
-            void sendCommand("A1");
-          },
-        }}
-      >
-        ไซเรนจะดังทันทีที่หน้างาน ยืนยันเปิดหรือไม่?
-      </Modal>
+      <AlertDialog open={askAlarm} onOpenChange={(o) => { if (!o) setAskAlarm(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-danger-soft text-danger">
+              <CircleAlert strokeWidth={1.75} />
+            </AlertDialogMedia>
+            <AlertDialogTitle>เปิดสัญญาณเตือน?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ไซเรนจะดังทันทีที่หน้างาน ยืนยันเปิดหรือไม่?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                setAskAlarm(false);
+                void sendCommand("A1");
+              }}
+            >
+              เปิดสัญญาณ
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      <Modal
-        open={askOff}
-        tone="danger"
-        title="สลับเป็นโหมด OFF?"
-        onClose={() => setAskOff(false)}
-        confirm={{
-          label: "ยืนยัน OFF",
-          onConfirm: () => {
-            setAskOff(false);
-            void sendCommand("OFF");
-          },
-        }}
-      >
-        ในโหมด OFF อุปกรณ์รายงานว่าปั๊มและรีเลย์ M1/M2 ปิดทั้งหมด (จากข้อมูลย้อนหลัง) ตรวจสอบหน้างานก่อนยืนยัน
-      </Modal>
+      <AlertDialog open={askOff} onOpenChange={(o) => { if (!o) setAskOff(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-danger-soft text-danger">
+              <CircleAlert strokeWidth={1.75} />
+            </AlertDialogMedia>
+            <AlertDialogTitle>สลับเป็นโหมด OFF?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ในโหมด OFF อุปกรณ์รายงานว่าปั๊มและรีเลย์ M1/M2 ปิดทั้งหมด (จากข้อมูลย้อนหลัง) ตรวจสอบหน้างานก่อนยืนยัน
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                setAskOff(false);
+                void sendCommand("OFF");
+              }}
+            >
+              ยืนยัน OFF
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      <Modal open={error !== null} tone="danger" title="ส่งคำสั่งไม่สำเร็จ" onClose={() => setError(null)}>
-        {error}
-      </Modal>
+      <AlertDialog open={error !== null} onOpenChange={(o) => { if (!o) setError(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-danger-soft text-danger">
+              <CircleAlert strokeWidth={1.75} />
+            </AlertDialogMedia>
+            <AlertDialogTitle>ส่งคำสั่งไม่สำเร็จ</AlertDialogTitle>
+            <AlertDialogDescription>{error}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>ตกลง</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

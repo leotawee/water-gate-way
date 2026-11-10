@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 // WHY: only the digest is shown, never the message or a stack — a production error message can
 // carry internals; the digest is the safe key that matches the entry in the server logs.
@@ -22,12 +23,12 @@ export default function Error({ error, retry }: { error: unknown; retry: () => v
           ระบบทำงานผิดปกติชั่วคราว ลองกด &ldquo;ลองอีกครั้ง&rdquo; ถ้ายังไม่หาย ให้กลับไปหน้าแรกแล้วเข้าใหม่
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
-          <button type="button" onClick={retry} className="btn-primary">
+          <Button type="button" onClick={retry}>
             ลองอีกครั้ง
-          </button>
-          <Link href="/" className="btn-secondary">
-            กลับหน้าแรก
-          </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/">กลับหน้าแรก</Link>
+          </Button>
         </div>
         {digest && <p className="mt-4 text-xs text-muted tabular-nums">รหัสอ้างอิง: {digest}</p>}
       </div>

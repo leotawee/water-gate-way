@@ -325,52 +325,6 @@
   }
 }
 
-/* Modal (components/Modal.tsx): CSS-only entrance on the native <dialog>. A modal is occasional, so it may animate:
-   180 ms ease-out, 4% scale + fade, centred (not trigger-anchored, so the origin stays centre). */
-dialog.modal {
-  opacity: 0;
-  transform: scale(0.96);
-  transition:
-    opacity var(--dur-base) var(--ease-out),
-    transform var(--dur-base) var(--ease-out),
-    overlay var(--dur-fast) allow-discrete,
-    display var(--dur-fast) allow-discrete;
-}
-dialog.modal[open] {
-  opacity: 1;
-  transform: scale(1);
-}
-dialog.modal::backdrop {
-  opacity: 0;
-  transition:
-    opacity var(--dur-base) var(--ease-out),
-    overlay var(--dur-fast) allow-discrete,
-    display var(--dur-fast) allow-discrete;
-}
-dialog.modal[open]::backdrop {
-  opacity: 1;
-}
-@starting-style {
-  dialog.modal[open] {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  dialog.modal[open]::backdrop {
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  dialog.modal,
-  dialog.modal[open] {
-    transform: none;
-  }
-  @starting-style {
-    dialog.modal[open] {
-      transform: none;
-    }
-  }
-}
-
 /* Camera status overlay (components/Go2RTCPlayer.tsx): visibility is transition-driven because
    connecting/failed flip constantly (10-min server cut, backoff retries, tab return) and the
    policy above reserves keyframes for one-shot appearances. 120 ms --ease-out fades; the opacity

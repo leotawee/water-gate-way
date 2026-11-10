@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Eye, EyeOff, TriangleAlert } from "lucide-react";
 import { isCapsLockOn } from "@/lib/capsLock";
+import RequiredMark from "@/app/admin/_components/RequiredMark";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type PasswordFieldProps = {
   id: string;
@@ -34,11 +37,11 @@ export default function PasswordField({
 
   return (
     <>
-      <label htmlFor={id} className="block text-sm font-bold text-fg">
-        {label}
-      </label>
+      <Label htmlFor={id}>
+        {label} {required && <RequiredMark />}
+      </Label>
       <div className="relative">
-        <input
+        <Input
           id={id}
           name={name}
           type={visible ? "text" : "password"}
@@ -51,7 +54,7 @@ export default function PasswordField({
           maxLength={maxLength}
           aria-invalid={invalid || undefined}
           aria-describedby={describedBy}
-          className="input-field w-full pr-12"
+          className="w-full pr-12"
           onKeyDown={(e) => setCaps(isCapsLockOn(e))}
           onKeyUp={(e) => setCaps(isCapsLockOn(e))}
           onBlur={() => setCaps(false)}
