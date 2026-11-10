@@ -25,6 +25,10 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=3000
 RUN groupadd --gid 10001 nextjs && useradd --uid 10001 --gid nextjs --create-home --shell /usr/sbin/nologin nextjs
+# WHY: the server runs `node server.js` and never invokes npm, but the node base image bundles npm
+# with its own vendored tree (tar, sigstore, ...) — dead code in production and a live CVE surface
+# the image scanner flags. Delete it rather than ignore the findings.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 COPY --from=build --chown=nextjs:nextjs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nextjs /app/.next/static ./.next/static
 COPY --from=build --chown=nextjs:nextjs /app/public ./public
