@@ -3,7 +3,6 @@ import Link from "next/link";
 import { requireAdminPage } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -13,12 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import ActionForm from "../_components/ActionForm";
 import AdminShell from "../_components/AdminShell";
 import CreateUserDialog from "../_components/CreateUserDialog";
+import UserConfigDialog from "../_components/UserConfigDialog";
 import FilterForm, { FilterSelect } from "../_components/FilterForm";
 import { ROLES, ROLE_THAI, firstParam } from "../_components/shared";
-import { resetUserPassword, setUserDisabled, setUserRole } from "../actions";
 
 const SORTS: Record<string, string> = {
   created_desc: "ใหม่ → เก่า",
@@ -27,6 +25,14 @@ const SORTS: Record<string, string> = {
 };
 
 const FIELD = "grid min-w-0 flex-1 gap-1.5 sm:max-w-44";
+
+/* Role badges carry the page's colour: admin wears the accent tint (the privileged role), operator
+   the warn tint, viewer the neutral one — so the privileged rows are findable at squint distance. */
+const ROLE_BADGE: Record<string, string> = {
+  admin: "bg-tint-blue text-accent",
+  operator: "bg-warn-soft text-warn",
+  viewer: "bg-surface-2 text-fg",
+};
 
 type UserRow = { id: string; email: string; role: string; disabled: boolean; created_at: Date };
 
@@ -143,25 +149,12 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                       {self && <span className="ml-2 font-normal text-muted">(คุณ)</span>}
                     </span>
                   </TableCell>
-                  <TableCell className="px-5 py-3 text-fg">
-                    {self ? (
-                      <span className="flex min-h-11 items-center">{ROLE_THAI[u.role] ?? u.role}</span>
-                    ) : (
-                      <ActionForm action={setUserRole} className="flex items-center gap-2">
-                        <input type="hidden" name="id" value={u.id} />
-                        {/* FilterSelect owns the named hidden input; it updates before the submit reads FormData. */}
-                        <FilterSelect
-                          name="role"
-                          value={u.role}
-                          ariaLabel={`บทบาทของ ${u.email}`}
-                          className="w-36"
-                          options={ROLES.map((r) => ({ value: r, label: ROLE_THAI[r] }))}
-                        />
-                        <Button type="submit" variant="outline" size="sm" className="min-h-11">
-                          บันทึก
-                        </Button>
-                      </ActionForm>
-                    )}
+                  <TableCell className="px-5 py-3">
+                    <span className="flex min-h-11 items-center">
+                      <Badge className={ROLE_BADGE[u.role] ?? "bg-surface-2 text-fg"}>
+                        {ROLE_THAI[u.role] ?? u.role}
+                      </Badge>
+                    </span>
                   </TableCell>
                   <TableCell className="px-5 py-3">
                     <span className="flex min-h-11 items-center">
@@ -176,53 +169,13 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                     <span className="flex min-h-11 items-center justify-end">{u.created_at.toISOString().slice(0, 10)}</span>
                   </TableCell>
                   <TableCell className="px-5 py-3">
-                    <div className="flex flex-col items-start gap-2">
-                      {/* WHY: the reset form stays folded until asked for, so every row is not a row of password boxes. */}
-                      <details className="group">
-                        <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-md px-2.5 text-sm font-semibold text-fg transition-colors duration-150 hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
-                          ตั้งรหัสผ่านใหม่
-                        </summary>
-                        <ActionForm
-                          action={resetUserPassword}
-                          className="mt-2 flex flex-wrap items-center gap-2"
-                          confirm={`ตั้งรหัสผ่านใหม่ให้ ${u.email}?`}
-                        >
-                          <input type="hidden" name="id" value={u.id} />
-                          <Input
-                            name="password"
-                            type="password"
-                            required
-                            minLength={8}
-                            maxLength={1024}
-                            autoComplete="new-password"
-                            aria-label={`รหัสผ่านใหม่สำหรับ ${u.email} (อย่างน้อย 8 ตัวอักษร)`}
-                            placeholder="อย่างน้อย 8 ตัวอักษร"
-                            className="w-48"
-                          />
-                          <Button type="submit" variant="outline" size="sm" className="min-h-11">
-                            บันทึกรหัสผ่าน
-                          </Button>
-                        </ActionForm>
-                      </details>
-                      {!self && (
-                        <ActionForm
-                          action={setUserDisabled}
-                          confirm={u.disabled ? `เปิดใช้งานบัญชี ${u.email} อีกครั้ง?` : `ปิดใช้งานบัญชี ${u.email}?`}
-                          confirmTone={u.disabled ? "info" : "danger"}
-                        >
-                          <input type="hidden" name="id" value={u.id} />
-                          <input type="hidden" name="disabled" value={u.disabled ? "false" : "true"} />
-                          <Button
-                            type="submit"
-                            variant={u.disabled ? "ghost" : "ghostDanger"}
-                            size="sm"
-                            className="min-h-11 px-2.5"
-                          >
-                            {u.disabled ? "เปิดใช้งานอีกครั้ง" : "ปิดใช้งานบัญชี"}
-                          </Button>
-                        </ActionForm>
-                      )}
-                    </div>
+                    {/* All account configuration lives in one dialog; the row stays a single quiet icon. */}
+                    <span className="flex min-h-11 items-center">
+                      <UserConfigDialog
+                        user={{ id: u.id, email: u.email, role: u.role, disabled: u.disabled }}
+                        isSelf={self}
+                      />
+                    </span>
                   </TableCell>
                 </TableRow>
               );
