@@ -12,16 +12,10 @@ const SOURCES = [
   { key: "float", label: "ลูกลอย" },
 ] as const;
 
-const FLOATS = [
-  { key: "f1", label: "ลูกลอย F1" },
-  { key: "f2", label: "ลูกลอย F2" },
-  { key: "f3", label: "ลูกลอย F3" },
-] as const;
-
 const ROW = "flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-1.5";
 
-/** Level sensors in fallback order with the one in use, then the three float inputs F1-F3 (on/off/unknown vocabulary). */
-export default function FloatSwitchCard({ float, live }: { float: Record<string, boolean> | null; live: boolean }) {
+/** Level sensors in fallback order with the one in use (on/off/unknown vocabulary). */
+export default function FloatSwitchCard({ live }: { live: boolean }) {
   return (
     <section aria-labelledby="float-heading">
       <CardTitle id="float-heading" icon={Waves}>
@@ -43,26 +37,6 @@ export default function FloatSwitchCard({ float, live }: { float: Record<string,
             </dd>
           </div>
         ))}
-      </dl>
-      <dl className="mt-2 border-t border-rule pt-2">
-        {FLOATS.map(({ key, label }) => {
-          // WHY: a missing key means the payload did not report it; show unknown, not OFF.
-          const on = live ? float?.[key] : undefined;
-          return (
-            <div key={key} className={ROW}>
-              <dt className="text-sm text-muted">{label}</dt>
-              <dd>
-                {on === undefined ? (
-                  <StatePill tone="unknown">ไม่ทราบสถานะ</StatePill>
-                ) : on ? (
-                  <StatePill tone="on">ทำงาน</StatePill>
-                ) : (
-                  <StatePill tone="off">ปิดอยู่</StatePill>
-                )}
-              </dd>
-            </div>
-          );
-        })}
       </dl>
     </section>
   );
