@@ -37,10 +37,30 @@ export async function signIn(_prev: SignInState, form: FormData): Promise<SignIn
     const u = rows[0] as { id: string; password_hash: string; disabled: boolean } | undefined;
     const ok = await verifyPassword(password, u?.password_hash ?? DUMMY_HASH);
     // WHY: unknown email, wrong password and disabled account all look identical (no enumeration).
-    if (!u || u.disabled || !ok) return { error: "invalid" };
+    if (!u || u.disabled || !ok) {
+      // WHY its own try: a failed audit row must never turn an auth outcome into a 500.
+      try {
+        await db.query(
+          "insert into action_audit (user_id, action, detail, ip) values ($1, 'login.fail', $2, $3)",
+          [u?.id ?? null, u?.disabled ? "disabled" : "invalid_credentials", clientIp(await headers())],
+        );
+      } catch {
+        console.error("[auth/signIn] audit failed");
+      }
+      return { error: "invalid" };
+    }
 
     const { token, expiresAt } = await createSession(u.id);
     (await cookies()).set(SESSION_COOKIE, token, sessionCookieOptions(expiresAt));
+
+    try {
+      await db.query("insert into action_audit (user_id, action, ip) values ($1, 'login.ok', $2)", [
+        u.id,
+        clientIp(await headers()),
+      ]);
+    } catch {
+      console.error("[auth/signIn] audit failed");
+    }
 
     // WHY: its own try: a failed issue (e.g. migration not applied) must not block a correct login.
     if (form.get("remember") === "on") {
@@ -74,7 +94,19 @@ export async function signIn(_prev: SignInState, form: FormData): Promise<SignIn
 export async function signOut(): Promise<void> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
-  if (token) await revokeSession(token);
+  if (token) {
+    // WHY: audit before revoke, so the session row still names the user. Its own try: a failed
+    // audit row must never block signing out.
+    try {
+      await db.query(
+        "insert into action_audit (user_id, action, ip) select user_id, 'logout', $2::inet from sessions where token_hash = encode(digest($1, 'sha256'), 'raw')",
+        [token, clientIp(await headers())],
+      );
+    } catch {
+      console.error("[auth/signOut] audit failed");
+    }
+    await revokeSession(token);
+  }
   // WHY: its own try: a broken remember store must not leave the browser holding an undeletable cookie set.
   try {
     await revokeRememberToken(store.get(REMEMBER_COOKIE)?.value);

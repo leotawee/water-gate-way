@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, MapPin, Users } from "lucide-react";
+import { LayoutDashboard, MapPin, ScrollText, Users } from "lucide-react";
 
 const TABS = [
   { href: "/admin", label: "ภาพรวม", icon: LayoutDashboard },
   { href: "/admin/users", label: "ผู้ใช้", icon: Users },
   { href: "/admin/gates", label: "ประตูน้ำ", icon: MapPin },
+  { href: "/admin/logs", label: "บันทึกเหตุการณ์", icon: ScrollText },
 ] as const;
 
 /** Admin sub-navigation as tabs. "/admin" matches only exactly; the other tabs match their prefix. */
