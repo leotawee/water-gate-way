@@ -50,7 +50,7 @@ export default function UserConfigDialog({ user, isSelf }: { user: ConfigUser; i
 
         <div className="grid gap-5">
           <section className="grid gap-3">
-            <h3 className="text-sm font-bold text-fg">บทบาท</h3>
+            <h3 className="text-base font-bold text-fg">บทบาท</h3>
             {isSelf ? (
               <p className="text-sm text-muted">บทบาทของตัวเองเปลี่ยนไม่ได้ — กันผู้ดูแลล็กตัวเองออกจากระบบ</p>
             ) : (
@@ -80,7 +80,7 @@ export default function UserConfigDialog({ user, isSelf }: { user: ConfigUser; i
           <Separator />
 
           <section className="grid gap-3">
-            <h3 className="text-sm font-bold text-fg">ตั้งรหัสผ่านใหม่</h3>
+            <h3 className="text-base font-bold text-fg">ตั้งรหัสผ่านใหม่</h3>
             <ActionForm
               action={resetUserPassword}
               className="grid gap-3"
@@ -117,7 +117,7 @@ export default function UserConfigDialog({ user, isSelf }: { user: ConfigUser; i
             <>
               <Separator />
               <section className="grid gap-3">
-                <h3 className="text-sm font-bold text-fg">สถานะบัญชี</h3>
+                <h3 className="text-base font-bold text-fg">สถานะบัญชี</h3>
                 <ActionForm
                   action={setUserDisabled}
                   confirm={user.disabled ? `เปิดใช้งานบัญชี ${user.email} อีกครั้ง?` : `ปิดใช้งานบัญชี ${user.email}?`}
