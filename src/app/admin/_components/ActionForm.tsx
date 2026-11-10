@@ -8,6 +8,7 @@ type Action = (prev: AdminState, form: FormData) => Promise<AdminState>;
 
 /** A form bound to a Server Action that shows the action's { error } in a modal (same pattern as LoginForm).
  *  `confirm` (when set) asks for confirmation in a modal before submitting; cancelling prevents the submit.
+ *  `confirmTone` colors that modal — danger for destructive actions (default), info for creations.
  *  `onSuccess` fires once per submit that ended without an error — e.g. to close a dialog around the form.
  *  `resetOnSuccess` clears the fields after a successful submit (create-forms that stay mounted). */
 export default function ActionForm({
@@ -15,6 +16,7 @@ export default function ActionForm({
   className,
   children,
   confirm,
+  confirmTone = "danger",
   onSuccess,
   resetOnSuccess,
 }: {
@@ -22,6 +24,7 @@ export default function ActionForm({
   className?: string;
   children: ReactNode;
   confirm?: string;
+  confirmTone?: "danger" | "warn" | "info";
   onSuccess?: () => void;
   resetOnSuccess?: boolean;
 }) {
@@ -80,7 +83,7 @@ export default function ActionForm({
           open={asking}
           onClose={() => setAsking(false)}
           title={confirm}
-          tone="danger"
+          tone={confirmTone}
           confirm={{
             label: "ยืนยัน",
             onConfirm: () => {

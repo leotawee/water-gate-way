@@ -1,43 +1,16 @@
-import { ChevronDown, MapPin, Search } from "lucide-react";
+import { ChevronDown, MapPin } from "lucide-react";
 import { requireAdminPage } from "@/lib/auth/dal";
 import { listGates } from "@/lib/gatesDb";
 import StatePill from "@/components/StatePill";
 import ActionForm from "../_components/ActionForm";
 import AdminShell from "../_components/AdminShell";
+import CreateGateDialog from "../_components/CreateGateDialog";
 import FilterForm from "../_components/FilterForm";
+import GateFields from "../_components/GateFields";
 import { firstParam } from "../_components/shared";
-import { createGate, setGateActive, updateGate } from "../actions";
+import { setGateActive, updateGate } from "../actions";
 
-const input = "input-field w-full";
 const label = "flex flex-col gap-1.5 text-sm font-bold text-fg";
-
-/** Shared field set for create and edit. The id is fixed once created (edit sends it as a hidden field). */
-function GateFields({ name, location, lat, lng, hasDevice }: { name?: string; location?: string; lat?: number; lng?: number; hasDevice?: boolean }) {
-  return (
-    <>
-      <label className={label}>
-        ชื่อ
-        <input name="name" required maxLength={100} defaultValue={name} className={input} />
-      </label>
-      <label className={label}>
-        ที่ตั้ง
-        <input name="location" maxLength={200} defaultValue={location} className={input} />
-      </label>
-      <label className={label}>
-        ละติจูด
-        <input name="lat" type="number" step="any" min={-90} max={90} required defaultValue={lat} className={input} />
-      </label>
-      <label className={label}>
-        ลองจิจูด
-        <input name="lng" type="number" step="any" min={-180} max={180} required defaultValue={lng} className={input} />
-      </label>
-      <label className="flex min-h-11 items-center gap-2 text-sm font-bold text-fg sm:col-span-2">
-        <input name="hasDevice" type="checkbox" defaultChecked={hasDevice} className="size-4 accent-fg" />
-        มีอุปกรณ์ (STM32 และกล้อง)
-      </label>
-    </>
-  );
-}
 
 const SUMMARY =
   "flex cursor-pointer list-none items-center gap-4 rounded-lg px-5 py-3 transition-colors duration-150 hover:bg-surface-2 [&::-webkit-details-marker]:hidden";
@@ -73,6 +46,7 @@ export default async function AdminGatesPage({ searchParams }: Props) {
       icon={MapPin}
       title="ประตูน้ำ"
       subtitle={`${filtered ? `${list.length} จาก ${gates.length} แห่ง` : `${gates.length} แห่ง`} · ซ่อนอยู่ ${hidden}`}
+      action={<CreateGateDialog />}
     >
       <FilterForm
         ariaLabel="กรองประตูน้ำ"
@@ -164,32 +138,6 @@ export default async function AdminGatesPage({ searchParams }: Props) {
           )}
         </ul>
       </div>
-
-      <section aria-labelledby="create-gate-heading" className="mt-6 rounded-lg border border-border bg-surface p-5">
-        <h2 id="create-gate-heading" className="text-base font-bold text-fg">
-          เพิ่มประตูน้ำ
-        </h2>
-        <ActionForm action={createGate} className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className={label}>
-            รหัส
-            <input
-              name="id"
-              required
-              pattern="gate-[0-9]{1,4}"
-              maxLength={9}
-              aria-describedby="gate-id-rule"
-              className={input}
-            />
-            <span id="gate-id-rule" className="text-sm font-normal text-muted">
-              รูปแบบ gate-1 ถึง gate-9999 แก้ไม่ได้หลังสร้าง
-            </span>
-          </label>
-          <GateFields />
-          <button type="submit" className="btn-primary justify-self-start whitespace-nowrap">
-            เพิ่มประตูน้ำ
-          </button>
-        </ActionForm>
-      </section>
     </AdminShell>
   );
 }

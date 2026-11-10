@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { UserPlus } from "lucide-react";
 import ActionForm from "./ActionForm";
+import RequiredMark from "./RequiredMark";
 import { ROLES, ROLE_THAI } from "./shared";
 import { createUser } from "../actions";
 
@@ -68,7 +69,7 @@ export default function CreateUserDialog() {
 
           <ActionForm action={createUser} className="mt-5 grid gap-4" onSuccess={() => setOpen(false)} resetOnSuccess>
             <label className={label}>
-              อีเมล
+              อีเมล <RequiredMark />
               <input name="email" type="email" required maxLength={254} className="input-field w-full" />
             </label>
             <label className={label}>
@@ -82,7 +83,7 @@ export default function CreateUserDialog() {
               </select>
             </label>
             <label className={label}>
-              รหัสผ่าน
+              รหัสผ่าน <RequiredMark />
               <input
                 name="password"
                 type="password"
