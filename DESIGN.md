@@ -86,7 +86,7 @@ A light-only palette in three families: neutral paper-and-ink chrome, brand navy
 - **video-black** (#000000): camera tile surface and video overlays only (spinner scrim `black/60`, error scrim `black/80`, white text on video).
 
 ### Accent
-- **accent / brand-2** (#3860b0): water data only (gauge fill, chart line), the focus ring, and the one primary action per screen (the default Button variant) — never chrome.
+- **accent / brand-2** (#3860b0): water data only (gauge fill, chart line), the focus ring, the one primary action per screen (the default Button variant), and the selected nav item — never decorative chrome.
 - **brand** (#202068): the dashboard header and control-panel header bar. **sky** (#38a8e0): water illustration accents.
 
 ### State

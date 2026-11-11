@@ -107,17 +107,24 @@ function DashboardHeader({
           >
             {now === null ? "--:--:--" : clock.format(now)}
           </span>
-          {isAdmin && (
-            <Link href="/admin" className={link}>
-              <ShieldCheck className="size-4" strokeWidth={1.75} aria-hidden="true" />
-              ผู้ดูแลระบบ
-            </Link>
-          )}
-          <LogoutButton
-            className={`${link} cursor-pointer`}
-            /* WHY: icon-only on a phone so pill, clock and both links fit one row; the word stays for screen readers. */
-            labelClassName="sr-only sm:not-sr-only"
-          />
+          {/* WHY: the two account controls read as ONE navbar segment (same surface, same height,
+              same gap) instead of scattered chips — the same grammar as the light AppHeader. */}
+          <div className="flex items-center gap-1 rounded-xl bg-white/10 p-1">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-bold text-white transition-colors duration-(--dur-base) hover:bg-white/15"
+              >
+                <ShieldCheck className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                ผู้ดูแลระบบ
+              </Link>
+            )}
+            <LogoutButton
+              className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-sm font-bold text-white transition-colors duration-(--dur-base) hover:bg-white/15"
+              /* WHY: icon-only on a phone so pill, clock and both links fit one row; the word stays for screen readers. */
+              labelClassName="sr-only sm:not-sr-only"
+            />
+          </div>
         </div>
       </div>
     </header>

@@ -7,8 +7,9 @@
 /* Design tokens from DESIGN.md (light only), recoloured to the client's Chiang Mai Maker palette. Components use the generated classes
    (bg-surface, text-muted, border-border, bg-on-soft ...).
    Recharts SVG props cannot read CSS variables, so WaterLevelChart repeats these hex values as constants.
-   WHY: chrome is ink only; `accent` (the brand blue) is water data, the focus ring, and the one primary
-   action per screen (the default Button variant), so the state colours (on / warn / danger) stay the loudest thing on a screen. */
+   WHY: chrome is ink only; `accent` (the brand blue) is water data, the focus ring, the one primary
+   action per screen (the default Button variant), and the selected nav item, so the state colours
+   (on / warn / danger) stay the loudest thing on a screen. */
 @theme {
   --color-bg: #f3f6fb;
   --color-surface: #ffffff;

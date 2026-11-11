@@ -52,21 +52,23 @@ export default function AppHeader({ active, isAdmin }: AppHeaderProps) {
         </nav>
 
         {/* WHY: the word stays visible at every width; a phone user must find sign-out without guessing.
-            Signing out ends the session for the whole device, so it asks once behind a modal (LogoutButton). */}
-        <LogoutButton className="inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-sm text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg" />
+            Signing out ends the session for the whole device, so it asks once behind a modal (LogoutButton).
+            Sign-out wears the danger voice: a destructive affordance should not look like navigation. */}
+        <LogoutButton className="inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-semibold text-danger transition-colors duration-150 hover:bg-danger-soft" />
       </div>
     </header>
   );
 }
 
-/** Current section: a neutral grey pill with the label in ink; no brand colour in the chrome. */
+/** Current section: an accent-tinted pill — selection shares the interaction colour, so the eye
+    finds "where am I" with the same colour it finds "what do I press". */
 function NavItem({ href, icon: Icon, current, children }: { href: string; icon: LucideIcon; current: boolean; children: React.ReactNode }) {
   return (
     <Link
       href={href}
       aria-current={current ? "page" : undefined}
       className={`inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm transition-colors duration-150 ${
-        current ? "bg-surface-2 font-bold text-fg" : "text-muted hover:bg-surface-2 hover:text-fg"
+        current ? "bg-tint-blue font-bold text-accent" : "text-muted hover:bg-surface-2 hover:text-fg"
       }`}
     >
       <Icon className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
