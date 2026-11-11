@@ -56,8 +56,6 @@ function DashboardHeader({
   stale: boolean;
   now: number | null;
 }) {
-  const link =
-    "inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-white transition-colors duration-(--dur-base) hover:bg-white/15";
   return (
     <header className="bg-brand text-white">
       <a
@@ -67,11 +65,6 @@ function DashboardHeader({
         ข้ามไปยังเนื้อหา
       </a>
       <div className="mx-auto flex w-full max-w-[1680px] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
-        <Link href="/" className={`${link} bg-white/15`}>
-          <ArrowLeft className="size-4" strokeWidth={1.75} aria-hidden="true" />
-          แผนที่
-        </Link>
-
         <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white">
             <BrandMark className="size-7" />
@@ -107,9 +100,17 @@ function DashboardHeader({
           >
             {now === null ? "--:--:--" : clock.format(now)}
           </span>
-          {/* WHY: the two account controls read as ONE navbar segment (same surface, same height,
-              same gap) instead of scattered chips — the same grammar as the light AppHeader. */}
+          {/* WHY: all navigation reads as ONE navbar segment on the right — แผนที่, ผู้ดูแลระบบ,
+              ออกจากระบบ are siblings, so they share one surface, one height, one gap. The left side
+              stays identity-only (brand + gate name). */}
           <div className="flex items-center gap-1 rounded-xl bg-white/10 p-1">
+            <Link
+              href="/"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-bold text-white transition-colors duration-(--dur-base) hover:bg-white/15"
+            >
+              <ArrowLeft className="size-4" strokeWidth={1.75} aria-hidden="true" />
+              แผนที่
+            </Link>
             {isAdmin && (
               <Link
                 href="/admin"
