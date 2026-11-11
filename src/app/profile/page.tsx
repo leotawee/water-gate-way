@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageUser } from "@/lib/auth/dal";
 import AppHeader from "@/components/AppHeader";
@@ -75,9 +76,12 @@ export default async function ProfilePage() {
               กิจกรรมล่าสุดของคุณ
             </h2>
             {user.role === "admin" && (
-              <a href="/admin/logs" className="text-sm font-bold text-fg underline underline-offset-2 hover:no-underline">
+              <Link
+                href="/admin/logs"
+                className="text-sm font-bold text-fg underline underline-offset-2 hover:no-underline"
+              >
                 ดูทั้งหมด (ผู้ดูแล)
-              </a>
+              </Link>
             )}
           </div>
           <ul className="mt-3 space-y-2">

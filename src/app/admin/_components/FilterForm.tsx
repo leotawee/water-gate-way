@@ -1,13 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /**
- * The filter bar for admin lists: a GET form over the current route, so every filter lives in the
- * URL — shareable, back-button safe, and applied on the server. FilterSelect submits as soon as a
- * value changes; a text field submits after a short pause. Progressive: with JS off the form still
- * works via Enter and native controls.
+ * The filter bar for admin lists: filters live in the URL — shareable, back-button safe, applied
+ * on the server — but a change calls router.push() instead of submitting a GET form, so the swap
+ * is a client transition (ViewTransition fade) and never reloads the document.
+ * FilterSelect submits as soon as a value changes; a text field submits after a short pause.
  */
 const FilterFormContext = createContext<{ submit: () => void } | null>(null);
 
@@ -22,6 +23,23 @@ export default function FilterForm({
 }) {
   const ref = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const submit = useCallback(() => {
+    const form = ref.current;
+    if (!form) return;
+    // Same serialization rule a GET form uses: named controls only, empty values omitted —
+    // so a cleared field removes its param from the URL, exactly like the old native submit.
+    const params = new URLSearchParams();
+    for (const el of Array.from(form.elements)) {
+      if (!(el instanceof HTMLInputElement) && !(el instanceof HTMLSelectElement)) continue;
+      if (!el.name || el.disabled || !el.value) continue;
+      params.set(el.name, el.value);
+    }
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
+  }, [pathname, router]);
 
   useEffect(
     () => () => {
@@ -31,13 +49,16 @@ export default function FilterForm({
   );
 
   return (
-    <FilterFormContext.Provider value={{ submit: () => ref.current?.requestSubmit() }}>
+    <FilterFormContext.Provider value={{ submit }}>
       <form
         ref={ref}
-        method="get"
-        action=""
         aria-label={ariaLabel}
         className={className}
+        onSubmit={(e) => {
+          // Enter in a text field lands here; route it through the same client transition.
+          e.preventDefault();
+          submit();
+        }}
         onChange={(e) => {
           // Selects submit themselves through FilterSelect; time pickers submit as soon as a full
           // time is chosen; here only the debounced text fields.
@@ -45,12 +66,12 @@ export default function FilterForm({
           if (el instanceof HTMLSelectElement) return;
           if (el instanceof HTMLInputElement) {
             if (el.type === "time" && el.value) {
-              ref.current?.requestSubmit();
+              submit();
               return;
             }
             if (el.type === "search" || el.type === "text") {
               if (timer.current) clearTimeout(timer.current);
-              timer.current = setTimeout(() => ref.current?.requestSubmit(), 400);
+              timer.current = setTimeout(submit, 400);
             }
           }
         }}
@@ -65,10 +86,10 @@ const ALL = "__all__";
 
 type Option = { value: string; label: string };
 
-/** Radix Select wired into the GET form. Radix forbids an empty-string item value and its hidden
- *  select is POST-only, so this carries the value in its own hidden input ("__all__" serializes as
- *  "" = filter off) and submits the form on change. `key` on Select remounts it when the URL value
- *  changes elsewhere, keeping the visible label in sync with server state. */
+/** Radix Select wired into the URL state. Radix forbids an empty-string item value, so this carries
+ *  the value in its own hidden input ("__all__" serializes as "" = filter off) and submits on change.
+ *  `key` on Select remounts it when the URL value changes elsewhere, keeping the visible label in
+ *  sync with server state. */
 export function FilterSelect({
   name,
   value,
