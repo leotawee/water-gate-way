@@ -309,6 +309,7 @@ export default function ControlPanel({ devices, personCount, mode, stale, readOn
           personCount={personCount}
           alarm={devices?.alarm ?? null}
           canControl={!readOnly}
+          stale={stale}
           onCommand={(cmd) => void sendCommand(cmd)}
         />
       </div>

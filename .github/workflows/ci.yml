@@ -146,18 +146,21 @@ jobs:
         env:
           # WHY not "latest": v0.65.0 has a git tag but no published release/assets — pin a version
           # whose release is verified to carry the Linux-64bit tarball.
+          # WHY the checksum: the binary runs the blocking HIGH/CRITICAL gate in the job that can
+          # push to GHCR - an unverified download is an unreviewed executable in a privileged job.
+          TRIVY_SHA256: "bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf"
           TRIVY_VERSION: "0.76.2"
         run: |
           mkdir -p "$HOME/.local/bin"
           curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" -o /tmp/trivy.tgz
+          echo "${TRIVY_SHA256}  trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" > /tmp/trivy.sha256
+          sha256sum -c /tmp/trivy.sha256
           tar -xzf /tmp/trivy.tgz -C "$HOME/.local/bin" trivy
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       # WHY before push: a HIGH/CRITICAL CVE in the image must fail here, not land in the registry
       # the droplet pulls. ignore-unfixed: never block on an OS bug with no vendor patch yet.
       # npm audit (above) covers the JS dependencies; this covers the container they ship in.
       - name: Scan image with Trivy
-        env:
-          TRIVY_VERSION: "0.65.0"
         run: |
           trivy image \
             --severity HIGH,CRITICAL \

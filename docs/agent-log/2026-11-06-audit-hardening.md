@@ -24,7 +24,7 @@
 
 - Changed: `src/lib/auth/registration.ts` (new), register page/action/form, login page, `rateLimit.ts`, `api/camera/webrtc/route.ts`, `api/status/stream/route.ts`, `api/water-level/download/route.ts`, `.env.example`, tests.
 - Unchanged: broker, SSH, nginx and firewall (need sudo), Pi units, the database, roles of existing users.
-- Remaining: nothing in this repo; CI also runs `next build`. Production behaviour change: sign-up closes on deploy unless `ALLOW_SELF_REGISTER=1` is set in `app.env`; existing viewer accounts are untouched. Still open: anonymous broker, SSH, direct-origin access, alerting, backups, Pi power.
+- Remaining: nothing in this repo; CI also runs `next build`. Production behaviour change SUPERSEDED: the owner re-opened sign-up in commit 2bbcc95 (2026-11-06) and the gate module was deleted; as of the 2026-11-11 audit, self-registration is unconditionally open (rate-limited) and this close-on-deploy behaviour no longer applies. Audit follow-up: README/.env.example/IDEA.md updated to match (finding auth.register.allow-self-register-doc-drift). Still open: anonymous broker, SSH, direct-origin access, alerting, backups, Pi power.
 - Key decisions: default closed; caps reuse existing helpers; CSV window fixed at 90 days (`shortcut` comment in the route).
 - Top 3 lessons:
   1. 📌 GENERAL: look up which schema/search_path the app really uses before querying its database.

@@ -199,20 +199,31 @@ describe("signIn", () => {
     expect(await signIn(undefined, form({ email: long, password: "x" }))).toEqual({ error: "invalid" });
     expect(h.query).not.toHaveBeenCalled();
   });
-  it("6th attempt for one email in 15 min -> rate_limited, no DB lookup", async () => {
+  it("6th attempt for one (ip,email) in 15 min -> rate_limited, no DB lookup", async () => {
     for (let i = 0; i < 5; i++) {
-      h.headerMap.set("x-forwarded-for", `10.1.0.${i}`);
-      expect(await signIn(undefined, form({ email: "Target@X.co ", password: "bad" }))).toEqual({ error: "invalid" });
+      h.headerMap.set("x-forwarded-for", "10.1.0.7");
+      expect(await signIn(undefined, form({ email: "Target@X.CO ", password: "bad" }))).toEqual({ error: "invalid" });
     }
     h.query.mockClear();
     vi.mocked(verifyPassword).mockClear();
-    h.headerMap.set("x-forwarded-for", "10.1.0.99");
-    // trim + lowercase: a case/space variant hits the same bucket
-    expect(await signIn(undefined, form({ email: " target@x.CO", password: "right-password" }))).toEqual({
+    h.headerMap.set("x-forwarded-for", "10.1.0.7");
+    // trim + lowercase: a case/space variant hits the same (ip,email) bucket
+    expect(await signIn(undefined, form({ email: " target@X.CO", password: "right-password" }))).toEqual({
       error: "rate_limited",
     });
     expect(h.query).not.toHaveBeenCalled();
     expect(verifyPassword).not.toHaveBeenCalled();
+  });
+  // WHY (audit 2026-11-11, login-lockout-dos): the email bucket is keyed per (ip,email) - five wrong
+  // passwords from ATTACKER IPs must not lock the victim's correct-password login from another IP.
+  it("5 fails from other IPs do not lock the victim's IP (lockout-DoS regression)", async () => {
+    for (let i = 0; i < 5; i++) {
+      h.headerMap.set("x-forwarded-for", `203.0.113.${i}`);
+      expect(await signIn(undefined, form({ email: "victim@x.co", password: "bad" }))).toEqual({ error: "invalid" });
+    }
+    h.headerMap.set("x-forwarded-for", "198.51.100.9");
+    expect(await signIn(undefined, form({ email: "victim@x.co", password: "bad" }))).toEqual({ error: "invalid" });
+    expect(verifyPassword).toHaveBeenCalled();
   });
   it("21st attempt from one IP -> rate_limited (x-real-ip fallback)", async () => {
     h.headerMap.clear();

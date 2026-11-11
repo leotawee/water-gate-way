@@ -28,7 +28,10 @@ export async function signIn(_prev: SignInState, form: FormData): Promise<SignIn
   // WHY: limit before any DB lookup or scrypt, so brute force cannot cost us DB or 128 MiB hashes.
   // WHY: missing or non-IP proxy headers share one "unknown" bucket; that can throttle those clients
   // together, but rotating garbage X-Forwarded-For values no longer yields a fresh bucket per attempt.
-  if (!loginByIp.hit(clientIp(await headers()) ?? "unknown").ok || !loginByEmail.hit(email).ok) {
+  // WHY per-(ip,email) key on the email bucket: a plain email key lets 5 wrong passwords from one IP
+  // lock the victim's login for 15 minutes, renewable forever (audit 2026-11-11, login-lockout-dos).
+  const ip = clientIp(await headers()) ?? "unknown";
+  if (!loginByIp.hit(ip).ok || !loginByEmail.hit(`${ip}|${email}`).ok) {
     return { error: "rate_limited" };
   }
 

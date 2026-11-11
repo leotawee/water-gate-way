@@ -58,6 +58,9 @@ export async function POST(request: Request): Promise<Response> {
       method: "POST",
       headers: { "Content-Type": "application/sdp" },
       body: offer,
+      // WHY fail-closed on redirects: parity with /api/camera/stream - a 30x from the relay
+      // host must not re-POST the offer somewhere else chosen by the upstream.
+      redirect: "error",
       signal: AbortSignal.timeout(RELAY_TIMEOUT_MS),
     });
   } catch (e) {

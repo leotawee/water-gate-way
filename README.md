@@ -48,7 +48,7 @@ Copy `.env.example` to `.env.local`. Values never go in `NEXT_PUBLIC_*`.
 1. Apply `db/migrations/001_auth.sql` as a DB role with CREATE privilege (it needs the `citext` and `pgcrypto` extensions).
 2. Create the app DB user and grant only: `SELECT, INSERT, UPDATE, DELETE` on `users`, `sessions`, `control_audit`, plus `USAGE` on `control_audit_id_seq`.
 3. Only if you run ai-receiver: generate its secret with `openssl rand -hex 32` and set `CONTROL_SHARED_SECRET` for it. Give the broker account `nextjs` write access to `stm32/cmd`, or operator commands fail with `device_unavailable`.
-4. Create the first admin: `node scripts/create-user.ts <email> <role>` (roles: `viewer`, `operator`, `admin`; Node >= 22.6). There is no public sign-up.
+4. Create the first admin: `node scripts/create-user.ts <email> <role>` (roles: `viewer`, `operator`, `admin`; Node >= 22.6). Public self-sign-up also exists at `/register` (viewer account, rate-limited 5/h/IP + 50/h global).
 5. `npm install && npm run build && npm run start`.
 
 ## Deploy checklist

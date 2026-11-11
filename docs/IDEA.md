@@ -22,7 +22,7 @@ Next.js 16.2.2 (App Router, `src/proxy.ts`), React 19.2.4, TypeScript, Tailwind 
 ## Rebuild (branch `feat/secure-rebuild`)
 เหตุผล: เว็บเก่าโค้ด spaghetti + ช่องโหว่หลายจุด (รายละเอียดใน `docs/`).
 ทำแล้ว:
-- Auth: scrypt, DB session cookie `wg_session` (12 h), roles viewer < operator < admin, ไม่มี sign-up (สร้าง user ด้วย `scripts/create-user.ts`)
+- Auth: scrypt, DB session cookie `wg_session` (12 h), roles viewer < operator < admin, sign-up เปิดที่ `/register` (viewer, rate-limited); สร้าง admin ด้วย `scripts/create-user.ts`
 - ทุก API/หน้าเช็ก `requireUser()`; rate limit login + control; audit ลง `control_audit`
 - Telemetry ผ่าน SSE ฝั่ง server; ข้อมูลเก่ากว่า 30 s = OFFLINE (ห้ามโชว์ค่าเก่าเป็น live)
 - คำสั่งปั๊ม: QoS 0, ไม่ queue ตอน offline (คำสั่งมาช้าแย่กว่าคำสั่งล้ม)

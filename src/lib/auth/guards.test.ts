@@ -43,7 +43,7 @@ describe("safeNext", () => {
   it("keeps same-origin paths", () => {
     expect(safeNext("/dashboard?gate=gate-1")).toBe("/dashboard?gate=gate-1");
   });
-  it.each(["//evil.com", "/\\evil.com", "https://evil.com", "javascript:alert(1)", "", null, undefined, "dashboard", "/a\\b", "/\t/x", "/\r\n/x", "/\u0000/x"])(
+  it.each(["//evil.com", "/\\evil.com", "https://evil.com", "javascript:alert(1)", "", null, undefined, "dashboard", "/a\\b", "/\t/x", "/\r\n/x", "/\u0000/x", "/..//evil.com"])(
     "rejects %j",
     (v) => expect(safeNext(v as string | null | undefined)).toBe("/dashboard"),
   );

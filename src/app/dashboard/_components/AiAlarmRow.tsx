@@ -34,11 +34,13 @@ type Props = {
   alarm: boolean | null;
   /** false for viewers: they see the state, only operator/admin can silence. */
   canControl: boolean;
+  /** true = telemetry feed stale: suppress auto-fire AND auto-stop (siren stays on = safe direction). */
+  stale: boolean;
   /** Send A1 (auto) / A0 (silence) on the normal authenticated command path. */
   onCommand: (cmd: Command) => void;
 };
 
-export default function AiAlarmRow({ personCount, alarm, canControl, onCommand }: Props) {
+export default function AiAlarmRow({ personCount, alarm, canControl, stale, onCommand }: Props) {
   const [now, setNow] = useState<number | null>(null);
   const [demoAllDay, setDemoAllDay] = useState(false);
   // Detection episodes: one episode = one absent -> present transition of the person count.
@@ -71,7 +73,9 @@ export default function AiAlarmRow({ personCount, alarm, canControl, onCommand }
 
   const silenced = silencedEpisode === episode;
   const windowOk = demoAllDay || (now === null ? false : inNightWindow(bangkokMinutes(now)));
-  const triggered = person && windowOk && !silenced;
+  // WHY !stale on both legs (audit 2026-11-11): the automation must not actuate from a feed the
+  // page itself labels stale — fire AND stop are suppressed, the siren stays on (safe direction).
+  const triggered = person && windowOk && !silenced && !stale;
 
   // The automatic siren: once per episode, unless already reported on. Unknown alarm state still
   // fires (safe direction). A ref latch keeps the command to one shot per episode.
@@ -89,13 +93,14 @@ export default function AiAlarmRow({ personCount, alarm, canControl, onCommand }
   // dropped feed during a real intrusion must leave the siren on. WHY skip when silenced: the
   // human already stopped it and the latch must survive until the next episode.
   useEffect(() => {
+    if (stale) return; // a stale zero is untrusted — keep the siren on
     if (personCount !== 0) return;
     if (firedEpisode.current !== episode) return;
     if (silencedEpisode === episode) return;
     if (stoppedEpisode.current === episode) return;
     stoppedEpisode.current = episode;
     onCommand("A0");
-  }, [personCount, episode, silencedEpisode, canControl, onCommand]);
+  }, [personCount, episode, silencedEpisode, canControl, onCommand, stale]);
 
   const silence = () => {
     setSilencedEpisode(episode);
